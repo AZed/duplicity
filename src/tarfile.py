@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.3
 #-------------------------------------------------------------------
 # tarfile.py
 #
@@ -10,7 +10,7 @@
 # for further details on how to use tarfile.
 #
 #-------------------------------------------------------------------
-# Copyright (C) 2002 Lars Gustäbel <lars@gustaebel.de>
+# Copyright (C) 2002 Lars Gustabel <lars@gustaebel.de>
 # All rights reserved.
 #
 # Permission  is  hereby granted,  free  of charge,  to  any person
@@ -37,13 +37,13 @@
 """Read from and write to tar format archives.
 """
 
-__version__ = "$Revision: 1.1 $"
+__version__ = "$Revision: 1.4 $"
 # $Source: /cvsroot/duplicity/duplicity/duplicity/tarfile.py,v $
 
 version     = "0.4.9"
-__author__  = "Lars Gustäbel (lars@gustaebel.de)"
-__date__    = "$Date: 2002/10/29 01:51:36 $"
-__cvsid__   = "$Id: tarfile.py,v 1.1 2002/10/29 01:51:36 bescoto Exp $"
+__author__  = "Lars Gustabel (lars@gustaebel.de)"
+__date__    = "$Date: 2003/08/10 01:05:17 $"
+__cvsid__   = "$Id: tarfile.py,v 1.4 2003/08/10 01:05:17 bescoto Exp $"
 __credits__ = "Gustavo Niemeyer for his support, " \
               "Detlef Lannert for some early contributions"
 
@@ -62,6 +62,8 @@ try:
     import grp, pwd
 except ImportError:
     grp = pwd = None
+# These are used later to cache user and group names and ids
+gname_dict = uname_dict = uid_dict = gid_dict = None
 
 # We won't need this anymore in Python 2.3
 #
@@ -357,15 +359,11 @@ class TarInfo:
         self.mtime = statres.st_mtime
         self.type  = type
         if pwd:
-            try:
-                self.uname = pwd.getpwuid(self.uid)[0]
-            except KeyError:
-                pass
+            try: self.uname = uid2uname(self.uid)
+            except KeyError: pass
         if grp:
-            try:
-                self.gname = grp.getgrgid(self.gid)[0]
-            except KeyError:
-                pass
+            try: self.gname = gid2gname(self.gid)
+            except KeyError: pass
 
         if type in (CHRTYPE, BLKTYPE):
             if hasattr(os, "major") and hasattr(os, "minor"):
@@ -982,20 +980,18 @@ class TarFile:
         """
         if pwd and os.geteuid() == 0:
             # We have to be root to do so.
-            try:
-                g = grp.getgrnam(tarinfo.gname)[2]
+            try: g = gname2gid(tarinfo.gname)
             except KeyError:
                 try:
-                    g = grp.getgrgid(tarinfo.gid)[2]
-                except KeyError:
-                    g = os.getgid()
-            try:
-                u = pwd.getpwnam(tarinfo.uname)[2]
+                    gid2gname(tarinfo.gid) # Make sure gid exists
+                    g = tarinfo.gid
+                except KeyError: g = os.getgid()
+            try: u = uname2uid(tarinfo.uname)
             except KeyError:
                 try:
-                    u = pwd.getpwuid(tarinfo.uid)[2]
-                except KeyError:
-                    u = os.getuid()
+                    uid2uname(tarinfo.uid) # Make sure uid exists
+                    u = tarinfo.uid
+                except KeyError: u = os.getuid()
             try:
                 if tarinfo.issym() and hasattr(os, "lchown"):
                     os.lchown(targetpath, u, g)
@@ -1087,18 +1083,16 @@ class TarFile:
         name = None
         linkname = None
         buf = self.fileobj.read(BLOCKSIZE)
-        if not buf:
-            return None
+        if not buf: return None
         self.offset += BLOCKSIZE
-        if type == GNUTYPE_LONGNAME:
-            name = nts(buf)
-        if type == GNUTYPE_LONGLINK:
-            linkname = nts(buf)
+        if type == GNUTYPE_LONGNAME: name = nts(buf)
+        if type == GNUTYPE_LONGLINK: linkname = nts(buf)
 
         buf = self.fileobj.read(BLOCKSIZE)
-        if not buf:
-            return None
+        if not buf: return None
         tarinfo = self._buftoinfo(buf)
+        if tarinfo.type in (GNUTYPE_LONGLINK, GNUTYPE_LONGNAME):
+            tarinfo = self._proc_gnulong(tarinfo, tarinfo.type)
         if name is not None:
             tarinfo.name = name
         if linkname is not None:
@@ -1654,3 +1648,43 @@ class TarFromIterator(TarFile):
         """Close file obj"""
         assert not self.closed
         self.closed = 1
+
+
+def uid2uname(uid):
+    """Return uname of uid, or raise KeyError if none"""
+    if uid_dict is None: set_pwd_dict()
+    return uid_dict[uid]
+
+def uname2uid(uname):
+    """Return uid of given uname, or raise KeyError if none"""
+    if uname_dict is None: set_pwd_dict()
+    return uname_dict[uname]
+
+def set_pwd_dict():
+    """Set global pwd caching dictionaries uid_dict and uname_dict"""
+    global uid_dict, uname_dict
+    assert uid_dict is None and uname_dict is None and pwd
+    uid_dict = {}; uname_dict = {}
+    for entry in pwd.getpwall():
+        uname = entry[0]; uid = entry[2]
+        uid_dict[uid] = uname
+        uname_dict[uname] = uid
+
+def gid2gname(gid):
+    """Return group name of gid, or raise KeyError if none"""
+    if gid_dict is None: set_grp_dict()
+    return gid_dict[gid]
+
+def gname2gid(gname):
+    """Return gid of given group name, or raise KeyError if none"""
+    if gname_dict is None: set_grp_dict()
+    return gname_dict[gname]
+
+def set_grp_dict():
+    global gid_dict, gname_dict
+    assert gid_dict is None and gname_dict is None and grp
+    gid_dict = {}; gname_dict = {}
+    for entry in grp.getgrall():
+        gname = entry[0]; gid = entry[2]
+        gid_dict[gid] = gname
+        gname_dict[gname] = gid

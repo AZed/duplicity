@@ -1,3 +1,46 @@
+New in v0.4.1 (2003/08/09)
+--------------------------
+
+Applied (version of) Helmut Schneider's patch to display file mod
+times with --list-current-files.
+
+Fixed bug found by Rob Browning handling symlinks with long names that
+have long names.
+
+Applied Stephen Isard's patch to fix exclude-globbing-filelist.
+
+Applied Sebastian Wilhelmi's patches to add rsync as a backend.
+
+To improve large file performance, signature block size is now based
+on file length.
+
+duplicity should now build with librsync 0.9.6.  Much thanks to
+Donovan Baarda for his work in this version of librsync.
+
+duplicity should work with Python 2.3 now.
+
+
+New in v0.4.0 (2002/11/30)
+--------------------------
+
+Changed restore procedure to download volumes from all backup sets
+simultaneously.
+
+Changed the verbosity level of some messages to 5, so level 4 is
+cleaner.
+
+Added --verify option, for checking whether a backup is up-to-date, or
+to see what has changed since that backup.
+
+GPG no longer needed: with --no-encryption option duplicity will write
+gzipped volumes.  The checksums of volumes will still be verified, but
+this will not stop a malicious attack because the manifest files can
+be easily updated.
+
+Earlier versions could crash when doing an incremental backup where no
+files had changed.
+
+
 New in v0.3.1 (2002/11/17)
 --------------------------
 

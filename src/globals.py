@@ -21,7 +21,7 @@
 import socket
 
 # The current version of duplicity
-version = "0.3.1"
+version = "0.4.1"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -85,3 +85,5 @@ force = None
 # be deleted.
 remove_time = None
 
+# If set to false, then do not encrypt files on remote system
+encryption = 1

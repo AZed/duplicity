@@ -1,0 +1,20 @@
+#!/bin/sh -e
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+PYTHON=$(readlink /usr/bin/python)
+DIR='/usr/lib/'$PYTHON'/site-packages/duplicity/'
+
+case "$1" in
+	configure|abort-upgrade|abort-remove|abort-deconfigure)
+		/usr/bin/$PYTHON -O /usr/lib/$PYTHON/compileall.py -q $DIR
+		/usr/bin/$PYTHON /usr/lib/$PYTHON/compileall.py -q $DIR
+	;;
+	*)
+		echo "postinst called with unknown argument \`$1'" >&2
+		exit 1
+	;;
+esac
+
+#DEBHELPER#

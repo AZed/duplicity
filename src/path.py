@@ -24,7 +24,7 @@ associates stat information with filenames
 """
 
 import stat, os, errno, pwd, grp, socket, time, re, gzip
-import librsync
+import librsync, log, dup_time
 from lazy import *
 
 _copy_blocksize = 64 * 1024
@@ -73,7 +73,8 @@ class ROPath:
 		self.mode = stat.S_IMODE(st_mode)
 		# The following can be replaced with major(), minor() macros
 		# in later versions of python (>= 2.3 I think)
-		self.devnums = (self.stat.st_rdev >> 8, self.stat.st_rdev & 0xff)
+		if self.type in ("chr", "blk"):
+			self.devnums = (self.stat.st_rdev >> 8, self.stat.st_rdev & 0xff)
 		
 	def blank(self):
 		"""Black out self - set type and stat to None"""
@@ -115,10 +116,18 @@ class ROPath:
 		"""Return length in bytes from stat object"""
 		return self.stat.st_size
 
+	def getmtime(self):
+		"""Return mod time of path in seconds"""
+		return self.stat.st_mtime
+
 	def get_relative_path(self):
 		"""Return relative path, created from index"""
 		if self.index: return "/".join(self.index)
 		else: return "."
+
+	def getperms(self):
+		"""Return permissions mode"""
+		return self.mode
 
 	def open(self, mode):
 		"""Return fileobj associated with self"""
@@ -173,13 +182,14 @@ class ROPath:
 		self.stat.st_mtime = tarinfo.mtime
 		self.stat.st_size = tarinfo.size
 
-	def get_rorpath(self):
-		"""Return rorpath copy of self"""
-		new_rorpath = ROPath(self.index, self.stat)
-		new_rorpath.type, new_rorpath.mode = self.type, self.mode
-		if self.issym(): new_rorpath.symtext = self.symtext
-		elif self.isdev(): new_rorpath.devnums = self.devnums
-		return new_rorpath
+	def get_ropath(self):
+		"""Return ropath copy of self"""
+		new_ropath = ROPath(self.index, self.stat)
+		new_ropath.type, new_ropath.mode = self.type, self.mode
+		if self.issym(): new_ropath.symtext = self.symtext
+		elif self.isdev(): new_ropath.devnums = self.devnums
+		if self.exists(): new_ropath.stat = self.stat
+		return new_ropath
 
 	def get_tarinfo(self):
 		"""Generate a tarfile.TarInfo object based on self
@@ -223,12 +233,11 @@ class ROPath:
 			try: ti.uname = pwd.getpwuid(ti.uid)[0]
 			except KeyError: pass
 			try: ti.gname = grp.getgrgid(ti.gid)[0]
-			except KeyError: pass			
+			except KeyError: pass
 
 			if ti.type in (tarfile.CHRTYPE, tarfile.BLKTYPE):
 				if hasattr(os, "major") and hasattr(os, "minor"):
-					ti.devmajor = os.major(self.stat.st_rdev)
-					ti.devminor = os.minor(self.stat.st_rdev)
+					ti.devmajor, ti.devminor = self.devnums
 		else:
 			# Currently we depend on an uninitiliazed tarinfo file to
 			# already have appropriate headers.  Still, might as well
@@ -244,7 +253,7 @@ class ROPath:
 		if self.type != other.type: return 0
 
 		if self.isreg() or self.isdir() or self.isfifo():
-			# Don't compare sizes, because we would be comparing
+			# Don't compare sizes, because we might be comparing
 			# signature size to size of file.
 			if not self.perms_equal(other): return 0
 			if self.stat.st_mtime == other.stat.st_mtime: return 1
@@ -257,6 +266,85 @@ class ROPath:
 		assert 0
 
 	def __ne__(self, other): return not self.__eq__(other)
+
+	def compare_verbose(self, other, include_data = 0):
+		"""Compare ROPaths like __eq__, but log reason if different
+
+		This is placed in a separate function from __eq__ because
+		__eq__ should be very time sensitive, and logging statements
+		would slow it down.  Used when verifying.
+
+		If include_data is true, also read all the data of regular
+		files and see if they differ.
+
+		"""
+		def log_diff(log_string):
+			log_str = "Difference found: " + log_string
+			log.Log(log_str % (self.get_relative_path(),), 4)
+
+		if not self.type and not other.type: return 1
+		if not self.stat and other.stat:
+			log_diff("New file %s")
+			return 0
+		if not other.stat and self.stat:
+			log_diff("File %s is missing")
+			return 0
+		if self.type != other.type:
+			log_diff("File %%s has type %s, expected %s" %
+					 (other.type, self.type))
+			return 0
+
+		if self.isreg() or self.isdir or self.isfifo():
+			if not self.perms_equal(other):
+				log_diff("File %%s has permissions %o, expected %o" %
+						 (other.getperms(), self.getperms()))
+				return 0
+			if (self.stat.st_mtime != other.stat.st_mtime and
+				(self.stat.st_mtime > 0 or other.stat.st_mtime > 0)):
+				log_diff("File %%s has mtime %s, expected %s" %
+						 (dup_time.timetopretty(other.stat.st_mtime),
+						  dup_time.timetopretty(self.stat.st_mtime)))
+				return 0
+			if self.isreg() and include_data:
+				if self.compare_data(other): return 1
+				else:
+					log_diff("Data for file %s is different")
+					return 0
+			else: return 1
+		elif self.issym():
+			if self.symtext == other.symtext: return 1
+			else:
+				log_diff("Symlink %%s points to %s, expected %s" %
+						 (other.symtext, self.symtext))
+				return 0
+		elif self.isdev():
+			if not self.perms_equal(other):
+				log_diff("File %%s has permissions %o, expected %o" %
+						 (other.getperms(), self.getperms()))
+				return 0
+			if self.devnums != other.devnums:
+				log_diff("Device file %%s has numbers %s, expected %s"
+						 % (other.devnums, self.devnums))
+				return 0
+			return 1
+		assert 0
+		
+	def compare_data(self, other):
+		"""Compare data from two regular files, return true if same"""
+		f1 = self.open("rb")
+		f2 = other.open("rb")
+		def close():
+			assert not f1.close()
+			assert not f2.close()
+		while 1:
+			buf1 = f1.read(_copy_blocksize)
+			buf2 = f2.read(_copy_blocksize)
+			if buf1 != buf2:
+				close()
+				return 0
+			if not buf1:
+				close()
+				return 1
 
 	def perms_equal(self, other):
 		"""True if self and other have same permissions and ownership"""
@@ -424,6 +512,11 @@ class Path(ROPath):
 		"""Like rename but destination may be on different file system"""
 		self.copy(new_path)
 		self.delete()
+
+	def chmod(self, mode):
+		"""Change permissions of the path"""
+		os.chmod(self.name, mode)
+		self.setdata()
 
 	def patch_with_attribs(self, diff_ropath):
 		"""Patch self with diff and then copy attributes over"""

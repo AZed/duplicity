@@ -1,0 +1,17 @@
+Source: duplicity
+Section: utils
+Priority: optional
+Maintainer: Martin Wuertele <maxx@debian.org>
+Build-Depends: debhelper (>= 4.1.16), python2.3-dev, librsync-dev (>=0.9.6)
+Standards-Version: 3.6.1
+
+Package: duplicity
+Architecture: any
+Depends: ${shlibs:Depends}, python2.3, gnupg, python-gnupginterface
+Description: encrypted bandwidth-efficient backup
+ Duplicity backs directories by producing encrypted tar-format volumes
+ and uploading them to a remote or local file server. Because duplicity
+ uses librsync, the incremental archives are space efficient and only
+ record the parts of files that have changed since the last backup.
+ Because duplicity uses GnuPG to encrypt and/or sign these archives, they
+ will be safe from spying and/or modification by the server.

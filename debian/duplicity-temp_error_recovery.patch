@@ -1,0 +1,34 @@
+--- src/backends.py.orig	2003-08-10 04:17:21.000000000 +0200
++++ src/backends.py	2004-09-06 11:16:23.000000000 +0200
+@@ -20,6 +20,7 @@
+ 
+ import os, types, ftplib, tempfile
+ import log, path, dup_temp, file_naming
++import time
+ 
+ class BackendException(Exception): pass
+ class ParsingException(Exception): pass
+@@ -316,8 +317,10 @@
+ 
+ class ftpBackend(Backend):
+ 	"""Connect to remote store using File Transfer Protocol"""
++	SLEEP = 10 # time in seconds before we try to reconnect on temporary errors
+ 	def __init__(self, parsed_url):
+ 		"""Create a new ftp backend object, log in to host"""
++		self.parsed_url = parsed_url
+ 		self.ftp = ftplib.FTP()
+ 		if parsed_url.port is None: self.error_wrap('connect', parsed_url.host)
+ 		else: self.error_wrap('connect', parsed_url.host, parsed_url.port)
+@@ -330,6 +333,12 @@
+ 	def error_wrap(self, command, *args):
+ 		"""Run self.ftp.command(*args), but raise BackendException on error"""
+ 		try: return ftplib.FTP.__dict__[command](self.ftp, *args)
++		except ftplib.error_temp, e:
++			log.Log("Temporary error '%s'. Trying to reconnect in %d seconds." %
++                                (str(e), self.SLEEP), 3)
++			time.sleep(self.SLEEP)
++			self.__init__(self.parsed_url)
++			self.error_wrap(command, *args)
+ 		except ftplib.all_errors, e: raise BackendException(e)
+ 
+ 	def get_password(self):
