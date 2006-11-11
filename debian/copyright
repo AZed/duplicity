@@ -3,13 +3,23 @@ Sat, 12 Apr 2003 17:06:27 +0200.
 
 It was downloaded from http://www.nongnu.org/duplicity/
 
-Upstream Author: Ben Escoto <bescoto@stanford.edu>
+Upstream Authors: 
+	Ben Escoto <bescoto@stanford.edu> (duplicity author)
+	Jiri Tyr <jiri.tyr@e-learning.vslib.cz> (sftp)
+	intrigeri <intrigeri@boum.org> (sftp-command)
+	Mathias Wagner <mathias.wagner@physik.tu-darmstadt.de> (compress)
+	Joey Hess <joeyh@debian.org> (bashishm)
+
 
 Copyright:
 
 duplicity:
 
-Copyright 2002, 2003 Ben Escoto <bescoto@stanford.edu>
+Copyright 2002, 2003, 2004, 2005, 2006 Ben Escoto <bescoto@stanford.edu>
+          2005 Jiri Tyr <jiri.tyr@e-learning.vslib.cz>
+	  2006 intrigeri <intrigeri@boum.org>
+	  2006 Mathias Wagner <mathias.wagner@physik.tu-darmstadt.de>
+	  2006 Joey Hess <joeyh@debian.org>
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software

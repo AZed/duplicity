@@ -1,0 +1,20 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## modules patch patch by Martin Wuertele <maxx@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Fix private modules import path
+
+@DPATCH@
+--- orig/duplicity	2006-08-27 00:33:30.300199795 +0200
++++ /tmp/mod/duplicity	2006-08-27 00:35:01.268120334 +0200
+@@ -25,8 +25,8 @@
+ # any suggestions.
+ 
+ from __future__ import generators
+-import getpass, gzip, os, sys, time, types
+-from duplicity import collections, commandline, diffdir, dup_temp, \
++import getpass, gzip, os, sys, time, types, \
++	 collections, commandline, diffdir, dup_temp, \
+ 	 dup_time, file_naming, globals, gpg, log, manifest, patchdir, \
+ 	 path, robust
+ 

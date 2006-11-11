@@ -1,0 +1,11 @@
+This version of duplicity contains the following patches:
+
+ - sftp-command by Jiri Tyr <jiri.tyr@e-learning.vslib.cz>
+   adds support for sftp
+ - compress by Mathias Wagner <mathias.wagner@physik.tu-darmstadt.de>
+   bzip2 compresses the backups
+
+
+TODO:
+ - amazonS3 by Brian Sutherland <jinty@web.de>
+   adds support to write backups to amazon S3

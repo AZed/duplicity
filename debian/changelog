@@ -1,3 +1,111 @@
+duplicity (0.4.2-10.1) unstable; urgency=medium
+
+  * Switch back to python 2.4, as python-central can apparently no longer cope
+    with 2.3, and 2.4 seems to work ok now; patch from Joey Hess.
+    (Closes: #396158)
+
+ -- Steinar H. Gunderson <sesse@debian.org>  Sat, 11 Nov 2006 13:32:07 +0100
+
+duplicity (0.4.2-10) unstable; urgency=low
+
+  * fix build target (Closes: #386933)
+
+ -- Martin Wuertele <maxx@debian.org>  Sat, 16 Sep 2006 10:22:28 +0200
+
+duplicity (0.4.2-9) unstable; urgency=low
+
+  * switched to python-central
+  * removed modules patch (no more needed)
+
+ -- Martin Wuertele <maxx@debian.org>  Sun, 10 Sep 2006 14:29:07 +0200
+
+duplicity (0.4.2-8) unstable; urgency=high
+
+  * depend on python2.3 fixing restore (Closes: #386607)
+
+ -- Martin Wuertele <maxx@debian.org>  Sat,  9 Sep 2006 11:10:48 +0200
+
+duplicity (0.4.2-7.1) unstable; urgency=high
+
+  * NMU
+  * Don't call dh_pysupport with -n; we need those generated manintainer
+    scripts to, well, work. Closes: #384489, #384826
+
+ -- Joey Hess <joeyh@debian.org>  Fri,  8 Sep 2006 01:41:52 -0400
+
+duplicity (0.4.2-7) unstable; urgency=low
+
+  * Fix arch so _librsync.so gets compiled (Closes: #385989)
+
+ -- Martin Wuertele <maxx@debian.org>  Mon,  4 Sep 2006 22:25:09 +0200
+
+duplicity (0.4.2-6) unstable; urgency=low
+
+  * switch to dpatch for patch management
+  * fix private module search path and make sure postint/postrm work 
+    (Closes: #384489)
+  * updated copyright
+
+ -- Martin Wuertele <maxx@debian.org>  Sat, 26 Aug 2006 23:25:57 +0200
+
+duplicity (0.4.2-5) unstable; urgency=low
+
+  * removed patches from debian-revision
+  * added README.Debian describing applied patches
+  * fix targets (Closes: #384570)
+
+ -- Martin Wuertele <maxx@debian.org>  Fri, 25 Aug 2006 17:39:09 +0200
+
+duplicity (0.4.2-4+sftp+compression) unstable; urgency=low
+
+  * temporary disable amazons3 patch
+  * don't pass /usr/share/python-support to dh_pysupport to fix
+    searchpath (Closes: #384489)
+
+ -- Martin Wuertele <maxx@debian.org>  Thu, 24 Aug 2006 19:55:40 +0200
+
+duplicity (0.4.2-3+sftp+amazons3+compression) unstable; urgency=low
+
+  * remove old byte compiled stuff in preinst (Closes: #384142)
+
+ -- Martin Wuertele <maxx@debian.org>  Tue, 22 Aug 2006 22:26:46 +0200
+
+duplicity (0.4.2-2+sftp+amazons3+compression.2) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Update package to the last python policy (Closes: #380784).
+
+ -- Pierre Habouzit <madcoder@debian.org>  Sat, 12 Aug 2006 23:20:21 +0200
+
+duplicity (0.4.2-2+sftp+amazons3+compression.1) unstable; urgency=low
+
+  * NMU
+  * Fix echo -e bashism. Closes: #375543
+
+ -- Joey Hess <joeyh@debian.org>  Wed,  5 Jul 2006 16:09:56 -0400
+
+duplicity (0.4.2-2+sftp+amazons3+compression) unstable; urgency=low
+
+  * changed build-depends from python2.3-dev to python-dev >= 2.3
+    (Closes: #367484)
+
+ -- Martin Wuertele <maxx@debian.org>  Thu, 18 May 2006 13:35:15 -0500
+
+duplicity (0.4.2-1+sftp+amazons3+compression) unstable; urgency=low
+
+  * new upstream release (Closes: #358519)
+    * fixes some scp/sftp problems
+    * understands ftp 450 (Closes: #238677)
+    * --remove-older-than makes sure duplicity deletes older signatures
+    * --remove-older-than now cannot delete the active backup chain
+      (Closes: #228386)
+  * added sftp patch by intrigeri <intrigeri@boum.org>
+  * added amazon s3 patch by Brian Sutherland <jinty@web.de>
+  * added compression patch by Mathias Wagner
+    <mathias.wagner@physik.tu-darmstadt.de>
+
+ -- Martin Wuertele <maxx@debian.org>  Mon, 15 May 2006 13:44:05 -0500
+
 duplicity (0.4.1-8) unstable; urgency=high
 
   * added patch to fix ftp timeout exception when backing up huge files with

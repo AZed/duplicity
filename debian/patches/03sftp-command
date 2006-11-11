@@ -1,0 +1,67 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## sftp-command patch by intrigeri <intrigeri@boum.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: add sftp command
+
+@DPATCH@
+===================================================================
+RCS file: /sources/duplicity/duplicity/duplicity/commandline.py,v
+retrieving revision 1.15
+retrieving revision 1.16
+diff -u -r1.15 -r1.16
+--- orig/src/commandline.py	2003/08/08 05:45:28	1.15
++++ mod/src/commandline.py	2006/04/30 22:56:39	1.16
+@@ -50,7 +50,7 @@
+ 		  "list-current-files", "no-encryption",
+ 		  "no-print-statistics", "null-separator",
+ 		  "remove-older-than=", "restore-dir=", "restore-time=",
+-		  "scp-command=", "short-filenames", "sign-key=",
++		  "scp-command=", "sftp-command=", "short-filenames", "sign-key=",
+ 		  "ssh-command=", "verbosity=", "verify", "version"])
+ 	except getopt.error, e:
+ 		command_line_error("%s" % (str(e),))
+@@ -95,6 +95,7 @@
+ 		elif opt == "-t" or opt == "--restore-time":
+ 			globals.restore_time = dup_time.genstrtotime(arg)
+ 		elif opt == "--scp-command": backends.scp_command = arg
++		elif opt == "--sftp-command": backends.sftp_command = arg
+ 		elif opt == "--short-filenames": globals.short_filenames = 1
+ 		elif opt == "--sign-key": set_sign_key(arg)
+ 		elif opt == "--ssh-command": backends.ssh_command = arg
+===================================================================
+RCS file: /sources/duplicity/duplicity/duplicity.1,v
+retrieving revision 1.17
+retrieving revision 1.18
+diff -u -r1.17 -r1.18
+--- orig/duplicity.1	2006/02/01 04:42:16	1.17
++++ mod/duplicity.1	2006/04/30 22:56:39	1.18
+@@ -271,6 +271,13 @@
+ give extra arguments to scp, for instance "--scp-command \'scp -i
+ foo\'".  The default is "scp".
+ .TP
++.BI "--sftp-command " command
++This option only matters when using the ssh/scp backend.  There 
++.I command
++will be used instead of sftp for listing and deleting files.  The
++default is "sftp".  For more information see
++.BR --scp-command .
++.TP
+ .BI "--sign-key " key
+ This option can be used when backing up or restoring.  When backing
+ up, all backup files will be signed with keyid
+@@ -280,14 +287,6 @@
+ .I key
+ should be an 8 character hex string, like AA0E73D2.
+ .TP
+-.BI "--ssh-command " command
+-Use
+-.I command
+-instead of "ssh" to execute commands on the remote side.  This only
+-matters when using the ssh/scp backend.  See
+-.B --scp-command
+-for more information.
+-.TP
+ .BI "--remove-older-than " time
+ Delete all backup sets older than the given time.  If old backup sets
+ will not be deleted if backup sets newer than

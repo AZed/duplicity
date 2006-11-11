@@ -1,0 +1,18 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## bzip2-compress patch by Mathias Wagner <mathias.wagner@physik.tu-darmstadt.de>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: bzip2 compress backups
+
+@DPATCH@
+--- orig/src/gpg.py	2006-05-15 14:06:05.000000000 -0500
++++ mod/src/gpg.py	2006-05-15 13:37:09.809960152 -0500
+@@ -165,6 +165,8 @@ def GPGWriteFile(block_iter, filename, p
+ 		gnupg = GnuPGInterface.GnuPG()
+ 		gnupg.options.meta_interactive = 0
+ 		gnupg.options.extra_args.append('--no-secmem-warning')
++		gnupg.options.extra_args.append('--compression-algo=bzip2')
++		gnupg.options.extra_args.append('--bzip2-compress-level=9')
+ 		gnupg.passphrase = passphrase
+ 		if profile.sign_key: gnupg.options.default_key = profile.sign_key
+ 		if log.verbosity < 5: # suppress gpg log messages if low verbosity

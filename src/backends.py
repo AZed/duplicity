@@ -257,6 +257,7 @@ class LocalBackend(Backend):
 # shell, so shouldn't have strange characters in them.
 ssh_command = "ssh"
 scp_command = "scp"
+sftp_command = "sftp"
 
 class scpBackend(Backend):
 	"""This backend copies files using scp.  List not supported"""
@@ -293,19 +294,20 @@ class scpBackend(Backend):
 		be distinguished from the file boundaries.
 
 		"""
-		commandline = ("%s %s ls %s" %
-					   (ssh_command, self.host_string, self.remote_dir))
-		return filter(lambda x: x, self.popen(commandline).split("\n"))
+		commandline = ("printf 'cd %s\nls -1' | %s -b - %s" %
+					   (self.remote_dir, sftp_command, self.host_string))
+		l = self.popen(commandline).split('\n')[2:] # omit sftp prompts
+		return filter(lambda x: x, l)
 
 	def delete(self, filename_list):
 		"""Runs ssh rm to delete files.  Files must not require quoting"""
 		assert len(filename_list) > 0
 		pathlist = map(lambda fn: self.remote_prefix + fn, filename_list)
-		del_prefix = "%s %s rm " % (ssh_command, self.host_string)
-
-		# Delete in groups of 10 to avoid overflowing command line
-		for i in range(0, len(pathlist), 10):
-			commandline = del_prefix + " ".join(pathlist[i:i+10])
+		del_prefix = "echo 'rm "
+		del_postfix = ("' | %s -b - %s 1>/dev/null" %
+					   (sftp_command, self.host_string))
+		for fn in filename_list:
+			commandline = del_prefix + self.remote_prefix + fn + del_postfix
 			self.run_command(commandline)
 
 
@@ -359,7 +361,11 @@ class ftpBackend(Backend):
 	def list(self):
 		"""List files in directory"""
 		log.Log("Listing files on FTP server", 5)
-		return self.error_wrap('nlst')
+		# Some ftp servers raise error 450 if the directory is empty
+		try: return self.error_wrap('nlst')
+		except BackendException, e:
+			if "450" in str(e): return []
+			raise
 
 	def delete(self, filename_list):
 		"""Delete files in filename_list"""

@@ -1,4 +1,4 @@
-.TH RDIFFDIR 1 "August 2003" "Version 0.4.1" "User Manuals"
+.TH RDIFFDIR 1 "February 2006" "Version 0.4.2" "User Manuals"
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
 .SH SYNOPSIS
@@ -17,7 +17,7 @@ duplicity \- Encrypted backup using rsync algorithm
 
 .B duplicity
 .BI [ options ]
-.B --list-current-files
+.B [--collection-status | --list-current-files]
 .I source_url
 
 .B duplicity
@@ -25,8 +25,7 @@ duplicity \- Encrypted backup using rsync algorithm
 .B --cleanup
 .I target_url
 
-.SH DESCRIPTION 
-Duplicity incrementally backs up files and directory
+.SH DESCRIPTION Duplicity incrementally backs up files and directory
 by encrypting tar-format volumes with GnuPG and uploading them to a
 remote (or local) file server.  In theory many remote backends are
 possible; right now local, ftp, ssh/scp, and rsync backends are
@@ -125,6 +124,10 @@ Delete the extraneous duplicity files on the given backend.
 Non-duplicity files, or files in complete data sets will not be
 deleted.  This should only be necessary after a duplicity session
 fails or is aborted prematurely.
+.TP
+.B --collection-status
+Summarize the status of the backup repository by printing the chains
+and sets found, and the number of volumes in each.
 .TP
 .BI "--encrypt-key " key
 When backing up, encrypt to the given public key, instead of using

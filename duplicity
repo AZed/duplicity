@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.4.1 released September 29, 2002
+# Version 0.4.2 released September 29, 2002
 #
 # Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -37,12 +37,15 @@ exit_val = None
 def get_passphrase():
 	"""Get passphrase from environment or, failing that, from user"""
 	try: return os.environ['PASSPHRASE']
-	except KeyError:
-		if globals.encryption:
-			log.Log("PASSPHRASE variable not set, asking user.", 5)
-			return getpass.getpass("GnuPG passphrase: ")
-		else: return "" # assume we don't need passphrase
+	except KeyError: pass
+	if not globals.encryption: return "" # assume we don't need passphrase
 
+	log.Log("PASSPHRASE variable not set, asking user.", 5)
+	while 1:
+		pass1 = getpass.getpass("GnuPG passphrase: ")
+		pass2 = getpass.getpass("Retype to confirm: ")
+		if pass1 == pass2: return pass1
+		print "First and second passphrases do not match!  Please try again."
 
 def write_multivol(backup_type, tarblock_iter, backend):
 	"""Encrypt volumes of tarblock_iter and write to backend
@@ -119,13 +122,18 @@ def get_sig_fileobj(sig_type):
 
 	"""
 	assert sig_type == "full-sig" or sig_type == "new-sig"
+
+	sig_filename = file_naming.get(sig_type, encrypted = globals.encryption,
+								   gzipped = not globals.encryption)
+	fh = globals.backend.get_fileobj_write(sig_filename)
+
+	# by MDR.  This was changed to use addfilehandle so we get both
+	# remote and local sig files
 	if globals.archive_dir:
-		sig_filename = file_naming.get(sig_type, gzipped = 1)
-		return dup_temp.get_fileobj_duppath(globals.archive_dir, sig_filename)
-	else:
-		sig_filename = file_naming.get(sig_type,
-			 encrypted = globals.encryption, gzipped = not globals.encryption)
-		return globals.backend.get_fileobj_write(sig_filename)
+		local_sig_filename = file_naming.get(sig_type, gzipped = 1)
+		fh.addfilehandle(dup_temp.get_fileobj_duppath(globals.archive_dir,
+													  local_sig_filename))
+	return fh
 
 def full_backup(col_stats):
 	"""Do full backup of directory to backend, using archive_dir"""
@@ -300,6 +308,12 @@ def remove_old(col_stats):
 				 "deleted because newer sets depend on them." %
 				 set_times_str(req_list))
 
+	if (col_stats.matched_chain_pair and
+		col_stats.matched_chain_pair[1].end_time < globals.remove_time):
+		log.Warn("Current active backup chain is older than specified time.\n"
+			 "However, it will not be deleted.  To remove all your backups,\n"
+				 "manually purge the repository.")
+
 	setlist = col_stats.get_older_than(globals.remove_time)
 	if not setlist:
 		log.Warn("No old backup sets found, nothing deleted.")
@@ -312,6 +326,7 @@ def remove_old(col_stats):
 					  set_times_str(setlist), 3)
 		setlist.reverse() # save oldest for last
 		for set in setlist: set.delete()
+		col_stats.set_values(sig_chain_warning = None).cleanup_signatures()
 	else:
 		if len(setlist) > 1:
 			log.Warn("Found old backup sets at the following times:")

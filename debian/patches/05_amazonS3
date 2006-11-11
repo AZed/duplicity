@@ -1,0 +1,34 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## amazonS3 patch by Brian Sutherland <jinty@web.de>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: add amazonS3 backend
+
+@DPATCH@
+===================================================================
+RCS file: /sources/duplicity/duplicity/duplicity.1,v
+retrieving revision 1.18
+retrieving revision 1.19
+diff -u -r1.18 -r1.19
+--- orig/duplicity.1	2006/04/30 22:56:39	1.18
++++ mod/duplicity.1	2006/04/30 23:43:01	1.19
+@@ -27,13 +27,12 @@
+ 
+ .SH DESCRIPTION Duplicity incrementally backs up files and directory
+ by encrypting tar-format volumes with GnuPG and uploading them to a
+-remote (or local) file server.  In theory many remote backends are
+-possible; right now local, ftp, ssh/scp, and rsync backends are
+-available.  Because duplicity uses librsync, the incremental archives
+-are space efficient and only record the parts of files that have
+-changed since the last backup.  Currently duplicity supports deleted
+-files, full unix permissions, directories, symbolic links, fifos,
+-etc., but not hard links.
++remote (or local) file server.  Currently local, ftp, ssh/scp, rsync,
++and Amazon S3 backends are available.  Because duplicity uses
++librsync, the incremental archives are space efficient and only record
++the parts of files that have changed since the last backup.  Currently
++duplicity supports deleted files, full unix permissions, directories,
++symbolic links, fifos, etc., but not hard links.
+ 
+ Duplicity will read the PASSPHRASE environment variable to find the
+ passphrase to give to GnuPG.  If this is not set, the user will be

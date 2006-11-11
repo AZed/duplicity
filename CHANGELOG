@@ -1,3 +1,31 @@
+New in v0.4.2 (2006/02/02)
+--------------------------
+
+Mathias de Riese's substantial patch or patches appear to have been
+applied to CVS years ago, but not released yet.  Sorry about that.
+
+Followed suggestion by David Rigel, make user type passphrase twice to
+confirm.
+
+Eric Hanchrow's patch makes sure duplicity deletes older signatures
+when using --remove-older-than.
+
+Jiri Taylor's patch may fix some scp/sftp problems.
+
+asdf's patch makes sure uids or gids over 2097151 don't corrupt the
+tarfiles.
+
+Cleaned up and documented --collection-status option, which lists the
+backup chains and sets found in the repository.
+
+FTP error 450 when listing a directory now understood to mean the
+directory is empty (duplicity will not exit with error).
+
+--remove-older-than now cannot delete the active backup chain, even if
+you specify a time later than the chain (e.g. "--remove-older-than
+now").
+
+
 New in v0.4.1 (2003/08/09)
 --------------------------
 
