@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -23,7 +23,7 @@ associates stat information with filenames
 
 """
 
-import stat, os, errno, pwd, grp, socket, time, re, gzip
+import stat, os, errno, socket, time, re, gzip
 import librsync, log, dup_time
 from lazy import *
 
@@ -118,7 +118,7 @@ class ROPath:
 
 	def getmtime(self):
 		"""Return mod time of path in seconds"""
-		return self.stat.st_mtime
+		return int(self.stat.st_mtime)
 
 	def get_relative_path(self):
 		"""Return relative path, created from index"""
@@ -174,12 +174,12 @@ class ROPath:
 		self.stat = StatResult()
 
 		# Set user and group id
-		try: self.stat.st_uid = pwd.getpwnam(tarinfo.uname)[2]
+		try: self.stat.st_uid = tarfile.uname2uid(tarinfo.uname)
 		except KeyError: self.stat.st_uid = tarinfo.uid
-		try: self.stat.st_gid = grp.getgrnam(tarinfo.gname)[2]
+		try: self.stat.st_gid = tarfile.gname2gid(tarinfo.gname)
 		except KeyError: self.stat.st_gid = tarinfo.gid
 
-		self.stat.st_mtime = tarinfo.mtime
+		self.stat.st_mtime = int(tarinfo.mtime)
 		self.stat.st_size = tarinfo.size
 
 	def get_ropath(self):
@@ -228,11 +228,11 @@ class ROPath:
 				log.Warn("Warning: %s has negative mtime, treating as 0."
 						 % (self.get_relative_path(),))
 				ti.mtime = 0
-			else: ti.mtime = self.stat.st_mtime
+			else: ti.mtime = int(self.stat.st_mtime)
 
-			try: ti.uname = pwd.getpwuid(ti.uid)[0]
+			try: ti.uname = tarfile.uid2uname(ti.uid)
 			except KeyError: pass
-			try: ti.gname = grp.getgrgid(ti.gid)[0]
+			try: ti.gname = tarfile.gid2gname(ti.gid)
 			except KeyError: pass
 
 			if ti.type in (tarfile.CHRTYPE, tarfile.BLKTYPE):
@@ -256,7 +256,7 @@ class ROPath:
 			# Don't compare sizes, because we might be comparing
 			# signature size to size of file.
 			if not self.perms_equal(other): return 0
-			if self.stat.st_mtime == other.stat.st_mtime: return 1
+			if int(self.stat.st_mtime) == int(other.stat.st_mtime): return 1
 			# Below, treat negative mtimes as equal to 0
 			return self.stat.st_mtime <= 0 and other.stat.st_mtime <= 0
 		elif self.issym(): # here only symtext matters
@@ -294,16 +294,16 @@ class ROPath:
 					 (other.type, self.type))
 			return 0
 
-		if self.isreg() or self.isdir or self.isfifo():
+		if self.isreg() or self.isdir() or self.isfifo():
 			if not self.perms_equal(other):
 				log_diff("File %%s has permissions %o, expected %o" %
 						 (other.getperms(), self.getperms()))
 				return 0
-			if (self.stat.st_mtime != other.stat.st_mtime and
+			if ((int(self.stat.st_mtime) != int(other.stat.st_mtime)) and
 				(self.stat.st_mtime > 0 or other.stat.st_mtime > 0)):
 				log_diff("File %%s has mtime %s, expected %s" %
-						 (dup_time.timetopretty(other.stat.st_mtime),
-						  dup_time.timetopretty(self.stat.st_mtime)))
+						 (dup_time.timetopretty(int(other.stat.st_mtime)),
+						  dup_time.timetopretty(int(self.stat.st_mtime))))
 				return 0
 			if self.isreg() and include_data:
 				if self.compare_data(other): return 1
@@ -379,7 +379,7 @@ class ROPath:
 			assert isinstance(other, ROPath)
 			stat = StatResult()
 			stat.st_uid, stat.st_gid = self.stat.st_uid, self.stat.st_gid
-			stat.st_mtime = self.stat.st_mtime
+			stat.st_mtime = int(self.stat.st_mtime)
 			other.stat = stat
 			other.mode = self.mode
 
@@ -458,7 +458,11 @@ class Path(ROPath):
 	def mkdir(self):
 		"""Make a directory at specified path"""
 		log.Log("Making directory %s" % (self.name,), 7)
-		os.mkdir(self.name)
+		try:
+			os.mkdir(self.name)
+		except OSError:
+			if (not globals.force):
+				raise PathException("Error creating directory %s" % (self.name,), 7)
 		self.setdata()
 
 	def delete(self):

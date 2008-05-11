@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+# Copyright (C) 2007 Francois Marier <francois@debian.org>
+#
+# This backup script is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of the
+# License, or (at your option) any later version.
+#
+# This script is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Email-Reminder; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+#
+# Usage:
+#   backup 					automatic backup
+#   backup --full				force a full backup
+#   backup --list-current-files			list of files currently backed up
+#   backup --file-to-restore directory/foo	restore the given file as "./restored_foo"
+#
+# Note that the following files should be in the same directory as this script:
+# 
+#   include		Files and directories to include in the backup (one per line)
+#   exclude		From the directories previously mentioned, which ones to omit
+#   id_rsa		Private ssh key for the backup host
+#   id_rsa.pub		Public ssh key for the backup host (copied there as .ssh/authorized_keys)
+#   known_hosts		Contains the fingerprints for the backup host
+
+# -----------START OF USER CONFIGURATION------------
+
+# HINT: Generate a good passphrase using "pwgen -s 16"
+GPG_PASSWORD="" 
+
+# The directory where this script and all the configuration files are located
+BACKUP_HOME="/home/my_username/.backup"
+
+# The name of the database to backup
+WIKIDB="wikidb"
+
+# The MySQL root password
+MYSQL_PASSWORD="mysql_root_password"
+
+# To limit the SCP transfers to a certain number of bytes per second
+SCP_LIMIT="520"
+
+# How many days to keep the old backups
+OLDAGE="9D"
+
+# Which host (using ssh) to copy the backup to
+SSH_HOST="username@some_host.somewhere.net"
+
+# -----------END OF USER CONFIGURATION------------
+
+# Internal variables
+SSH_IDENTITY="IdentityFile=$BACKUP_HOME/id_rsa"
+SSH_HOSTKEY="UserKnownHostsFile=$BACKUP_HOME/known_hosts"
+SSH="ssh -o $SSH_IDENTITY -o $SSH_HOSTKEY"
+SCP="scp -q -l $SCP_LIMIT -o $SSH_IDENTITY -o $SSH_HOSTKEY"
+SFTP="sftp -o $SSH_IDENTITY -o $SSH_HOSTKEY"
+INCLUDE_FILE="$BACKUP_HOME/include"
+EXCLUDE_FILE="$BACKUP_HOME/exclude"
+DUMP_FILE="$BACKUP_HOME/$WIKIDB-dump.sql"
+PKG_FILE="$BACKUP_HOME/dpkg-selections"
+
+# Create the backup directory in case it doesn't exist
+$SSH $SSH_HOST mkdir -p $HOSTNAME
+
+# If the list of files has been requested, only do that
+if [ "$1" = "--list-current-files" ]; then
+	SCP="scp -q -o $SSH_IDENTITY -o $SSH_HOSTKEY"
+	PASSPHRASE=$GPG_PASSWORD duplicity --list-current-files --ssh-command "$SSH" --scp-command "$SCP" --sftp-command "$SFTP" scp://$SSH_HOST/$HOSTNAME
+	exit 0
+
+# Restore the given file
+elif [ "$1" = "--file-to-restore" ]; then
+	if [ "$2" = "" ]; then
+		echo "You must specify a file to restore"
+		exit 2
+	fi
+	SCP="scp -q -o $SSH_IDENTITY -o $SSH_HOSTKEY"
+	PASSPHRASE=$GPG_PASSWORD duplicity --ssh-command "$SSH" --scp-command "$SCP" --sftp-command "$SFTP" --file-to-restore "$2" scp://$SSH_HOST/$HOSTNAME restored_`basename $2`
+	exit 0
+
+# Catch invalid arguments
+elif [ "$1" != "--full" -a "$1" != "" ]; then
+	echo "Invalid argument: $1"
+	exit 1
+fi
+
+# Delete files related to failed backups
+PASSPHRASE=$GPG_PASSWORD duplicity --cleanup --verbosity 1 --sftp-command "$SFTP" scp://$SSH_HOST/$HOSTNAME
+
+# Delete old expired backups
+PASSPHRASE=$GPG_PASSWORD duplicity --force --remove-older-than $OLDAGE --verbosity 1 --sftp-command "$SFTP" scp://$SSH_HOST/$HOSTNAME
+
+# Dump Wiki DB and list of Debian packages
+mysqldump --opt $WIKIDB -uroot -p$MYSQL_PASSWORD > $DUMP_FILE
+dpkg --get-selections > $PKG_FILE
+
+# Check whether a full backup was requested
+FULLBACKUP=""
+if [ "$1" = "--full" ]; then
+	FULLBACKUP="--full"
+fi
+
+# Do the actual backup using Duplicity
+PASSPHRASE=$GPG_PASSWORD duplicity $FULLBACKUP --no-print-statistics --remove-older-than $OLDAGE --verbosity 1 --exclude-device-files --include $PKG_FILE --include $DUMP_FILE --exclude-globbing-filelist $EXCLUDE_FILE --include-globbing-filelist $INCLUDE_FILE --exclude '**' --ssh-command "$SSH" --scp-command "$SCP" --sftp-command "$SFTP" / scp://$SSH_HOST/$HOSTNAME
+
+# Cleanup the temporary files
+rm -f $DUMP_FILE
+rm -f $PKG_FILE

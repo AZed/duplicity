@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -18,10 +18,10 @@
 
 """Store global configuration information"""
 
-import socket
+import socket, sys
 
 # The current version of duplicity
-version = "0.4.2"
+version = "0.4.11"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -58,6 +58,9 @@ gpg_profile = None
 # nulls instead of newlines.
 null_separator = None
 
+# number of retries on network operations
+num_retries = 5
+
 # Character used like the ":" in time strings like
 # 2002-08-06T04:22:00-07:00.  The colon isn't good for filenames on
 # windows machines.
@@ -77,6 +80,10 @@ print_statistics = 1
 # If set, use short (< 30 char) filenames for all the remote files.
 short_filenames = 0
 
+# If set, forces a full backup if the last full backup is older than
+# the time specified
+full_force_time = None
+
 # Used to confirm certain destructive operations like deleting old
 # files.
 force = None
@@ -85,5 +92,25 @@ force = None
 # be deleted.
 remove_time = None
 
+# If set, signifies the number of backups chains to keep when perfroming
+# a --remove-all-but-n-full.
+keep_chains = None
+
 # If set to false, then do not encrypt files on remote system
 encryption = 1
+
+# volume size. default 5M
+volsize = 5*1024*1024
+
+# Working directory for the tempfile module. Defaults to /tmp on most systems.
+temproot = None
+
+# network timeout value
+timeout = 30
+
+# FTP data connection type
+ftp_connection = 'passive'
+
+# Protocol for webdav
+webdav_proto = 'http'
+

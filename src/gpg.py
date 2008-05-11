@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -19,9 +19,12 @@
 """duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
 
 import select, os, sys, thread, sha, md5, types, cStringIO, tempfile, re, gzip
-import GnuPGInterface, misc, log
+import GnuPGInterface, misc, log, path
 
 blocksize = 256 * 1024
+
+# user options appended by --gpg-options
+gpg_options = ""
 
 class GPGError(Exception):
 	"""Indicate some GPG Error"""
@@ -41,14 +44,16 @@ class GPGProfile:
 
 		"""
 		assert passphrase is None or type(passphrase) is types.StringType
-		if sign_key: assert recipients # can only sign with asym encryption
+		if sign_key:
+			assert recipients # can only sign with asym encryption
 
 		self.passphrase = passphrase
 		self.sign_key = sign_key
 		if recipients is not None:
 			assert type(recipients) is types.ListType # must be list, not tuple
 			self.recipients = recipients
-		else: self.recipients = []
+		else:
+			self.recipients = []
 
 
 class GPGFile:
@@ -68,52 +73,72 @@ class GPGFile:
 		"""
 		self.status_fp = None # used to find signature
 		self.closed = None # set to true after file closed
-		if log.verbosity >= 5: # If verbosity low, suppress gpg log messages
+		if log.verbosity >= 5:
+			# If verbosity low, suppress gpg log messages
 			self.logger_fp = sys.stderr
-		else: self.logger_fp = tempfile.TemporaryFile()
+		else:
+			self.logger_fp = tempfile.TemporaryFile()
 		
 		# Start GPG process - copied from GnuPGInterface docstring.
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
 		gnupg.options.extra_args.append('--no-secmem-warning')
-		gnupg.passphrase = profile.passphrase
-		if profile.sign_key: gnupg.options.default_key = profile.sign_key
+		if gpg_options:
+			for opt in gpg_options.split():
+				gnupg.options.extra_args.append(opt)
+
+		if profile.sign_key:
+			gnupg.options.default_key = profile.sign_key
 
 		if encrypt:
 			if profile.recipients:
 				gnupg.options.recipients = profile.recipients
 				cmdlist = ['--encrypt']
-				if profile.sign_key: cmdlist.append("--sign")
-			else: cmdlist = ['--symmetric']
-			p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
+				if profile.sign_key:
+					cmdlist.append("--sign")
+			else:
+				cmdlist = ['--symmetric']
+				# use integrity protection
+				gnupg.options.extra_args.append('--force-mdc')
+			p1 = gnupg.run(cmdlist, create_fhs=['stdin', 'passphrase'],
 						   attach_fhs={'stdout': encrypt_path.open("wb"),
 									   'logger': self.logger_fp})
+			p1.handles['passphrase'].write(profile.passphrase)
+			p1.handles['passphrase'].close()
 			self.gpg_input = p1.handles['stdin']
 		else:
 			self.status_fp = tempfile.TemporaryFile()
-			p1 = gnupg.run(['--decrypt'], create_fhs=['stdout'],
+			p1 = gnupg.run(['--decrypt'], create_fhs=['stdout', 'passphrase'],
 						   attach_fhs={'stdin': encrypt_path.open("rb"),
 									   'status': self.status_fp,
 									   'logger': self.logger_fp})
+			p1.handles['passphrase'].write(profile.passphrase)
+			p1.handles['passphrase'].close()
 			self.gpg_output = p1.handles['stdout']
 		self.gpg_process = p1
 		self.encrypt = encrypt
 
-	def read(self, length = -1): return self.gpg_output.read(length)
-	def write(self, buf): return self.gpg_input.write(buf)
+	def read(self, length = -1):
+		return self.gpg_output.read(length)
+
+	def write(self, buf):
+		return self.gpg_input.write(buf)
 
 	def close(self):
 		if self.encrypt:
 			self.gpg_input.close()
-			if self.status_fp: self.set_signature()
+			if self.status_fp:
+				self.set_signature()
 			self.gpg_process.wait()
 		else:
 			while self.gpg_output.read(blocksize):
 				pass # discard remaining output to avoid GPG error
 			self.gpg_output.close()
-			if self.status_fp: self.set_signature()
+			if self.status_fp:
+				self.set_signature()
 			self.gpg_process.wait()
-		if self.logger_fp is not sys.stderr: self.logger_fp.close()
+		if self.logger_fp is not sys.stderr:
+			self.logger_fp.close()
 		self.closed = 1
 
 	def set_signature(self):
@@ -127,7 +152,8 @@ class GPGFile:
 		status_buf = self.status_fp.read()
 		match = re.search("^\\[GNUPG:\\] GOODSIG ([0-9A-F]*)",
 						  status_buf, re.M)
-		if not match: self.signature = None
+		if not match:
+			self.signature = None
 		else:
 			assert len(match.group(1)) >= 8
 			self.signature = match.group(1)[-8:]
@@ -159,28 +185,7 @@ def GPGWriteFile(block_iter, filename, profile,
 	Returns true if succeeded in writing until end of block_iter.
 
 	"""
-	logger_fp_list = [sys.stderr]
-	def start_gpg(filename, passphrase):
-		"""Start GPG process, return (process, to_gpg_fileobj)"""
-		gnupg = GnuPGInterface.GnuPG()
-		gnupg.options.meta_interactive = 0
-		gnupg.options.extra_args.append('--no-secmem-warning')
-		gnupg.passphrase = passphrase
-		if profile.sign_key: gnupg.options.default_key = profile.sign_key
-		if log.verbosity < 5: # suppress gpg log messages if low verbosity
-			logger_fp_list[0] = tempfile.TemporaryFile()
-		
-		if profile.recipients:
-			gnupg.options.recipients = profile.recipients
-			cmdlist = ['--encrypt']
-			if profile.sign_key: cmdlist.append("--sign")
-		else: cmdlist = ['--symmetric']
-		p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
-					   attach_fhs={'stdout': open(filename, "wb"),
-								   'logger': logger_fp_list[0]})
-		return (p1, p1.handles['stdin'])
-
-	def top_off(bytes, to_gpg_fp):
+	def top_off(bytes, file):
 		"""Add bytes of incompressible data to to_gpg_fp
 
 		In this case we take the incompressible data from the
@@ -189,36 +194,35 @@ def GPGWriteFile(block_iter, filename, profile,
 
 		"""
 		incompressible_fp = open(filename, "rb")
-		assert misc.copyfileobj(incompressible_fp, to_gpg_fp, bytes) == bytes
+		assert misc.copyfileobj(incompressible_fp, file.gpg_input, bytes) == bytes
 		incompressible_fp.close()
 
-	def get_current_size(): return os.stat(filename).st_size
-
-	def close_process(gpg_process, to_gpg_fp):
-		"""Close gpg process and clean up"""
-		to_gpg_fp.close()
-		gpg_process.wait()
-		if logger_fp_list[0] is not sys.stderr: logger_fp_list[0].close()
+	def get_current_size():
+		return os.stat(filename).st_size
 
 	minimum_block_size = 128 * 1024 # don't bother requesting blocks smaller
 	target_size = size - 50 * 1024 # fudge factor, compensate for gpg buffering
 	data_size = target_size - max_footer_size
-	gpg_process, to_gpg_fp = start_gpg(filename, profile.passphrase)
+	file = GPGFile(True, path.Path(filename), profile)
 	at_end_of_blockiter = 0
 	while 1:
 		bytes_to_go = data_size - get_current_size()
-		if bytes_to_go < minimum_block_size: break
-		try: data = block_iter.next(bytes_to_go).data
+		if bytes_to_go < minimum_block_size:
+			break
+		try:
+			data = block_iter.next(bytes_to_go).data
 		except StopIteration:
 			at_end_of_blockiter = 1
 			break
-		to_gpg_fp.write(data)
+		file.write(data)
 		
-	to_gpg_fp.write(block_iter.get_footer())
-	if not at_end_of_blockiter: # don't pad last volume
+	file.write(block_iter.get_footer())
+	if not at_end_of_blockiter:
+		# don't pad last volume
 		cursize = get_current_size()
-		if cursize < target_size: top_off(target_size - cursize, to_gpg_fp)
-	close_process(gpg_process, to_gpg_fp)
+		if cursize < target_size:
+			top_off(target_size - cursize, file)
+	file.close()
 	return at_end_of_blockiter
 
 def GzipWriteFile(block_iter, filename, size = 5 * 1024 * 1024,
@@ -243,15 +247,18 @@ def GzipWriteFile(block_iter, filename, size = 5 * 1024 * 1024,
 			result = self.fileobj.write(buf)
 			self.byte_count += len(buf)
 			return result
-		def close(self): return self.fileobj.close()
+		def close(self):
+			return self.fileobj.close()
 
 	file_counted = FileCounted(open(filename, "wb"))
 	gzip_file = gzip.GzipFile(None, "wb", 6, file_counted)
 	at_end_of_blockiter = 0
 	while 1:
 		bytes_to_go = size - file_counted.byte_count
-		if bytes_to_go < 32 * 1024: break
-		try: new_block = block_iter.next(bytes_to_go)
+		if bytes_to_go < 32 * 1024:
+			break
+		try:
+			new_block = block_iter.next(bytes_to_go)
 		except StopIteration:
 			at_end_of_blockiter = 1
 			break
@@ -270,14 +277,20 @@ def get_hash(hash, path, hex = 1):
 	"""
 	assert path.isreg()
 	fp = path.open("rb")
-	if hash == "SHA1": hash_obj = sha.new()
-	elif hash == "MD5": hash_obj = md5.new()
-	else: assert 0, "Unknown hash %s" % (hash,)
+	if hash == "SHA1":
+		hash_obj = sha.new()
+	elif hash == "MD5":
+		hash_obj = md5.new()
+	else:
+		assert 0, "Unknown hash %s" % (hash,)
 
 	while 1:
 		buf = fp.read(blocksize)
-		if not buf: break
+		if not buf:
+			break
 		hash_obj.update(buf)
 	assert not fp.close()
-	if hex: return hash_obj.hexdigest()
-	else: return hash_obj.digest()
+	if hex:
+		return hash_obj.hexdigest()
+	else:
+		return hash_obj.digest()

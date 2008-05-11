@@ -1,39 +1,65 @@
-.TH RDIFFDIR 1 "February 2006" "Version 0.4.2" "User Manuals"
+.TH RDIFFDIR 1 "May 2008" "Version 0.4.11" "User Manuals"
+
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
+
 .SH SYNOPSIS
 .B duplicity
 .BI [ options ]
-.I input_directory destination_url
+.I source_directory target_url
 
 .B duplicity
 .BI [ options ]
 .I source_url target_directory
 
-.B duplicity
+.B duplicity full
 .BI [ options ]
-.B --verify
-.I source_url filename
+.I source_directory target_url
 
-.B duplicity
+.B duplicity incremental
 .BI [ options ]
-.B [--collection-status | --list-current-files]
-.I source_url
+.I source_directory target_url
 
-.B duplicity
+.B duplicity restore
 .BI [ options ]
-.B --cleanup
+.I source_url target_directory
+
+.B duplicity verify
+.BI [ options ]
+.I source_url target_directory
+
+.B duplicity collection-status
+.BI [ options ]
 .I target_url
 
-.SH DESCRIPTION Duplicity incrementally backs up files and directory
+.B duplicity list-current-files
+.BI [ options ]
+.I target_url
+
+.B duplicity cleanup
+.BI [ options ]
+.I target_url
+
+.B duplicity remove-older-than
+.I time
+.BI [ options ]
+.I target_url
+
+.B duplicity remove-all-but-n-full
+.I count
+.BI [ options ]
+.I target_url
+
+.SH DESCRIPTION
+Duplicity incrementally backs up files and directory
 by encrypting tar-format volumes with GnuPG and uploading them to a
-remote (or local) file server.  In theory many remote backends are
-possible; right now local, ftp, ssh/scp, and rsync backends are
-available.  Because duplicity uses librsync, the incremental archives
-are space efficient and only record the parts of files that have
-changed since the last backup.  Currently duplicity supports deleted
-files, full unix permissions, directories, symbolic links, fifos,
-etc., but not hard links.
+remote (or local) file server.  Currently local, ftp, ssh/scp, rsync,
+WebDAV, WebDAVs, HSi and Amazon S3 backends are available.  
+Because duplicity uses
+librsync, the incremental archives are space efficient and only record
+the parts of files that have changed since the last backup.  Currently
+duplicity supports deleted files, full unix permissions, directories,
+symbolic links, fifos, etc., but not hard links.
 
 Duplicity will read the PASSPHRASE environment variable to find the
 passphrase to give to GnuPG.  If this is not set, the user will be
@@ -53,10 +79,11 @@ duplicity /home/me scp://uid@other.host/some_dir
 .RE
 If the above is run repeatedly, the first will be a full backup, and
 subsequent ones will be incremental.  To force a full backup, use the
---full option:
+.I full
+action:
 .PP
 .RS
-duplicity --full /home/me scp://uid@other.host/some_dir
+duplicity full /home/me scp://uid@other.host/some_dir
 .PP
 .RE
 Now suppose we accidentally delete /home/me and want to restore it
@@ -78,7 +105,7 @@ The following command compares the files we backed up, so see what has
 changed since then:
 .PP
 .RS
-duplicity --verify scp://uid@other.host/some_dir /home/me
+duplicity verify scp://uid@other.host/some_dir /home/me
 .PP
 .RE
 Finally, duplicity recognizes several include/exclude options.  For
@@ -104,7 +131,61 @@ given, the environment variable FTP_PASSWORD is read to determine the
 password:
 .PP
 .RS
-FTP_PASSWORD=mypassword duplicity /local/dir ftp://user@other.host/some_dir
+FTP_PASSWORD=mypassword; duplicity /local/dir ftp://user@other.host/some_dir
+
+.SH ACTIONS
+.TP
+.B cleanup
+Delete the extraneous duplicity files on the given backend.
+Non-duplicity files, or files in complete data sets will not be
+deleted.  This should only be necessary after a duplicity session
+fails or is aborted prematurely.
+.TP
+.B collection-status
+Summarize the status of the backup repository by printing the chains
+and sets found, and the number of volumes in each.
+.TP
+.B full
+Indicate full backup.  If this is set, perform full backup even if
+signatures are available.
+.TP
+.BR incr
+If this is requested an incremental backup will be performed.
+Duplicity will abort if old signatures cannot be
+found.  The default is to switch to full backup under these
+conditions.
+.TP
+.B list-current-files
+Lists the files currently backed up in the archive.  The information
+will be extracted from the signature files, not the archive data
+itself.  Thus the whole archive does not have to be downloaded, but on
+the other hand if the archive has been deleted or corrupted, this
+command may not detect it.
+.TP
+.BI "remove-older-than " time
+Delete all backup sets older than the given time.  If old backup sets
+will not be deleted if backup sets newer than
+.I time
+depend on them.  See the 
+.B TIME FORMATS
+section for more information.  Note, this action cannot be combined
+with backup or other actions, such as cleanup.
+.TP
+.BI "remove-all-but-n-full " count
+Delete all backups sets that are older than the count:th last full
+backup (in other words, keep the last
+.I count
+full backups and associated incremental sets).
+.I count
+must be larger than zero. A value of 1 means that only the single most
+recent backup chain will be kept.
+.TP
+.B verify
+Enter verify mode instead of restore.  If the --file-to-restore option
+is given, restrict verify to that file or directory.  duplicity will
+exit with a non-zero error level if any files are different.  On
+verbosity level 4 or higher, log a message for each file that has
+changed.
 
 .SH OPTIONS
 .TP
@@ -114,20 +195,14 @@ to back up different directories.  duplicity will tell you if you need
 this switch.
 .TP
 .BI "--archive-dir " path
-When restoring, specify the local archive directory.  This option is
-not necessary, but if hash data is found locally in
+When backing up or restoring, specify the local archive directory.  
+This option is not necessary, but if hash data is found locally in
 .I path
-it will be checked against remote files.
-.TP
-.B --cleanup
-Delete the extraneous duplicity files on the given backend.
-Non-duplicity files, or files in complete data sets will not be
-deleted.  This should only be necessary after a duplicity session
-fails or is aborted prematurely.
-.TP
-.B --collection-status
-Summarize the status of the backup repository by printing the chains
-and sets found, and the number of volumes in each.
+it will be used in preference to the remote hash data. Use of this
+option does not imply that the archive data is no longer stored
+in the backup destination, nor that the local archive directory
+need be kept safe. The local archive directory is a performance
+optimization only, and may safely be discarded at any time.
 .TP
 .BI "--encrypt-key " key
 When backing up, encrypt to the given public key, instead of using
@@ -147,7 +222,7 @@ reasons or if rdiff-backup is not handling device files correctly.
 .TP
 .BI "--exclude-filelist " filename
 Excludes the files listed in 
-.I filename
+.IR filename .
 See the
 .B FILE SELECTION
 section for more information.
@@ -187,18 +262,31 @@ to be restored instead of the entire contents of the backup archive.
 .I path
 should be given relative to the root of the directory backed up.
 .TP
-.BR -f ", " --full
-Indicate full backup.  If this is set, perform full backup even if
-signatures are available.
+.BI "--full-if-older-than " time
+Perform a full backup if an incremental backup is requested, but the
+latest full backup in the collection is older than the given 
+.IR time .
+See the 
+.B TIME FORMATS
+section for more information.
 .TP
 .B --force
 Proceed even if data loss might result.  Duplicity will let the user
 know when this option is required.
 .TP
-.BR -i ", " --incremental
-If this is set, duplicity will abort if old signatures cannot be
-found.  The default is to switch to full backup under these
-conditions.
+.B --ftp-passive
+Use passive (PASV) data connections.  The default is to use passive, 
+but to fallback to regular if the passive connection fails or times
+out.
+.TP
+.B --ftp-regular
+Use regular (PORT) data connections.
+.TP
+.BI "--gpg-options " options
+Allows you to pass options to gpg encryption.  The 
+.I options 
+list should be of the form "opt1=parm1 opt2=parm2" where the string is
+quoted and the only spaces allowed are between options.
 .TP
 .BI "--include " shell_pattern
 Similar to
@@ -240,13 +328,6 @@ will be included by this option.  See the
 .B FILE SELECTION
 section for more information.
 .TP
-.B --list-current-files
-Lists the files currently backed up in the archive.  The information
-will be extracted from the signature files, not the archive data
-itself.  Thus the whole archive does not have to be downloaded, but on
-the other hand if the archive has been deleted or corrupted, this
-command may not detect it.
-.TP
 .B --no-encryption
 Do not use GnuPG to encrypt files on remote system.  Instead just
 write gzipped volumes.
@@ -262,14 +343,26 @@ affects the expected format of the files specified by the
 --{include|exclude}-filelist[-stdin] switches as well as the format of
 the directory statistics file.
 .TP
+.BI "--num-retries " number
+Number of retries to make on errors before giving up.
+.TP
 .BI "--scp-command " command
-This option only matters when using the ssh/scp backend.  There
+This option only matters when using the ssh/scp backend.  The
 .I command
-will be used instead of scp to send or receive files.
+will be used instead of scp to send or receive files.  The default 
+is "scp". To list and delete existing files, the sftp command is used.  See
+.BR --ssh-options 
+and 
+.BR --sftp-command .
+.TP
+.BI "--sftp-command " command
+This option only matters when using the ssh/scp backend.  The 
 .I command
-must have the same syntax as scp.  This option can also be used to
-give extra arguments to scp, for instance "--scp-command \'scp -i
-foo\'".  The default is "scp".
+will be used instead of sftp for listing and deleting files.  The
+default is "sftp". File transfers are done using the scp command. See
+.BR --ssh-options 
+and 
+.BR --scp-command .
 .TP
 .BI "--sign-key " key
 This option can be used when backing up or restoring.  When backing
@@ -280,27 +373,39 @@ not signed with the given keyid.
 .I key
 should be an 8 character hex string, like AA0E73D2.
 .TP
-.BI "--ssh-command " command
-Use
-.I command
-instead of "ssh" to execute commands on the remote side.  This only
-matters when using the ssh/scp backend.  See
-.B --scp-command
-for more information.
+.B --ssh-askpass
+Tells the ssh/scp backend to use FTP_PASSWORD from the environment,
+or, if that is not present, to prompt the user for the remote system
+password.
 .TP
-.BI "--remove-older-than " time
-Delete all backup sets older than the given time.  If old backup sets
-will not be deleted if backup sets newer than
-.I time
-depend on them.  See the 
-.B TIME FORMATS
-section for more information.
+.BI "--ssh-options " options
+Allows you to pass options to the ssh/scp/sftp backend.  The 
+.I options 
+list should be of the form "opt1=parm1 opt2=parm2" where the option string is
+quoted and the only spaces allowed are between options. The option string 
+will be passed verbatim to both scp and sftp, whose command line syntax 
+differs slightly: options passed with 
+.BR --ssh-options
+should therefore be given in the long option format described in 
+.BR ssh_config(5) ,
+like in this example:
+.PP
+.RS
+duplicity --ssh-options="-oProtocol=2 -oIdentityFile=/my/backup/id" /home/me scp://uid@other.host/some_dir
+.PP
+.RE
+
 .TP
 .BI --short-filenames
 If this option is specified, the names of the files duplicity writes
 will be shorter (about 30 chars) but less understandable.  This may be
 useful when backing up to MacOS or another OS or FS that doesn't
 support long filenames.
+.TP
+.BI "--tempdir " directory
+Use this existing directory for duplicity temporary files instead of
+the system default, which is usually the /tmp directory. This option
+supercedes any environment variable.
 .TP
 .BI -t time ", --restore-time " time
 When restoring, specify the time to restore to.
@@ -309,13 +414,56 @@ When restoring, specify the time to restore to.
 Specify verbosity level (0 is total silent, 3 is the default, and 9 is
 noisiest).
 .TP
-.B --verify
-Enter verify mode instead of restore.  If the --file-to-restore option
-is given, restrict verify to that file or directory.  duplicity will
-exit with a non-zero error level if any files are different.  On
-verbosity level 4 or higher, log a message for each file that has
-changed.
+.BI "--volsize " number
+Change the volume size to 
+.IR number 
+Mb. Default is 5Mb.
 
+
+.SH URL FORMAT
+Duplicity tries to maintain a standard URL format as much as possible.
+The generic format for a URL is:
+.PP
+.RS
+scheme://user[:password]@host[:port]/[/]path
+.PP
+.RE
+It is not recommended to expose the password on the command line since
+it could be revealed to anyone with permissions to do process listings,
+however, it is permitted.
+.PP
+In protocols that support it, the path may be preceeded by a single 
+slash, '/path', to represent a relative path to the target home directory, 
+or preceeded by a double slash, '//path', to represent an absolute 
+filesystem path.
+.PP
+Formats of each of the URL schemes follow:
+.PP
+.RS
+ssh://user[:password]@other.host[:port]/some_dir
+.PP
+scp://user[:password]@other.host[:port]/some_dir
+.PP
+ftp://user[:password]@other.host[:port]/some_dir
+.PP
+hsi://user[:password]@other.host/some_dir
+.PP
+file:///some_dir
+.PP
+rsync://user[:password]@other.host[:port]::/module/some_dir
+.PP
+rsync://user[:password]@other.host[:port]/relative_path
+.PP
+rsync://user[:password]@other.host[:port]//absolute_path
+.PP
+s3://host/bucket_name[/prefix]
+.PP
+s3+http://bucket_name[/prefix]
+.PP
+webdav://user[:password]@other.host/some_dir
+.PP
+webdavs://user[:password]@other.host/some_dir
+.RE
 
 .SH TIME FORMATS
 duplicity uses time strings in two places.  Firstly, many of the files
@@ -338,7 +486,7 @@ seconds after the epoch)
 A string like "2002-01-25T07:00:00+02:00" in datetime format 
 .IP 4.
 An interval, which is a number followed by one of the characters s, m,
-h, D, W, M, or Y (indicating seconds, minutes, hourse, days, weeks,
+h, D, W, M, or Y (indicating seconds, minutes, hours, days, weeks,
 months, or years respectively), or a series of such pairs.  In this
 case the string refers to the time that preceded the current time by
 the length of the interval.  For instance, "1h78m" indicates the time
@@ -347,12 +495,11 @@ unsophisticated: a month is always 30 days, a year is always 365 days,
 and a day is always 86400 seconds.
 .IP 5.
 A date format of the form YYYY/MM/DD, YYYY-MM-DD, MM/DD/YYYY, or
-MM/DD/YYYY, which indicates midnight on the day in question, relative
+MM-DD-YYYY, which indicates midnight on the day in question, relative
 to the current timezone settings.  For instance, "2002/3/5",
 "03-05-2002", and "2002-3-05" all mean March 5th, 2002.
 
 .SH FILE SELECTION
-
 duplicity accepts the same file selection options
 .B rdiff-backup
 does, including --exclude, --exclude-filelist-stdin, etc.
@@ -662,8 +809,15 @@ and
 .B duplicity-new-signatures
 respectively.  If
 .B --archive-dir
-is used, these signatures will be stored locally only, which further
-saves bandwidth.
+is used, these signatures will be stored both locally and remotely.
+The remote signatures will be encrypted if encryption is enabled.
+The local signatures will not be encrypted
+
+.SH ENVIRONMENT VARIABLES
+.TP
+.B TMPDIR, TEMP, TMP
+In decreasing order of importance, specifies the directory to use for
+temporary files (inherited from Python's tempfile module).
 
 .SH BUGS
 Hard links currently unsupported (they will be treated as non-linked
@@ -673,7 +827,9 @@ Bad signatures will be treated as empty instead of logging appropriate
 error message.
 
 .SH AUTHOR
-Ben Escoto <bescoto@stanford.edu>
+Original Author - Ben Escoto <bescoto@stanford.edu>
+
+Current Maintainer - Kenneth Loafman <kenneth@loafman.com>
 
 .SH SEE ALSO
 .BR rdiffdir (1),

@@ -23,8 +23,7 @@ include /usr/share/dpatch/dpatch.make
 configure: configure-stamp
 configure-stamp:
 	dh_testdir
-	# Add here commands to configure the package.
-
+# Add here commands to configure the package.
 	touch configure-stamp
 
 
@@ -33,31 +32,19 @@ build: build-stamp
 build-stamp: patch configure-stamp 
 	dh_testdir
 
-	# patch first
-	#test -f build-patched || cat debian/patches/* | patch -l -p0
-	#touch build-patched
-
-	# Add here commands to compile the package.
-	#$(MAKE)
+# Add here commands to compile the package.
 	python setup.py build
-	rm -f
-	
 	touch build-stamp
-	
+
 clean: clean1 unpatch
 clean1:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp configure-stamp
 
-		# Add here commands to clean up after the build process.
-	#-$(MAKE) clean
+# Add here commands to clean up after the build process.
 	rm -rf *.pyc
 	rm -rf build
-
-	# unpatch
-	#-test -f build-patched && cat debian/patches/* | patch -R -p0 && rm build-patched
-
 	dh_clean
 
 install: build
@@ -66,18 +53,17 @@ install: build
 	dh_clean -k
 	dh_installdirs
 
-	# Add here commands to install the package into debian/duplicity.
+# Add here commands to install the package into debian/duplicity.
 	python setup.py install --prefix=$(PREFIX) --no-compile
 
-	# remove GnuPGInterface.py as we already have it in
-	# python-gnupginterface
-	rm -f $(PREFIX)/lib/python2.4/site-packages/duplicity/GnuPGInterface.py
+# remove GnuPGInterface.py as we already have it in
+# python-gnupginterface
+	rm -f $(PREFIX)/lib/python*/site-packages/duplicity/GnuPGInterface.py
 
-	# fix permission for tarfile.py
-	chmod 755 $(PREFIX)/lib/python2.4/site-packages/duplicity/tarfile.py
-	
-	# remove docs as we create them with debhelper
-	rm -rf $(PREFIX)/share/doc/duplicity-0.4.2
+# fix permission for tarfile.py
+	chmod 755 $(PREFIX)/lib/python*/site-packages/duplicity/tarfile.py
+# remove docs as we create them with debhelper
+	rm -rf $(PREFIX)/share/doc/duplicity-*
 
 
 # Build architecture-independent files here.
@@ -86,22 +72,11 @@ binary-indep: build install
 # Build architecture-dependent files here.
 binary-arch: build install
 	dh_pycentral
-	dh_python
 	dh_testdir
 	dh_testroot
-#	dh_installdebconf	
 	dh_installdocs
 	dh_installexamples
-#	dh_installmenu
-#	dh_installlogrotate
-#	dh_installemacsen
-#	dh_installpam
-#	dh_installmime
-#	dh_installinit
-#	dh_installcron
 	dh_installman
-#	dh_installinfo
-#	dh_undocumented
 	dh_installchangelogs CHANGELOG
 	dh_link
 	dh_strip
@@ -109,7 +84,6 @@ binary-arch: build install
 	dh_fixperms
 	dh_makeshlibs
 	dh_installdeb
-#	dh_perl
 	dh_shlibdeps
 	dh_gencontrol
 	dh_md5sums

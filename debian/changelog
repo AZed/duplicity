@@ -1,3 +1,152 @@
+duplicity (0.4.11-2) unstable; urgency=high
+
+  * rebuilt for testing's 2.5 python (closes: #480568)
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 11 May 2008 11:10:01 +1000
+
+duplicity (0.4.11-1) unstable; urgency=low
+
+  * New upstream release
+  * make duplicity accept s3 access credentials from boto config files
+    and not just the environment (closes: #480417)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 10 May 2008 11:17:39 +1000
+
+duplicity (0.4.10-2) unstable; urgency=low
+
+  * applied patch to work around newer python-boto behaviour
+    which can make existing S3 backups inaccessible. (closes: #475890)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 15 Apr 2008 12:46:32 +1000
+
+duplicity (0.4.10-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 31 Mar 2008 22:19:16 +1000
+
+duplicity (0.4.8-1) unstable; urgency=high
+
+  * New upstream release
+  * fixed backup data corruption for rsync backend
+
+ -- Alexander Zangerl <az@debian.org>  Fri, 21 Dec 2007 17:16:42 +1000
+
+duplicity (0.4.7-1) unstable; urgency=low
+
+  * New upstream release (closes: #452700)
+
+ -- Alexander Zangerl <az@debian.org>  Sat,  8 Dec 2007 10:29:26 +1000
+
+duplicity (0.4.3-6) unstable; urgency=low
+
+  * fixed some manpage typos (closes: #450881)
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 15 Nov 2007 12:21:48 +1000
+
+duplicity (0.4.3-5) unstable; urgency=low
+
+  * minor manpage improvements in response to #447538
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 24 Oct 2007 12:22:14 +1000
+
+duplicity (0.4.3-4) unstable; urgency=low
+
+  * applied Christoph Martin's patch to the ftp backend 
+    to make duplicity cooperate with etch's ncftp (closes: #444972)
+
+ -- Alexander Zangerl <az@debian.org>  Sat,  6 Oct 2007 20:02:43 +1000
+
+duplicity (0.4.3-3) unstable; urgency=medium
+
+  * reworked the "no passphrase" patch to properly cover 
+    symmetric encryption, where a passphrase is always needed 
+    (closes: #443803)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 25 Sep 2007 12:14:26 +1000
+
+duplicity (0.4.3-2) unstable; urgency=low
+
+  * now suggests ncftp (closes: #442834) and mentions that in NEWS.Debian
+    i have decided that Recommends: is too strong here, as ftp is a lousy
+    protocol which should be avoided as much as possible.
+  * applied upstream fix for leaking ftp passphrases via the commandline
+    (closes: #442840). the fix works only with ncftp version 3.2.1
+    and newer, which means etch is out.
+  * applied upstream patch for upstream-#21123, which fixes another 
+    ftp backend problem.
+  * finally fixed the superfluous passphrase dialogs
+  * tidied build process for easier integration into ubuntu, removing
+    some unnecessary python version dependencies
+  * applied upstream patch for upstream-#6211, restoring strict host key 
+    checks for the ssh backend.
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 19 Sep 2007 22:36:04 +1000
+
+duplicity (0.4.3-1) unstable; urgency=low
+
+  * New upstream release (closes: #439057)
+    this release closes a whole bunch of old and recent debian bugs
+    bzip2 is now optional (closes: #437694)
+    the manpage is mostly ok now (closes: #345172)
+    passphrase handling was overhauled (closes: #370198)
+    sockets are now cleanly ignored (closes: #246984)
+    commands are retried for temporary problems (closes: #346306)
+  * new S3 backend (closes: #384490)    
+    this requires python-boto, which is now listed as suggested
+  * updated dependencies with python-pexpect 
+  * unattended encrypted backups with archive dir work (closes: #369971, #404345)
+  * patch set reworked
+  * added local fix for offending/garbage files prohibiting 
+    further actions (closes: #228388)
+  * added local fix for better tempfile naming
+
+ -- Alexander Zangerl <az@debian.org>  Sat,  8 Sep 2007 20:09:26 +1000
+
+duplicity (0.4.2-16) unstable; urgency=low
+
+  * added example backup script (closes: #408749)
+  * re-added ftp-timeout-patch, which was lost somewhere around 0.4.2-6
+    and added pending ftp-mkdir-patch (closes: #413335)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 19 Jun 2007 12:38:43 +1000
+
+duplicity (0.4.2-15) unstable; urgency=low
+
+  * added --help option and usage message (closes: #345165)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 19 Jun 2007 12:09:21 +1000
+
+duplicity (0.4.2-14) unstable; urgency=high
+
+  * fixed bad patch sequence that broke sftp support (closes: #426819)
+
+ -- Alexander Zangerl <az@debian.org>  Fri,  1 Jun 2007 00:19:32 +1000
+
+duplicity (0.4.2-13) unstable; urgency=low
+
+  * added a --volsize option to allow user-specified volume chunks
+    instead of always splitting at 5Mb.
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 24 May 2007 22:48:52 +1000
+
+duplicity (0.4.2-12) unstable; urgency=low
+
+  * reworked the patch set
+  * added patch for archive-dir and incrementals (closes: #370206)
+  * added patch for encrypted unattended backups 
+    with archive-dir (closes: #369971)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 10 Apr 2007 14:28:13 +1000
+
+duplicity (0.4.2-11) unstable; urgency=low
+
+  * I'm adopting duplicity. Thanks to Martin Wuertele 
+    for his past work on duplicity! (closes: #418159)
+  * finetuned debhelper dependency
+    
+ -- Alexander Zangerl <az@debian.org>  Sun,  8 Apr 2007 17:40:30 +1000
+
 duplicity (0.4.2-10.1) unstable; urgency=medium
 
   * Switch back to python 2.4, as python-central can apparently no longer cope

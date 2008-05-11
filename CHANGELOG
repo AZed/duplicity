@@ -1,6 +1,564 @@
+New in v0.4.11 (2008/05/05)
+---------------------------
+Changes applied to allow duplicity to run under Python 2.3 again.
+
+patch #6485: Reinstate patch #6340 with a detailed explanation.
+https://savannah.nongnu.org/patch/index.php?6485
+
+bug #23066: ssh uris with given portnumbers are not handled correctly
+https://savannah.nongnu.org/bugs/index.php?23066
+
+
+New in v0.4.10 (2008/03/27)
+---------------------------
+bug #22728: FTP backend fails on empty directory
+https://savannah.nongnu.org/bugs/index.php?22728
+
+patch #6374: Duplicity --tempdir patch documentation.
+https://savannah.nongnu.org/patch/index.php?6374
+
+patch #6375: Duplicity reports the epoch for a nonexistant last full backup date
+https://savannah.nongnu.org/patch/index.php?6375
+
+patch #6380: add additional named logging levels
+https://savannah.nongnu.org/patch/index.php?6380
+
+patch #6389: Possible Fix for pagefile.sys on Win32 systems
+https://savannah.nongnu.org/patch/index.php?6389
+
+patch #6403: Restore by overwriting files/directories by using --force option
+https://savannah.nongnu.org/patch/index.php?6403
+
+patch #6449: add additional debug level logging
+https://savannah.nongnu.org/patch/index.php?6449
+
+patch #6453: handle absolute urls in webdav backend
+https://savannah.nongnu.org/patch/index.php?6453
+
+Fix problem where S3 prefix was prepended with 'd'.  This caused
+a failure in the regression tests.
+
+
+New in v0.4.9 (2008/01/04)
+--------------------------
+NOTE: URL format correction in rsync://.  The rsync backend
+now properly supports absolute and relative pathnames and 
+module access.  The formats are:
+    rsync://user@host::/module/some_dir
+    rsync://user@host/relative_path
+    rsync://user@host//absolute_path
+
+Fixed regression caused by changeover to new urlparse.py.
+bug #21475: FTP Usernames that contain '@' are not recognized
+https://savannah.nongnu.org/bugs/index.php?21475
+
+Added section URL FORMAT in the duplicity man page.
+
+Added 2nd patch to bug #21475 that forces all versions of
+Python to use the fixed urlparse.py.
+
+Fixed so that remove-older-than and remove-all-but-n-full
+will not request a GPG passphrase.
+
+Fixed issue with Pure-FTPd that would always return an empty
+directory listing and thus force a full backup every time.
+A side effect of the change is that we now only make one call
+to ncftpls to get the listing, thereby reducing the overhead
+on systems with a large number of backup files.
+
+bug #21896: Two problems with rsync under 0.4.8 + patch
+https://savannah.nongnu.org/bugs/index.php?21896
+
+bug #21909: Problematic typo in compare_verbose() method
+https://savannah.nongnu.org/bugs/index.php?21909
+
+patch #6354: S3 staight typo results in a bogus exception
+https://savannah.nongnu.org/patch/index.php?6354
+
+patch #6356: Command line option for the temporary directory root.
+https://savannah.nongnu.org/patch/index.php?6356
+
+patch #6357: Explicit restore action is missing from the command list,
+https://savannah.nongnu.org/patch/index.php?6357
+
+
+New in v0.4.8 (2007/12/15)
+--------------------------
+First pass at bringing unittest cases up to date.
+All unit tests are working, but more test cases need
+to be added to handle the new protocols, plus there is
+some print leakage even with logging turned off.
+
+Allow pexpect to force the close of the child on sftp
+calls.  We already do that with scp calls.  This cleans
+up that exception.
+
+bug #21751: rsync module urls do not work in 0.4.7
+https://savannah.nongnu.org/bugs/index.php?21751
+
+bug #21752: Boto backend needs version 0.9d or later
+https://savannah.nongnu.org/bugs/index.php?21752
+
+patch #6340: S3 short filename regression
+https://savannah.nongnu.org/patch/index.php?6340
+
+patch #6344: S3 bad bad key key handling
+http://savannah.nongnu.org/patch/index.php?6344
+
+
+New in v0.4.7 (2007/12/07)
+--------------------------
+Applied patch from Eric Hanchrow to fix logging error in
+botoBackend, and fix delete() in rsyncBackend.
+
+bug #21673: remove-all-but-n-full wrong arg usage
+https://savannah.nongnu.org/bugs/index.php?21673
+
+bug #21686: NcFTPGet 3.2.0 tempfile incompatibility
+https://savannah.nongnu.org/bugs/index.php?21686
+
+patch #6292: Amazon S3 bucket creation deferral
+https://savannah.nongnu.org/patch/index.php?6292
+
+patch #6293: left-over patch from remove-all-but-n-full
+https://savannah.nongnu.org/patch/index.php?6293
+
+patch #6296: Generic S3 url support for Duplicity 0.4.6
+https://savannah.nongnu.org/patch/index.php?6296
+
+patch #6298: URI unquoting patch for FTP backend
+https://savannah.nongnu.org/patch/index.php?6298
+
+patch #6299: re-design tempfile handling
+https://savannah.nongnu.org/patch/index.php?6299
+
+patch #6300: Standard library replacement for ParsedUrl class
+https://savannah.nongnu.org/patch/index.php?6300
+
+patch #6301: log sftp commands at verbosity 5
+https://savannah.nongnu.org/patch/index.php?6301
+
+
+New in v0.4.6 (2007/11/28)
+--------------------------
+https://savannah.nongnu.org/bugs/index.php?21508
+bug #21508: Change delete implementation of ftpBackend to 
+only send one "DELE" instead of multiple per delete.
+
+https://savannah.nongnu.org/bugs/index.php?21646
+bug #21646: --archive-dir causes delete of remote full
+sigs and orphaned sig files
+
+https://savannah.nongnu.org/bugs/index.php?21651
+bug #21651, add https support for webdav.
+
+https://savannah.nongnu.org/bugs/index.php?21657
+bug #21657: ncftpls fails to create dir in ver 0.4.5
+
+https://savannah.nongnu.org/patch/index.php?6284
+patch #6284: document TMPDIR and friends
+
+https://savannah.nongnu.org/patch/index.php?6284
+patch #6285: security fix: eliminate use of mktemp()
+
+https://savannah.nongnu.org/patch/index.php?6289
+patch #6289: Amazon S3 key prefix patch for Duplicity 0.4.5
+
+https://savannah.nongnu.org/patch/index.php?6291
+patch #6291: Alternative WebDAV HTTPS patch
+
+
+New in v0.4.5 (2007/11/26)
+--------------------------
+https://savannah.nongnu.org/bugs/index.php?21646
+Fix to handling of collections when --archive-dir is used.
+Prior to this, duplicity would write the full sig files to
+both local and remote, then delete the remote.  Now, it does
+not delete the remote full sigs.
+
+Applied the following patches from Peter Schuller
+patch #6279, add command 'remove-all-but-n-full'
+patch #6280, clarify --archive-dir option
+patch #6281, --help should print to stdout, not stderr
+patch #6282, collection-status: output in more consistent order
+
+
+New in v0.4.4 (2007/11/23)
+------------------------------
+All the changes in RC1 through RC4 plus:
+
+Changes to ftpBackend to use a temp login config file rather
+than putting the username and password on the command line.
+This requires the use of NcFTP 3.1.9 or later.
+
+Thanks to a patch from Greg Hewgill the Amazon S3 backend now
+uses --num-retries to retry IO repeatedly if needed.
+
+Changes to commandline processing to allow non-ambiguous short
+strings for commands, i.e. 'i', 'inc', 'incr' for 'incremental',
+'f' for 'full', etc..  A warning message is printed if the short
+command is not unique.  Note: this already works for options, so
+I just applied the same idea to commands.
+
+Applied a patch from Gregory Hartman to correct handling of DST
+in time calculations.  This affects backups made the night of
+a DST time switch.
+
+
+New in v0.4.4.RC4 (2007/10/26)
+------------------------------
+WARNING:  COMMAND LINE CHANGES ARE NOT BACKWARDS COMPATIBLE!
+There is a new command line syntax to separate actions and
+options.  Refer to the new man page for full details of the
+change.  The new syntax looks like:
+    duplicity [full|incr] [options] source_dir target_url
+    duplicity [restore] [options] source_url target_dir
+    duplicity verify [options] source_url target_dir
+    duplicity collection-status [options] target_url
+    duplicity list-current-files [options] target_url
+    duplicity cleanup [options] target_url
+    duplicity remove-older-than time [options] target_url
+
+Fixed issue in --time-separator where the current time string
+was being set prior to setting the separator, causing errors
+when trying to set the --time-separator for Windows systems.
+
+Fix so that file mtime is always compared in full seconds.
+
+Fix so that ftpBackend.delete() does not print file list.
+
+
+New in v0.4.4.RC3 (2007/10/02)
+------------------------------
+Patch from Olivier Croquette to add --full-if-older-than=<time>
+option to force a full backup at <time> rather than incremental.
+
+Patch from Stefan Hoth to add :port option in FTP.
+
+Patch from Mitchell Garnaat to get all keys from S3, rather
+than just the first 1000.
+
+Fix to sshBackend to version check for python-pexpect 2.1.
+
+Fix one case in ftpBackend where host string was used instead of
+url_string.  This only affected the creation of the target dir on
+the remote system, if it did not exist, and only if the user or
+port needed to be specified.
+
+
+New in v0.4.4.RC2 (2007/09/26)
+------------------------------
+Added --timeout <seconds> (default 30) to allow users to change
+duplicity's network timeout settings.
+
+Added --time-separator <char> to allow users to change the time 
+separator from ':' to another character that will work on their
+system.  HINT: For Windows SMB shares, use --time-separator='_'.
+NOTE: '-' is not valid as it conflicts with date separator.
+
+Add patch from Alexander Zangerl to suppress the GPG passphrase
+prompt when a passphrase is not needed.
+ - full and pubkey enc:  doesn't depend on old encrypted info
+ - inc and pubkey enc and archive-dir: need manifest and sigs,
+   which the archive dir contains unencrypted
+ - with encryption disabled
+ - listing files:  needs manifest, but the archive dir has that
+ - collection status:  only looks at a repository
+
+Add patch from Olivier Croquette to allow user@domain usernames,
+making ftp://user@domain@domain.com/path a valid URL.
+
+Added a bit of debug print to sshBackend for --verbosity=9.
+
+Changed usage message to separate options and commands.
+
+
+New in v0.4.4.RC1 (2007/09/19)
+------------------------------
+Patches applied from Debian
+DP: fix #228388: old/aborted/offending sig files prohibit further action
+DP: fixes manual page and usage msg for rsync url and --remove-older-than
+DP: make tempfiles with useful names
+DP: do not ask for a passphrase if none is required!
+
+https://savannah.nongnu.org/bugs/index.php?21123
+duplicity 0.4.3 ftpBackend did not find backup sets when there was 
+more than 20 files in directory.
+
+https://savannah.nongnu.org/patch/index.php?6212
+Large performance boost for large volume sizes.
+
+https://savannah.nongnu.org/patch/index.php?6211
+Restore strict host checking in sshBackend.
+
+https://savannah.nongnu.org/patch/index.php?6205
+Add option --librsync-dir for when its not found.
+
+
+New in v0.4.3 (2007/08/20)
+--------------------------
+All the changes in RC1 through RC12 plus:
+
+Move get_password() to Backend class to standardize.
+
+Fix problem with ftpBackend to create target directory 
+if needed.  Note: this creates only one level.
+
+Dropped ssh-command and added ssh-options to allow users
+to add options to the scp and sftp commmands.
+
+Removed use of tempfile.TemporaryFile().  This fixes the
+restore problem on Windows that was due to Python bug
+1776696 reported on Sourceforge.
+
+Fixed Debian Bug#437694: Make bzip2 compression optional.
+The default is not to do bzip2 compression.  To use bzip2
+add the following command line option:
+--gpg-options='--compress-algo=bzip2 --bzip2-compress-level=9'
+Note: do not add spaces in the string value.
+
+Fixed bug 20764 - unable to use port in ssh backend.
+https://savannah.nongnu.org/bugs/index.php?20764
+
+Remove ssh_command option, add ssh_options.  This adds
+options to the scp and sftp commands that are used by
+the ssh backend.
+
+Change ssh backend to send 'quit' instead of EOF when
+using sftp.  This allows it to run under cron as long
+as the password is supplied non-interactively. 
+
+Change ssh backend to not pass :port part of URL to
+scp or sftp.  We already supply -oPort=xx for port.
+
+
+New in v0.4.3.RC12 (2007/08/09)
+-------------------------------
+Fix index out of range in Bug 20730, triggered when there
+is only one incremental in the list.
+https://savannah.nongnu.org/bugs/index.php?20730
+
+Changed the file:, ftp:, and ssh: backends so that
+the target directory will be created at start.
+
+Changed the ftp: backend so that empty target dirs
+do not error out.
+
+
+New in v0.4.3.RC11 (2007/07/20)
+-------------------------------
+Duplicity is now covered under GPL version 3 (or later).
+
+Duplicity now correctly processes scp URL's of the form:
+  scp://user@host[:port]/
+where the directory spec is empty.  This fixes a bug where the
+user could not write into the home directory on the target.
+
+The SSH/SCP backend has had an overhaul.  It now requires the
+python-pexpect module.  Normally this can be obtained from your
+distro's repository, but if you want, you can download pexpect
+from http://pexpect.sourceforge.net.
+
+The SSH/SCP backend work was done to allow the user to use password
+authentication rather than public-key.  You may now enter a password,
+either through the FTP_PASSWORD environment variable, or at the
+console.  To activate this feature you will need to use the option
+--ssh-askpass on the command line.  The default is public-key, which 
+does *not* look for a password from either source.
+
+Various fixes to the man page for --ssh-askpass, --remove-older-than,
+and --archive-dir.
+
+
+New in v0.4.3.RC10 (2007/07/14)
+-------------------------------
+Add support for:
+  --ftp-passive,
+  --ftp-regular
+
+Removed -m option on FTP put command.  This means that the remote
+directory must exist prior to backup.
+
+Changed ftpBackend from -f option back to commandline.  Various
+versions of ncftp* interact differently when both -f and commandline
+options are supplied.
+
+The FTP password is munged in all log operations.
+
+Added logging of filenames in the bucket when -v9 is used on
+Amazon S3.
+
+
+New in v0.4.3.RC9 (2007/07/09)
+------------------------------
+Change to a max block size of 2048 bytes for rsync difference buffer.
+This may slow things down for truly large files, but will give much
+smaller deltas on files with numerous small changes, such as database
+files.
+
+New S3 backend, Boto, from Eric Evans, replaces bitBucket.  Boto can
+be obtained from http://code.google.com/p/boto/.  I did not make this
+a requirement for setup since its not in the normal repositories.
+
+New FTP backend from Thorsten Schnebeck that uses ncftp instead of
+Pythons ftplib.  This seems to be much more solid.  I added the -f
+option with a secure temp file to contain host, user, and password,
+rather than having them on the command line.  I also added the -m
+option to the put command to create the target directory and the -t
+option to make sure it times out if there is a network problem.
+
+The Backend class now contains a popen_persist function that acts like
+run_command_persist.  Both use the new num_retries global.
+
+Added a commandline option, '--num-retries=<int>', to set the number
+of retries.  The default is 5.
+
+
+New in v0.4.3.RC8 (2007/06/27)
+------------------------------
+Bug 20282 - Thomas Tuttle:
+An out of range index when checking past history in the backup
+sets caused a failure when trying to access later.
+
+Bug 20149 - dAniel hAhler:
+dAniel submitted a second patch for this for further cleanup.
+The new patch prefers the latest intact backup set.
+
+Bug 20039 - Andreas Schildbach: --and--
+Patch 6030 - Alexander Zangerl <az@debian.org>:
+Duplicity now uses bzip2 for compression.  This matches the way
+the Debian distribution handles it.  I'll think about adding an
+option to override later, if its needed.
+
+
+New in v0.4.3.RC7 (2007/06/19)
+------------------------------
+Bug 20179 - dAniel hAhler: 
+When errors cause login to fail in FTP, reset and try again.
+
+Patch 6015 -dAniel hAhler:
+Better display of traceback when ftpBackend errors out.
+
+Patch 6029 - Alexander Zangerl <az@debian.org>:
+http://bugs.debian.org/370206
+archive-dir together with incremental backup results in crash. the
+patch is simple, the code in 0.4.2 did attempt to access strings as
+objects.
+
+Patch 6031 - Alexander Zangerl <az@debian.org>:
+http://bugs.debian.org/369971
+there's some problems with unattended encrypted dumps, if the user
+doesn't want to hand duplicity the gpg passphrase and attempts to work
+around this by using a local archive dir.  the patch makes it look at
+a manifest in a local archive dir if gpg doesn't manage to decrypt a
+remote one (no surprise without a passphrase).
+
+Patch 6032 - Alexander Zangerl <az@debian.org>:
+a new feature patch: i've recently gotten annoyed with having
+gazillions of 5mb files and therefore added a --volsize option to
+allow the user setting the chunk size. the patch is simple and
+contains a manpage update as well.
+
+Patch 6033 - Alexander Zangerl <az@debian.org>:
+let's add a --help terse usage message and don't just direct the user
+to the manual. this should come handy if somebody needs to restore
+stuff without having the manual available.
+
+
+New in v0.4.3.RC6 (2007/06/13)
+------------------------------
+Bug 20149 - dAniel hAhler: When errors cause an incomplete backup set,
+flag the error with a message, rather than erroring out.  The user
+then knows to run --cleanup.
+
+Patch 5998 - Kuang-che Wu: Cache uid and gid lookup to speed
+operations.
+
+Patch 5993 - daacyy302@sneakemail.com: Make Amazon S3 backend 
+incrementally more robust for recovery.
+
+
+New in v0.4.3.RC5 (2007/06/04)
+------------------------------
+GnuPG fails when trying to access stdin on an empty passphrase.
+Changes allow empty passphrase on public-key encryption and now
+respond gracefully on empty passphrase for symmetric encryption.
+
+dAniel hAhler submitted a patch to change "Error initializing file
+foo" (log level 2), where foo was a socket, to "Skipping socket foo"
+(log level 7).  https://savannah.nongnu.org/patch/index.php?5985
+
+Change logging to flush after every write, unbuffering stdout and
+stderr, thus producing logs that are coherent.
+
+
+New in v0.4.3.RC4 (2007/06/02)
+------------------------------
+More fixes on FTP.  dAniel hAhler supplied a new patch for FTP that
+cleans up the error handling and reduces the retry time to zero on the
+first retry.
+
+
+New in v0.4.3.RC3 (2007/05/31)
+------------------------------
+Fixed connection problem in FTP where it was not quitting on
+connection reset and just logging in again.  This created many stale
+logins on the remote system.
+
+Changed attribution of a couple of patches to dAniel hAhler, who
+actually wrote the patches, not just found them.
+
+
+New in v0.4.3.RC2 (2007/05/30)
+------------------------------
+Fixed bug in tarfile.py that was causing ValueError exception.  Thanks
+to dAniel hAhler for the patch that fixed the problem.  Refer to:
+http://savannah.nongnu.org/bugs/index.php?19998
+
+
+New in v0.4.3.RC1 (2007/05/26)
+------------------------------
+Applied patches:
+  https://savannah.nongnu.org/patch/index.php?4486
+  https://savannah.nongnu.org/patch/index.php?5183
+  https://savannah.nongnu.org/patch/index.php?5185
+  https://savannah.nongnu.org/patch/index.php?5412
+  https://savannah.nongnu.org/patch/index.php?5413
+  https://savannah.nongnu.org/patch/index.php?5680
+  https://savannah.nongnu.org/patch/index.php?5681
+  https://savannah.nongnu.org/patch/index.php?5682
+  https://savannah.nongnu.org/patch/index.php?5794
+  https://savannah.nongnu.org/patch/index.php?5830
+
+Fixed bugs:
+  https://savannah.nongnu.org/bugs/index.php?2441
+  https://savannah.nongnu.org/bugs/index.php?16711
+
+ProFTPD resets the connection after returning 226 when NLSTing an 
+empty directory, so changed code to allow that exception.
+
+ftpBackend now asks for a password if FTP_PASSWORD does not exist.
+
+rsyncBackend was using full URL in the commandline and failing.
+It now uses only server:path/, leaving off rsync://.
+
+Added --sftp-command option, now that the scp backend uses sftp for
+listing and deleting files.
+
+Brian Sutherland has contributed a new backend for Amazon's S3 data
+storage service.
+
+Added some patches compiled by Andre Beckedorf:
+
+    Tolerate more errors when listing an ftp directory (errors
+    indicate an empty dir).
+
+    Retry ftp commands when upon temporary error.  (Thanks to to
+    Stefan Schimanski and dAniel hAhler for their patches.)
+
+
 New in v0.4.2 (2006/02/02)
 --------------------------
-
 Mathias de Riese's substantial patch or patches appear to have been
 applied to CVS years ago, but not released yet.  Sorry about that.
 
@@ -10,7 +568,7 @@ confirm.
 Eric Hanchrow's patch makes sure duplicity deletes older signatures
 when using --remove-older-than.
 
-Jiri Taylor's patch may fix some scp/sftp problems.
+Jiri Tyr's patch may fix some scp/sftp problems.
 
 asdf's patch makes sure uids or gids over 2097151 don't corrupt the
 tarfiles.
@@ -28,7 +586,6 @@ now").
 
 New in v0.4.1 (2003/08/09)
 --------------------------
-
 Applied (version of) Helmut Schneider's patch to display file mod
 times with --list-current-files.
 
@@ -50,7 +607,6 @@ duplicity should work with Python 2.3 now.
 
 New in v0.4.0 (2002/11/30)
 --------------------------
-
 Changed restore procedure to download volumes from all backup sets
 simultaneously.
 
@@ -71,7 +627,6 @@ files had changed.
 
 New in v0.3.1 (2002/11/17)
 --------------------------
-
 Now by default the most recent files get restored, not the oldest.
 You can get the old weird behavior by specifying --restore-time 1 (or
 any other very early time).
@@ -104,7 +659,6 @@ the new restore system planned for 0.4.0.
 
 New in v0.3.0 (2002/11/10)
 --------------------------
-
 Added ftp backend.  Now the remote repository can accessed by ftp and
 can be specified like "ftp://user@foo.bar/".
 
@@ -134,7 +688,6 @@ Mathieu Doidy for bug report.
 
 New in v0.2.1 (2002/10/31)
 --------------------------
-
 Security Fix:  Fixed bug where an rdiffdir patch containing a path
 with a '..' component could overwrite files in parent directory.
 
@@ -148,7 +701,6 @@ to Peter Ehrenberg for report.
 
 New in v0.2.0 (2002/09/29)
 --------------------------
-
 (Thanks to Peter Ehrenberg for his valuable suggestions on many of the
 below.)
 
@@ -183,7 +735,6 @@ with (-f/--full and -i/--incremental).
 
 New in v0.1.1 (2002/09/16)
 --------------------------
-
 Supports asymmetric encryption with GPG public keys using the
 --encrypt-key option.
 
@@ -201,5 +752,4 @@ partial restores would end with a spurious GnuPG error message.
 
 New in v0.1.0 (2002/08/26)
 --------------------------
-
 First real version.

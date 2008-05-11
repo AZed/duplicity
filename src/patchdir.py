@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -19,8 +19,7 @@
 """Functions for patching of directories"""
 
 from __future__ import generators
-import re, tempfile
-import tarfile, librsync, log, diffdir, misc
+import re, tarfile, librsync, log, diffdir, misc
 from path import *
 from lazy import *
 
@@ -408,7 +407,7 @@ def patch_seq2ropath(patch_seq):
 	for delta_ropath in patch_seq[1:]:
 		assert delta_ropath.difftype == "diff", delta_ropath.difftype
 		if not isinstance(current_file, file): # librsync needs true file
-			tempfp = tempfile.TemporaryFile()
+			tempfp = os.tmpfile()
 			misc.copyfileobj(current_file, tempfp)
 			assert not current_file.close()
 			tempfp.seek(0)
@@ -484,7 +483,7 @@ class ROPath_IterWriter(ITRBranch):
 				ropath.copy(new_path)
 
 		self.dir_new_path = self.base_path.new_index(index)
-		if self.dir_new_path.exists(): # base may exist, but nothing else
+		if self.dir_new_path.exists() and not globals.force: # base may exist, but nothing else
 			assert index == (), index
 		else: self.dir_new_path.mkdir()
 		self.dir_diff_ropath = ropath

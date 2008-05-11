@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -504,8 +504,9 @@ class DeltaTarBlockIter(TarBlockIter):
 
 	def get_data_block(self, fp, max_size):
 		"""Return pair (next data block, boolean last data block)"""
-		buf = fp.read(max_size)
-		if len(buf) < max_size:
+		read_size = min(64*1024, max_size)
+		buf = fp.read(read_size)
+		if len(buf) < read_size:
 			if fp.close(): raise DiffDirException("Error closing file")
 			return (buf, 1)
 		else: return (buf, None)
@@ -547,5 +548,4 @@ def get_block_size(file_len):
 	"""
 	if file_len < 1024000: return 512 # set minimum of 512 bytes
 	else: # Split file into about 2000 pieces, rounding to 512
-		return long((file_len/(2000*512))*512)
-
+		return min(long((file_len/(2000*512))*512), 2048)

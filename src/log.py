@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -26,8 +26,24 @@ termverbosity = 3
 def Log(s, verb_level):
 	"""Write s to stderr if verbosity level low enough"""
 	if verb_level <= termverbosity:
-		if verb_level <= 2: sys.stderr.write(s + "\n")
-		else: sys.stdout.write(s + "\n")
+		if verb_level <= 2:
+			sys.stderr.write(s + "\n")
+			sys.stderr.flush()
+		else:
+			sys.stdout.write(s + "\n")
+			sys.stdout.flush()
+
+def Debug(s):
+	"""Shortcut used for debug message (verbosity 9)."""
+	Log(s, 9)
+
+def Info(s):
+	"""Shortcut used for info messages (verbosity 5)."""
+	Log(s, 5)
+
+def Notice(s):
+	"""Shortcut used for notice messages (verbosity 3, the default)."""
+	Log(s, 3)
 
 def Warn(s):
 	"""Shortcut used for warning messages (verbosity 2)"""
@@ -36,6 +52,7 @@ def Warn(s):
 def FatalError(s):
 	"""Write fatal error message and exit"""
 	sys.stderr.write(s + "\n")
+	sys.stderr.flush()
 	sys.exit(1)
 
 def setverbosity(verb, termverb = None):

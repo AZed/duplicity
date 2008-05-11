@@ -1,0 +1,35 @@
+duplicity (0.4.8-1) unstable; urgency=low
+
+  * There was a major problem with the rsync backend
+    in version 0.4.7 (and upstream's 0.4.8). 
+
+    If you used these versions more than once,
+    YOUR BACKED-UP DATA WAS LOST!
+
+    This version fixes the problem. 
+      
+ -- Alexander Zangerl <az@debian.org>  Fri, 21 Dec 2007 17:31:52 +1000
+
+duplicity (0.4.7-1) unstable; urgency=low
+
+  * duplicity's command line format has changed with 0.4.4.
+    these changes are NOT BACKWARDS COMPATIBLE!
+    please refer to the duplicity(1) manpage for a detailed description.
+  
+  * old-style rsync urls with modules (and only with modules!)
+    must be written differently now, because the new url parser 
+    library is stricter than before (and because rsync's way
+    of saying "module please!" by ending the hostname with
+    a colon is not rfc-compliant).
+  
+    a url referring to module modname on bhost for versions < 0.4.7 
+    would have looked like
+  
+    	rsync://buser@bhost:/modname/somedir
+  
+    and now must be written as
+  
+    	rsync://buser@bhost::/modname/somedir
+    
+ -- Alexander Zangerl <az@debian.org>  Sat,  8 Dec 2007 10:32:59 +1000
+
