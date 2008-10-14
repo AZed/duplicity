@@ -1,4 +1,4 @@
-.TH RDIFFDIR 1 "May 2008" "Version 0.4.11" "User Manuals"
+.TH RDIFFDIR 1 "September 2008" "Version 0.5.02" "User Manuals"
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -131,7 +131,7 @@ given, the environment variable FTP_PASSWORD is read to determine the
 password:
 .PP
 .RS
-FTP_PASSWORD=mypassword; duplicity /local/dir ftp://user@other.host/some_dir
+FTP_PASSWORD=mypassword duplicity /local/dir ftp://user@other.host/some_dir
 
 .SH ACTIONS
 .TP
@@ -203,6 +203,16 @@ option does not imply that the archive data is no longer stored
 in the backup destination, nor that the local archive directory
 need be kept safe. The local archive directory is a performance
 optimization only, and may safely be discarded at any time.
+.TP
+.BI "--asynchronous-upload "
+(EXPERIMENTAL) Perform file uploads asynchronously in the background,
+with respect to volume creation. This means that duplicity can upload
+a volume while, at the same time, preparing the next volume for
+upload. The intended end-resuls is a faster backup, because the local
+CPU and your bandwidth can be more consistently utilized. Use of this
+option implies additional need for disk space in the temporary storage
+location; rather than needing to store only one volume at a time,
+enough storage space is required to store two volumes.
 .TP
 .BI "--encrypt-key " key
 When backing up, encrypt to the given public key, instead of using
@@ -282,6 +292,11 @@ out.
 .B --ftp-regular
 Use regular (PORT) data connections.
 .TP
+.BI "--gmail-mailbox " option
+Allows you to specifiy a different mailbox.  The default is 
+"[Gmail]/All Mail".
+Other languages may require a different mailbox than the default.
+.TP
 .BI "--gpg-options " options
 Allows you to pass options to gpg encryption.  The 
 .I options 
@@ -345,6 +360,20 @@ the directory statistics file.
 .TP
 .BI "--num-retries " number
 Number of retries to make on errors before giving up.
+.TP
+.BI "--s3-european-buckets"
+When using the Amazon S3 backend, create buckets in Europe instead of
+the default (requires
+.B --s3-use-new-style
+). Also see the
+.B EUROPEAN S3 BUCKETS
+section.
+.TP
+.BI "--s3-use-new-style"
+When operating on Amazon S3 buckets, use new-style subdomain bucket
+addressing. This is now the preferred method to access Amazon S3, but
+is not backwards compatible if your bucket name contains upper-case
+characters or other characters that are not valid in a hostname.
 .TP
 .BI "--scp-command " command
 This option only matters when using the ssh/scp backend.  The
@@ -410,9 +439,17 @@ supercedes any environment variable.
 .BI -t time ", --restore-time " time
 When restoring, specify the time to restore to.
 .TP
+.BI "--time-separator " char
+Use 
+.IR char
+as the time separator in filenames instead of colon (":").
+.TP
 .BI -v [0-9] ", --verbosity " [0-9]
 Specify verbosity level (0 is total silent, 3 is the default, and 9 is
 noisiest).
+.TP
+.BI --version
+Print duplicity's version and quit.
 .TP
 .BI "--volsize " number
 Change the volume size to 
@@ -445,6 +482,8 @@ ssh://user[:password]@other.host[:port]/some_dir
 scp://user[:password]@other.host[:port]/some_dir
 .PP
 ftp://user[:password]@other.host[:port]/some_dir
+.PP
+gmail://user[:password]@gmail.com[/from_address_prefix]
 .PP
 hsi://user[:password]@other.host/some_dir
 .PP
@@ -819,6 +858,54 @@ The local signatures will not be encrypted
 In decreasing order of importance, specifies the directory to use for
 temporary files (inherited from Python's tempfile module).
 
+.SH EUROPEAN S3 BUCKETS
+Amazon S3 provides the ability to choose the location of a bucket upon
+its creation. The purpose is to enable the user to choose a location
+which is better located network topologically relative to the user,
+because it may allow for faster data transfers.
+.PP
+duplicity will create a new bucket the first time a bucket access is
+attempted. At this point, the bucket will be created in Europe if
+.B --s3-european-buckets
+was given. For reasons having to do with how the Amazon S3 service
+works, this also requires the use of the
+.B --s3-use-new-style 
+option. This option turns on subdomain based bucket addressing in
+S3. The details are beyond the scope of this man page, but it is
+important to know that your bucket must not contain upper case letters
+or any other characters that are not valid parts of a
+hostname. Consequently, for reasons of backwards compatibility, use of
+subdomain based bucket addressing is not enabled by default.
+.PP
+Note that you will need to use
+.B --s3-use-new-style
+for all operations on European buckets; not just upon initial
+creation.
+.PP.
+You only need to use
+.B --s3-european-buckets
+upon initial creation, but you may may use it at all times for
+consistency.
+.PP
+Further note that when creating a new European bucket, it can take a
+while before the bucket is fully accessible. At the time of this
+writing it is unclear to what extent this is an expected feature of
+Amazon S3, but in practice you may experience timeouts, socket errors
+or HTTP errors when trying to upload files to your newly created
+bucket. Give it a few minutes and the bucket should function normally.
+.SH GMAIL
+A Gmail account can be used as a target for the upload.  The userid may
+be specified and the password will be requested.  The --volsize must remain
+less than 20 (meg) as that is the (current) maximum attachment size.
+.PP
+The 
+.B from_address_prefix
+may be specified (and probably should be). The text will be used as
+the "From" address in Gmail.  Then on a restore (or list) command
+the 
+.B from_address_prefix
+will distinguish between different backups.
+.PP
 .SH BUGS
 Hard links currently unsupported (they will be treated as non-linked
 regular files).

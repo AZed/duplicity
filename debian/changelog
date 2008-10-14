@@ -1,3 +1,22 @@
+duplicity (0.5.02-1) unstable; urgency=low
+
+  * New upstream release (closes: #502207)
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 15 Oct 2008 08:38:15 +1000
+
+duplicity (0.4.12-2) unstable; urgency=low
+
+  * applied upstream patch to repair --no-encryption option
+    (which wrongly requested a passphrase) (closes: #497071)
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 31 Aug 2008 12:24:40 +1000
+
+duplicity (0.4.12-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 21 Aug 2008 10:49:04 +1000
+
 duplicity (0.4.11-2) unstable; urgency=high
 
   * rebuilt for testing's 2.5 python (closes: #480568)

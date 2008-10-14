@@ -1,3 +1,82 @@
+New in v0.5.02 (2008/09/21)
+---------------------------
+- Add -h option for help
+
+- Change gpg logging so that logs are always collected.
+The log is printed in the case of gpg IO errors.  Also,
+verbosity level 5 or above (-v5) will print the logs.
+
+patch #6297: Add IMAP/s/gmail support
+https://savannah.nongnu.org/patch/index.php?6297
+
+bug #24260: backend.py missing re import
+https://savannah.nongnu.org/bugs/index.php?24260
+
+bug #24274: asyncscheduler.py missing sys import
+https://savannah.nongnu.org/bugs/index.php?24274
+
+
+New in v0.5.01 (2008/09/11)
+---------------------------
+bug #24234: Tabs Present In Source Files
+https://savannah.nongnu.org/bugs/index.php?24234
+
+bug #24223: WebDAV backend broken in 0.5.00
+https://savannah.nongnu.org/bugs/index.php?24223
+
+bug #24226: WebDAV Does Not Create Collection If Needed
+https://savannah.nongnu.org/bugs/index.php?24226
+
+
+New in v0.5.00 (2008/09/06)
+---------------------------
+Changes to unit tests:
+  - resolve circular imports after backend reorg
+  - resolve exception error import - now in errors.py
+  - remove need for temp2.tar to be in CVS repository
+
+bug #23988: scp destination fails if no username is specified
+https://savannah.nongnu.org/bugs/index.php?23988
+
+bug #23985: --no-encryption option does not work in 0.4.12
+https://savannah.nongnu.org/bugs/index.php?23985
+
+patch #6623: slightly augment tempdir cleanup logging
+https://savannah.nongnu.org/patch/index.php?6623
+
+patch #6596: re-organize backend module structure
+https://savannah.nongnu.org/patch/index.php?6596
+
+patch #6589: S3 european bucket support
+https://savannah.nongnu.org/patch/index.php?6589
+
+patch #6353: Concurrency for volume encryption and upload.
+https://savannah.nongnu.org/patch/index.php?6353
+
+
+New in v0.4.12 (2008/07/22)
+---------------------------
+Dan Muresan created a patch to minimize the number of password
+prompts.  To do so, it sometimes requests a password once without
+confirmation; if later it turns out that a full backup is needed,
+the user is prompted for confirmation.
+
+bug #23540: doc bug in man page (environment FTP_PASSWORD)
+https://savannah.nongnu.org/bugs/index.php?23540
+
+bug #23362: Documentation for --version, --time-separator <char>
+https://savannah.nongnu.org/bugs/index.php?23362
+
+bug #23283: interactive passphrase query is suboptimal
+https://savannah.nongnu.org/bugs/index.php?23283
+
+bug #23066 was not actually applied to 0.4.11.  Its here now.
+https://savannah.nongnu.org/bugs/index.php?23066
+
+bug #22826: regressions caused by boto 1.1c
+https://savannah.nongnu.org/bugs/index.php?22826
+
+
 New in v0.4.11 (2008/05/05)
 ---------------------------
 Changes applied to allow duplicity to run under Python 2.3 again.

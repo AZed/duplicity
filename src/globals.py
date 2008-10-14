@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.11"
+version = "0.5.02"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -113,4 +113,16 @@ ftp_connection = 'passive'
 
 # Protocol for webdav
 webdav_proto = 'http'
+  
+# Asynchronous put/get concurrency limit
+# (default of 0 disables asynchronicity).
+async_concurrency = 0
 
+# Whether to use "new-style" subdomain addressing for S3 buckets. Such
+# use is not backwards-compatible with upper-case buckets, or buckets
+# that are otherwise not expressable in a valid hostname.
+s3_use_new_style = False
+
+# Whether to create European buckets (sorry, hard-coded to only
+# support european for now).
+s3_european_buckets = False
