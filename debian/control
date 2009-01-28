@@ -3,11 +3,12 @@ Section: utils
 Priority: optional
 Maintainer: Alexander Zangerl <az@debian.org>
 Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev, python-central (>= 0.5), dpatch
-Standards-Version: 3.7.2
+Standards-Version: 3.8.0
 XS-Python-Version: all
 
 Package: duplicity
 Architecture: any
+Homepage: http://www.nongnu.org/duplicity/
 XB-Python-Version: ${python:Versions}
 Depends: ${shlibs:Depends}, ${python:Depends}, gnupg, python-gnupginterface, python-pexpect
 Suggests: python-boto, ncftp
@@ -18,3 +19,5 @@ Description: encrypted bandwidth-efficient backup
  record the parts of files that have changed since the last backup.
  Because duplicity uses GnuPG to encrypt and/or sign these archives, they
  will be safe from spying and/or modification by the server.
+ .
+ Homepage: http://www.nongnu.org/duplicity/

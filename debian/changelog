@@ -1,3 +1,10 @@
+duplicity (0.5.02-2) unstable; urgency=low
+
+  * lifted standards version
+  * added homepage to control (closes: #512798)
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 28 Jan 2009 11:59:57 +1000
+
 duplicity (0.5.02-1) unstable; urgency=low
 
   * New upstream release (closes: #502207)
