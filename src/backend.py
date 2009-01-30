@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -26,8 +28,10 @@ import socket
 import time
 import re
 import getpass
+import gettext
 
 import duplicity.dup_temp as dup_temp
+import duplicity.dup_threading as dup_threading
 import duplicity.file_naming as file_naming
 import duplicity.globals as globals
 import duplicity.log as log
@@ -88,19 +92,47 @@ def get_backend(url_string):
     else:
         return _backends[pu.scheme](pu)
 
-def ParsedUrl(url_string):
-    # These URL schemes have a backend with a notion of an RFC "network location".
-    # The 'file' and 's3+http' schemes should not be in this list.
-    # 'http' and 'https' are not actually used for duplicity backend urls, but are needed
-    # in order to properly support urls returned from some webdav servers. adding them here
-    # is a hack. we should instead not stomp on the url parsing module to begin with.
-    #
-    # todo: eliminate the need for backend specific hacking here completely.
-    urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs', 'http', 'https', 'gmail' ]
+_urlparser_initialized = False
+_urlparser_initialized_lock = dup_threading.threading_module().Lock()
 
-    # Do not transform or otherwise parse the URL path component.
-    urlparser.uses_query = []
-    urlparser.uses_fragment = []
+def _ensure_urlparser_initialized():
+    """
+    Ensure that the appropriate clobbering of variables in the
+    urlparser module has been done. In the future, the need for this
+    clobbering to begin with should preferably be eliminated.
+    """
+    def init():
+        global _urlparser_initialized
+
+        if not _urlparser_initialized:
+            # These URL schemes have a backend with a notion of an RFC "network location".
+            # The 'file' and 's3+http' schemes should not be in this list.
+            # 'http' and 'https' are not actually used for duplicity backend urls, but are needed
+            # in order to properly support urls returned from some webdav servers. adding them here
+            # is a hack. we should instead not stomp on the url parsing module to begin with.
+            #
+            # todo: eliminate the need for backend specific hacking here completely.
+            urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs', 'http', 'https', 'gmail' ]
+
+            # Do not transform or otherwise parse the URL path component.
+            urlparser.uses_query = []
+            urlparser.uses_fragment = []
+        
+            _urlparser_initialized = True
+    
+    dup_threading.with_lock(_urlparser_initialized_lock,
+                            init)
+
+def ParsedUrl(url_string):
+    """
+    Parse the given URL as a duplicity backend URL.
+
+    @return A parsed URL of the same form as that of the standard
+            urlparse.urlparse().
+
+    @raise InvalidBackendURL
+    """
+    _ensure_urlparser_initialized()
 
     pu = urlparser.urlparse(url_string)
 
@@ -211,7 +243,7 @@ class Backend:
         raise a BackendException.
         """
         private = self.munge_password(commandline)
-        log.Log("Running '%s'" % private, 5)
+        log.Log(_("Running '%s'") % private, 5)
         if os.system(commandline):
             raise BackendException("Error running '%s'" % private)
 
@@ -222,12 +254,19 @@ class Backend:
         """
         private = self.munge_password(commandline)
         for n in range(1, globals.num_retries+1):
-            log.Log("Running '%s' (attempt #%d)" % (private, n), 5)
+            log.Log(gettext.ngettext("Running '%s' (attempt #%d)",
+                                     "Running '%s' (attempt #%d)", n) %
+                                     (private, n), 5)
             if not os.system(commandline):
                 return
-            log.Log("Running '%s' failed (attempt #%d)" % (private, n), 1)
+            log.Log(gettext.ngettext("Running '%s' failed (attempt #%d)",
+                                     "Running '%s' failed (attempt #%d)", n) %
+                                     (private, n), 1)
             time.sleep(30)
-        log.Log("Giving up trying to execute '%s' after %d attempts" % (private, globals.num_retries), 1)
+        log.Log(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
+                                 "Giving up trying to execute '%s' after %d attempts",
+                                 globals.num_retries) % (private, globals.num_retries),
+                1)
         raise BackendException("Error running '%s'" % private)
 
     def popen(self, commandline):
@@ -236,7 +275,7 @@ class Backend:
         contents read from stdout) as a string.
         """
         private = self.munge_password(commandline)
-        log.Log("Reading results of '%s'" % private, 5)
+        log.Log(_("Reading results of '%s'") % private, 5)
         fout = os.popen(commandline)
         results = fout.read()
         if fout.close():
@@ -250,7 +289,7 @@ class Backend:
         """
         private = self.munge_password(commandline)
         for n in range(1, globals.num_retries+1):
-            log.Log("Reading results of '%s'" % private, 5)
+            log.Log(_("Reading results of '%s'") % private, 5)
             fout = os.popen(commandline)
             results = fout.read()
             result_status = fout.close()
@@ -260,9 +299,14 @@ class Backend:
                 # This squelches the "file not found" result fromm ncftpls when
                 # the ftp backend looks for a collection that does not exist.
                 return ''
-            log.Log("Running '%s' failed (attempt #%d)" % (private, n), 1)
+            log.Log(gettext.ngettext("Running '%s' failed (attempt #%d)",
+                                     "Running '%s' failed (attempt #%d)", n) %
+                                     (private, n), 1)
             time.sleep(30)
-        log.Log("Giving up trying to execute '%s' after %d attempts" % (private, globals.num_retries), 1)
+        log.Log(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
+                                 "Giving up trying to execute '%s' after %d attempts",
+                                 globals.num_retries) % (private, globals.num_retries),
+                1)
         raise BackendException("Error running '%s'" % private)
 
     def get_fileobj_read(self, filename, parseresults = None):

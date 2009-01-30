@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -40,12 +42,20 @@ class FTPBackend(duplicity.backend.Backend):
             pass
         # the expected error is 8 in the high-byte and some output
         if ret != 0x0800 or not fout:
-            log.FatalError("NcFTP not found:  Please install NcFTP version 3.1.9 or later")
+            log.FatalError("NcFTP not found:  Please install NcFTP version 3.1.9 or later",
+                           log.ErrorCode.ftp_ncftp_missing)
 
         # version is the second word of the first line
         version = fout.split('\n')[0].split()[1]
         if version < "3.1.9":
-            log.FatalError("NcFTP too old:  Duplicity requires NcFTP version 3.1.9 or later")
+            log.FatalError("NcFTP too old:  Duplicity requires NcFTP version 3.1.9,"
+                           "3.2.1 or later.  Version 3.2.0 will not work properly.",
+                           log.ErrorCode.ftp_ncftp_too_old)
+        elif version == "3.2.0":
+            log.FatalError("NcFTP (ncftpput) version 3.2.0 is not usable by duplicity.\n"
+                           "see: http://www.ncftpd.com/ncftp/doc/changelog.html\n"
+                           "Please upgrade to 3.2.1 or later",
+                           log.ErrorCode.ftp_ncftp_v320)
         log.Log("NcFTP version is %s" % version, 4)
 
         self.parsed_url = parsed_url
@@ -68,7 +78,7 @@ class FTPBackend(duplicity.backend.Backend):
         os.write(self.tempfile, "user %s\n" % self.parsed_url.username)
         os.write(self.tempfile, "pass %s\n" % self.password)
         os.close(self.tempfile)
-        self.flags = "-f %s %s -t %s" % \
+        self.flags = "-f %s %s -t %s -o useCLNT=0,useHELP_SITE=0 " % \
             (self.tempname, self.conn_opt, globals.timeout)
         if parsed_url.port != None and parsed_url.port != 21:
             self.flags += " -P '%s'" % (parsed_url.port)

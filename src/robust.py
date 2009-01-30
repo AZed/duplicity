@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -38,7 +40,8 @@ def check_common_error(error_handler, function, args = ()):
     #   TracebackArchive.add()
     except (EnvironmentError, librsync.librsyncError, path.PathException), exc:
         if (not isinstance(exc, EnvironmentError) or
-            (errno.errorcode[exc[0]] in
+            ((exc[0] in errno.errorcode)
+             and errno.errorcode[exc[0]] in
              ['EPERM', 'ENOENT', 'EACCES', 'EBUSY', 'EEXIST',
               'ENOTDIR', 'ENAMETOOLONG', 'EINTR', 'ENOTEMPTY',
               'EIO', 'ETXTBSY', 'ESRCH', 'EINVAL'])):
@@ -51,7 +54,7 @@ def check_common_error(error_handler, function, args = ()):
 def listpath(path):
     """Like path.listdir() but return [] if error, and sort results"""
     def error_handler(exc):
-        log.Log("Error listing directory %s" % path.name, 2)
+        log.Log(_("Error listing directory %s") % path.name, 2)
         return []
     dir_listing = check_common_error(error_handler, path.listdir)
     dir_listing.sort()

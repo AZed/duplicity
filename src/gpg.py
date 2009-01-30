@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -18,8 +20,15 @@
 
 """duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
 
-import select, os, sys, thread, sha, md5, types, cStringIO, tempfile, re, gzip
+import select, os, sys, thread, types, cStringIO, tempfile, re, gzip
 import GnuPGInterface, misc, log
+
+try:
+    from hashlib import sha1
+    from hashlib import md5
+except ImportError:
+    from sha import new as sha1
+    from md5 import new as md5
 
 blocksize = 256 * 1024
 
@@ -76,7 +85,7 @@ class GPGFile:
         self.status_fp = None # used to find signature
         self.closed = None # set to true after file closed
         self.logger_fp = tempfile.TemporaryFile()
-        
+
         # Start GPG process - copied from GnuPGInterface docstring.
         gnupg = GnuPGInterface.GnuPG()
         gnupg.options.meta_interactive = 0
@@ -149,8 +158,12 @@ class GPGFile:
             self.gpg_output.close()
             if self.status_fp:
                 self.set_signature()
-            self.gpg_process.wait()
-        if log.verbosity >= 5:
+            try:
+                self.gpg_process.wait()
+            except IOError, message:
+                if message.args[0] != "GnuPG exited non-zero, with code 131072":
+                    raise
+        if log.getverbosity() >= 5:
             self.print_log()
         self.logger_fp.close()
         self.closed = 1
@@ -233,7 +246,7 @@ def GPGWriteFile(block_iter, filename, profile,
             at_end_of_blockiter = 1
             break
         file.write(data)
-        
+
     file.write(block_iter.get_footer())
     if not at_end_of_blockiter:
         # don't pad last volume
@@ -297,9 +310,9 @@ def get_hash(hash, path, hex = 1):
     assert path.isreg()
     fp = path.open("rb")
     if hash == "SHA1":
-        hash_obj = sha.new()
+        hash_obj = sha1()
     elif hash == "MD5":
-        hash_obj = md5.new()
+        hash_obj = md5()
     else:
         assert 0, "Unknown hash %s" % (hash,)
 
