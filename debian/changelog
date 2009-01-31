@@ -1,3 +1,9 @@
+duplicity (0.5.06-2) unstable; urgency=low
+
+  * applied most recent upstream fixes 
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 31 Jan 2009 14:31:17 +1000
+
 duplicity (0.5.06-1) unstable; urgency=low
 
   * New upstream release
