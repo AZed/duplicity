@@ -1,6 +1,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
@@ -36,7 +37,8 @@ from duplicity import selection
 # Also import the sshbackend module specifically because we stomp on
 # its options.
 import duplicity.backends.sshbackend as sshbackend
-import duplicity.backends.gmailimapbackend as gmailimapbackend
+import duplicity.backends.imapbackend as imapbackend
+
 
 select_opts = [] # Will hold all the selection options
 select_files = [] # Will hold file objects when filelist given
@@ -75,9 +77,10 @@ options = ["allow-source-mismatch",
            "ftp-passive",
            "ftp-regular",
            "full-if-older-than=",
-           "gmail-mailbox=",
            "gpg-options=",
            "help",
+           "imap-full-address",
+           "imap-mailbox=",
            "include=",
            "include-filelist=",
            "include-filelist-stdin",
@@ -89,6 +92,7 @@ options = ["allow-source-mismatch",
            "no-print-statistics",
            "null-separator",
            "num-retries=",
+           "old-filenames",
            "restore-dir=",
            "restore-time=",
            "s3-european-buckets",
@@ -100,12 +104,18 @@ options = ["allow-source-mismatch",
            "ssh-askpass",
            "ssh-options=",
            "tempdir=",
+           "time=",
            "timeout=",
            "time-separator=",
            "verbosity=",
            "version",
            "volsize=",
            ]
+
+def old_fn_deprecation(opt):
+    print >>sys.stderr, _("Warning: Option %s is pending deprecation "
+                          "and will be removed in a future release.\n"
+                          "Use of default filenames is strongly suggested.") % opt
 
 def parse_cmdline_options(arglist):
     """Parse argument list"""
@@ -123,7 +133,7 @@ def parse_cmdline_options(arglist):
     # expect no cmd and two positional args
     cmd = ""
     num_expect = 2
-    
+
     # process first arg as command
     if arglist and arglist[0][0] != '-':
         cmd = arglist.pop(0)
@@ -137,7 +147,7 @@ def parse_cmdline_options(arglist):
         # no matches, assume no cmd
         elif not possible:
             arglist.insert(0, cmd)
-        
+
     if cmd == "cleanup":
         cleanup = True
         num_expect = 1
@@ -166,10 +176,10 @@ def parse_cmdline_options(arglist):
         except:
             command_line_error("Missing count for remove-all-but-n-full")
         globals.keep_chains = int(arg)
-        
+
         if not globals.keep_chains > 0:
             command_line_error("remove-all-but-n-full count must be > 0")
-        
+
         num_expect = 1
     elif cmd == "verify":
         verify = True
@@ -202,7 +212,7 @@ def parse_cmdline_options(arglist):
         elif opt in ["--exclude-device-files",
                      "--exclude-other-filesystems"]:
             select_opts.append((opt, None))
-        elif opt in ["--exclude-filelist", 
+        elif opt in ["--exclude-filelist",
                      "--include-filelist",
                      "--exclude-globbing-filelist",
                      "--include-globbing-filelist"]:
@@ -219,8 +229,8 @@ def parse_cmdline_options(arglist):
             globals.ftp_connection = 'passive'
         elif opt == "--ftp-regular":
             globals.ftp_connection = 'regular'
-        elif opt == "--gmail-mailbox":
-            gmailimapbackend.gmail_mailbox = arg.strip()
+        elif opt == "--imap-mailbox":
+            imapbackend.imap_mailbox = arg.strip()
         elif opt == "--gpg-options":
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
@@ -229,14 +239,6 @@ def parse_cmdline_options(arglist):
         elif opt == "--include-filelist-stdin":
             select_opts.append(("--include-filelist", "standard input"))
             select_files.append(sys.stdin)
-        elif opt == "--no-encryption":
-            globals.encryption = 0
-        elif opt == "--no-print-statistics":
-            globals.print_statistics = 0
-        elif opt == "--null-separator":
-            globals.null_separator = 1
-        elif opt == "--num-retries":
-            globals.num_retries = int(arg)
         elif opt == "--log-fd":
             log_fd = int(arg)
             if log_fd < 1:
@@ -250,9 +252,20 @@ def parse_cmdline_options(arglist):
                 log.add_file(arg)
             except:
                 command_line_error("Cannot write to log-file %s." % arg)
+        elif opt == "--no-encryption":
+            globals.encryption = 0
+        elif opt == "--no-print-statistics":
+            globals.print_statistics = 0
+        elif opt == "--null-separator":
+            globals.null_separator = 1
+        elif opt == "--num-retries":
+            globals.num_retries = int(arg)
+        elif opt == "--old-filenames":
+            globals.old_filenames = True
+            old_fn_deprecation(opt)
         elif opt in ["-r", "--file-to-restore"]:
             globals.restore_dir = arg
-        elif opt in ["-t", "--restore-time"]:
+        elif opt in ["-t", "--time", "--restore-time"]:
             globals.restore_time = dup_time.genstrtotime(arg)
         elif opt == "--s3-european-buckets":
             globals.s3_european_buckets = True
@@ -264,6 +277,7 @@ def parse_cmdline_options(arglist):
             sshbackend.sftp_command = arg
         elif opt == "--short-filenames":
             globals.short_filenames = 1
+            old_fn_deprecation(opt)
         elif opt == "--sign-key":
             set_sign_key(arg)
         elif opt == "--ssh-askpass":
@@ -279,6 +293,7 @@ def parse_cmdline_options(arglist):
                 command_line_error("Dash ('-') not valid for time-separator.")
             globals.time_separator = arg
             dup_time.curtimestr = dup_time.timetostring(dup_time.curtime)
+            old_fn_deprecation(opt)
         elif opt in ["-V", "--version"]:
             print "duplicity", str(globals.version)
             sys.exit(0)
@@ -289,8 +304,14 @@ def parse_cmdline_options(arglist):
             log.setverbosity(verb)
         elif opt == "--volsize":
             globals.volsize = int(arg)*1024*1024
+        elif opt == "--imap-full-address":
+            globals.imap_full_address = True
         else:
             command_line_error("Unknown option %s" % opt)
+
+    # if we change the time format then we need a new curtime
+    if globals.old_filenames:
+        dup_time.curtimestr = dup_time.timetostring(dup_time.curtime)
 
     if len(args) != num_expect:
         command_line_error("Expected %d args, got %d" % (num_expect, len(args)))
@@ -323,7 +344,7 @@ Backends and their URL formats:
     ftp://user[:password]@other.host[:port]/some_dir
     hsi://user[:password]@other.host[:port]/some_dir
     file:///some_dir
-    gmail://user[:password]@other.host[:port]/some_dir
+    imap://user[:password]@other.host[:port]/some_dir
     rsync://user[:password]@other.host[:port]::/module/some_dir
     rsync://user[:password]@other.host[:port]/relative_path
     rsync://user[:password]@other.host[:port]//absolute_path
@@ -373,6 +394,7 @@ Options:
     --no-print-statistics
     --null-separator
     --num-retries <number>
+    --old-filenames
     --s3-european-buckets
     --s3-use-new-style
     --scp-command <command>
@@ -383,7 +405,7 @@ Options:
     --short-filenames
     --tempdir <directory>
     --timeout <seconds>
-    -t<time>, --restore-time <time>
+    -t<time>, --time <time>, --restore-time <time>
     --time-separator <char>
     --version
     --volsize <number>
@@ -393,8 +415,10 @@ Options:
 
 def get_int(int_string, description):
     """Require that int_string be an integer, return int value"""
-    try: return int(int_string)
-    except ValueError: command_line_error("Received '%s' for %s, need integer" %
+    try:
+        return int(int_string)
+    except ValueError:
+        command_line_error("Received '%s' for %s, need integer" %
                                           (int_string, description))
 
 def set_archive_dir(dirstring):
@@ -463,7 +487,7 @@ def process_local_dir(action, local_pathname):
             log.FatalError(_("Backup source directory %s does not exist.")
                            % (local_path.name,),
                            log.ErrorCode.backup_dir_doesnt_exist)
-    
+
     globals.local_path = local_path
 
 def check_consistency(action):
@@ -473,7 +497,8 @@ def check_consistency(action):
         """Raises error if two or more of the elements of arglist are true"""
         n = 0
         for m in arglist:
-            if m: n+=1
+            if m:
+                n+=1
         assert n <= 1, "Invalid syntax, two conflicting modes specified"
     if action in ["list-current", "collection-status",
                   "cleanup", "remove-old", "remove-all-but-n-full"]:
@@ -492,7 +517,8 @@ def check_consistency(action):
                                "not restoring.")
     else:
         assert action == "inc" or action == "full"
-        if verify: command_line_error("--verify option cannot be used "
+        if verify:
+            command_line_error("--verify option cannot be used "
                                       "when backing up")
         if globals.restore_dir:
             command_line_error("--restore-dir option incompatible with %s backup"
@@ -508,31 +534,46 @@ def ProcessCommandLine(cmdline_list):
     globals.gpg_profile = gpg.GPGProfile()
 
     args = parse_cmdline_options(cmdline_list)
-    if len(args) < 1: command_line_error("Too few arguments")
+    if len(args) < 1:
+        command_line_error("Too few arguments")
     elif len(args) == 1:
-        if list_current: action = "list-current"
-        elif collection_status: action = "collection-status"
-        elif cleanup: action = "cleanup"
-        elif globals.remove_time is not None: action = "remove-old"
-        elif globals.keep_chains is not None: action = "remove-all-but-n-full"
-        else: command_line_error("Too few arguments")
+        if list_current:
+            action = "list-current"
+        elif collection_status:
+            action = "collection-status"
+        elif cleanup:
+            action = "cleanup"
+        elif globals.remove_time is not None:
+            action = "remove-old"
+        elif globals.keep_chains is not None:
+            action = "remove-all-but-n-full"
+        else:
+            command_line_error("Too few arguments")
         globals.backend = backend.get_backend(args[0])
-        if not globals.backend: log.FatalError(_("""Bad URL '%s'.
+        if not globals.backend:
+            log.FatalError(_("""Bad URL '%s'.
 Examples of URL strings are "scp://user@host.net:1234/path" and
 "file:///usr/local".  See the man page for more information.""") % (args[0],),
                                                log.ErrorCode.bad_url)
-    elif len(args) == 2: # Figure out whether backup or restore
+    elif len(args) == 2:
+        # Figure out whether backup or restore
         backup, local_pathname = set_backend(args[0], args[1])
         if backup:
-            if full_backup: action = "full"
-            else: action = "inc"
+            if full_backup:
+                action = "full"
+            else:
+                action = "inc"
         else:
-            if verify: action = "verify"
-            else: action = "restore"
+            if verify:
+                action = "verify"
+            else:
+                action = "restore"
 
         process_local_dir(action, local_pathname)
-        if action in ['full', 'inc', 'verify']: set_selection()
-    elif len(args) > 2: command_line_error("Too many arguments")
+        if action in ['full', 'inc', 'verify']:
+            set_selection()
+    elif len(args) > 2:
+        command_line_error("Too many arguments")
 
     check_consistency(action)
     log.Log(_("Main action: ") + action, 7)

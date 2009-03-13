@@ -1,6 +1,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
@@ -158,11 +159,7 @@ class GPGFile:
             self.gpg_output.close()
             if self.status_fp:
                 self.set_signature()
-            try:
-                self.gpg_process.wait()
-            except IOError, message:
-                if message.args[0] != "GnuPG exited non-zero, with code 131072":
-                    raise
+            self.gpg_process.wait()
         if log.getverbosity() >= 5:
             self.print_log()
         self.logger_fp.close()

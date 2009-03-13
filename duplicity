@@ -2,9 +2,10 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.5.06 released January 09, 2009
+# Version 0.5.11 released March 08, 2009
 #
-# Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
@@ -30,15 +31,15 @@ from __future__ import generators
 import getpass, gzip, os, sys, time, types
 import traceback
 
+import gettext
+gettext.install('duplicity')
+
 import duplicity.backends
 import duplicity.errors
 
 from duplicity import collections, commandline, diffdir, dup_temp, \
      dup_time, file_naming, globals, gpg, log, manifest, patchdir, \
      path, robust, tempdir, asyncscheduler, util
-
-import gettext
-gettext.install('duplicity')
 
 # If exit_val is not None, exit with given value at end.
 exit_val = None
@@ -260,14 +261,18 @@ def print_statistics(stats, bytes_written):
 def incremental_backup(sig_chain):
     """Do incremental backup of directory to backend, using archive_dir"""
     dup_time.setprevtime(sig_chain.end_time)
+    if dup_time.curtime == dup_time.prevtime:
+        time.sleep(1)
+        dup_time.setcurtime()
     if globals.dry_run:
         tarblock_iter = diffdir.DirDelta(globals.select,
-                                  sig_chain.get_fileobjs())
+                                         sig_chain.get_fileobjs())
         bytes_written = dummy_backup(tarblock_iter)
     else:
         new_sig_outfp = get_sig_fileobj("new-sig")
         tarblock_iter = diffdir.DirDelta_WriteSig(globals.select,
-                                  sig_chain.get_fileobjs(), new_sig_outfp)
+                                                  sig_chain.get_fileobjs(),
+                                                  new_sig_outfp)
         bytes_written = write_multivol("inc", tarblock_iter, globals.backend)
         new_sig_outfp.close()
     print_statistics(diffdir.stats, bytes_written)
@@ -279,17 +284,16 @@ def list_current(col_stats):
     if not sig_chain:
         log.FatalError(_("No signature data found, unable to list files."),
                        log.ErrorCode.no_sigs)
-    path_iter = diffdir.get_combined_path_iter(sig_chain.get_fileobjs())
-    userlist = []
-    loglist = []
+    time = globals.restore_time # if None, will use latest
+    path_iter = diffdir.get_combined_path_iter(sig_chain.get_fileobjs(time))
     for path in path_iter:
         if path.difftype != "deleted":
-             userlist.append("%s %s" % (dup_time.timetopretty(path.getmtime()),
-                                        path.get_relative_path()))
-             loglist.append("%s %s" % (dup_time.timetostring(path.getmtime()),
-                                       util.escape(path.get_relative_path())))
-    log.Log('\n'.join(userlist), log.INFO, log.InfoCode.file_list,
-            '\n' + '\n'.join(loglist), True)
+            user_info = "%s %s" % (dup_time.timetopretty(path.getmtime()),
+                                   path.get_relative_path())
+            log_info = "%s %s" % (dup_time.timetostring(path.getmtime()),
+                                  util.escape(path.get_relative_path()))
+            log.Log(user_info, log.INFO, log.InfoCode.file_list,
+                    log_info, True)
 
 
 def restore(col_stats):
@@ -572,11 +576,13 @@ def main():
     if exit_val is not None:
         sys.exit(exit_val)
 
+
 def with_tempdir(fn):
     try:
         fn()
     finally:
         tempdir.default().cleanup()
+
 
 if __name__ == "__main__":
     try:
@@ -589,6 +595,8 @@ if __name__ == "__main__":
         log.FatalError("%s: %s" % (e.__class__.__name__, str(e)),
                        log.ErrorCode.user_error,
                        e.__class__.__name__)
+    except SystemExit, e:
+        sys.exit(e)
     except Exception, e:
         log.FatalError("%s" % (''.join(traceback.format_exception(*sys.exc_info()))),
                        log.ErrorCode.exception,

@@ -1,3 +1,123 @@
+New in v0.5.11 (2009/03/08)
+---------------------------
+bug #25787: Usernames with @-sign are not handled properly
+https://savannah.nongnu.org/bugs/?25787
+
+Bug #333057: GnuPGInterface prints exit statuses incorrectly
+https://bugs.launchpad.net/bugs/333057
+
+bug #25696: ncftp error w/0.5.09 -- nested target directories
+https://savannah.nongnu.org/bugs/?25696
+
+bug #15664: When restoring backup: "OverflowError:
+            long int too large to convert to int"
+https://savannah.nongnu.org/bugs/?15664
+
+patch #6761: More robust pexpect handling of SSH authentication
+https://savannah.nongnu.org/patch/?6761
+
+patch #6762: Wrong exit() used for 2.3/2.4 Python
+https://savannah.nongnu.org/patch/?6762
+
+
+New in v0.5.10 (2009/03/01)
+---------------------------
+The default filename format has changed from W3 style to a long
+numeric style, YYYYMMDDTHHMMSSZ, with no delimiters, thus is now
+compatible with Windows/Samba filesystems.  The time is UTC, not
+local, so there will be no timezone or daylight savings time issues.
+
+Duplicity still recognizes the old long filename format, and will
+continue incremental backup chains if found.  The old format is
+still available via the --old-filenames option (pending deprecation).
+
+Users of --short-filenames or --time-separator should stop using these
+options on their next full backup.  The new filenames are compatible
+with your system.
+
+The following options are pending deprecation and will be removed in a
+future release:
+    --time-separator
+    --short-filenames
+    --old-filenames
+
+bug #19988: Incompatibility to Samba/SMB share
+https://savannah.nongnu.org/bugs/?19988
+
+bug #25097: Allow listing files from any time, not just current time
+https://savannah.nongnu.org/bugs/?25097
+
+bug #25550: Error codes do not propagate from log to exit status
+https://savannah.nongnu.org/bugs/?25550
+
+bug #25308: Signatures orphaned if from another time zone
+https://savannah.nongnu.org/bugs/?25308
+
+Bug #229826: duplicity crashed with ValueError in port()
+https://bugs.launchpad.net/duplicity/+bug/229826
+
+
+New in v0.5.09 (2009/02/17)
+---------------------------
+FTP is now driven with pexpect rather than NcFTP utilities.
+This closes the following bugs (and solves other problems):
+bug #24741: ncftpls -x '' causes failure on Yahoo FTP server
+bug #23516: duplicity/ncftpget not closing unlinked files, ...
+
+bug #25509: Logic error in imapbackend.py [IMAP_SERVER]
+https://savannah.nongnu.org/bugs/?25509
+
+bug #25512: [Patch] Retry on Imap failure
+https://savannah.nongnu.org/bugs/?25512
+
+bug #25530: commandline passwd not working
+https://savannah.nongnu.org/bugs/?25530
+
+
+New in v0.5.08 (2009/02/02)
+---------------------------
+Turns out going backwards in the license is not as easy as
+forwards.  Restoring GPLv3 license until consensus reached.
+
+
+New in v0.5.07 (2009/01/31)
+---------------------------
+bug #25293: IOError: [Errno 22] Invalid argument
+https://savannah.nongnu.org/bugs/?25293
+
+bug #25379: sys.exit() causes traceback and should not
+https://savannah.nongnu.org/bugs/?25379
+
+bug #25403: 0.5.06 "manifests not equal, different volume numbers"
+https://savannah.nongnu.org/bugs/?25403
+
+patch #6729: New imap backend. Replaces current gmail backend
+https://savannah.nongnu.org/patch/?6729
+
+patch #6730: Fix timing out for SSH backend
+https://savannah.nongnu.org/patch/?6730
+
+patch #6733: Improve error handling in imapbackend.py
+https://savannah.nongnu.org/patch/?6733
+
+Increase default volume size (--volsize) to 25M from 5M.  This
+reduces the number of volumes to accomodate larger backups.
+
+Reworked patch 6701 to list collection one at a time rather than
+writing all as one huge list.  Was causing memeory problems when
+the collections got large.
+
+Fix backendtest.py so that empty URL's in config.py cause the
+backend test to be skipped rather than erroring.  Added notes
+in config.py.tmpl explaining the change.
+
+Add/update copyright statements in all distribution source files
+and revert duplicity to GPL version 2 license.
+
+Original fix to disallow use of ncftpput 3.2.0 mistyped the ErrorCode
+used and resulted in an error rather than an explanation.
+
+
 New in v0.5.06 (2009/01/09)
 ---------------------------
 Fix to deprecation warnings about sha and md5 modules.

@@ -1,6 +1,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
@@ -23,7 +24,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.5.06"
+version = "0.5.11"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -104,8 +105,8 @@ dry_run = False
 # If set to false, then do not encrypt files on remote system
 encryption = 1
 
-# volume size. default 5M
-volsize = 5*1024*1024
+# volume size. default 25M
+volsize = 25*1024*1024
 
 # Working directory for the tempfile module. Defaults to /tmp on most systems.
 temproot = None
@@ -118,7 +119,7 @@ ftp_connection = 'passive'
 
 # Protocol for webdav
 webdav_proto = 'http'
-  
+
 # Asynchronous put/get concurrency limit
 # (default of 0 disables asynchronicity).
 async_concurrency = 0
@@ -131,3 +132,11 @@ s3_use_new_style = False
 # Whether to create European buckets (sorry, hard-coded to only
 # support european for now).
 s3_european_buckets = False
+
+# Whether to use the full email address as the user name when
+# logging into an imap server. If false just the user name
+# part of the email address is used.
+imap_full_address = False
+
+# Whether the old filename format is in effect.
+old_filenames = False

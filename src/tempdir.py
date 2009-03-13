@@ -1,6 +1,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
@@ -129,8 +130,9 @@ class TemporaryDirectory:
         """
         Perform cleanup.
         """
-        self.cleanup()
-    
+        if _defaultInstance is not None:
+            self.cleanup()
+
     def mktemp(self):
         """
         Return a unique filename suitable for use for a temporary

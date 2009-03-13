@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2002 2003 Ben Escoto
+ *   Copyright 2002 2003 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
  *
  *   This file is part of duplicity.
  *
