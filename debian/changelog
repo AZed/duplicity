@@ -1,3 +1,12 @@
+duplicity (0.5.11-2) unstable; urgency=low
+
+  * changed the setup to temporarily include upstream's repaired copy of 
+    GnuPGInterface.py: because of #509415 in python-gnupginterface
+    duplicity currently does not work with public key encryption, 
+    no signing and archive dirs.
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 16 Mar 2009 15:57:01 +1000
+
 duplicity (0.5.11-1) unstable; urgency=low
 
   * New upstream release (closes: #519576)
