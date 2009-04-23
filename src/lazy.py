@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -23,7 +23,8 @@
 
 from __future__ import generators
 import os, stat, types, sys
-from static import *
+
+from duplicity.static import *
 
 
 class Iter:
@@ -216,7 +217,7 @@ class IterMultiplex2:
                 elem = iter.next() # exception will be passed
                 buf.append(elem)
             else:
-                # b is in front, subtract an element                
+                # b is in front, subtract an element
                 elem = buf.pop(0)
             self.a_leading_by += 1
             yield elem
@@ -231,7 +232,7 @@ class IterMultiplex2:
                 buf.append(elem)
             else:
                 # a is in front, subtract an element
-                elem = buf.pop(0) 
+                elem = buf.pop(0)
             self.a_leading_by -= 1
             yield elem
 
@@ -322,8 +323,8 @@ class IterTreeReducer:
             return 1
 
         if index <= self.index:
-            log.Log(_("Warning: oldindex %s >= newindex %s") %
-                    (self.index, index), 2)
+            log.Warn(_("Warning: oldindex %s >= newindex %s") %
+                     (self.index, index))
             return 1
 
         if self.finish_branches(index) is None:
@@ -397,7 +398,7 @@ class ITRBranch:
             filename = os.path.join(*self.index)
         else:
             filename = "."
-        log.Log(_("Error '%s' processing %s") % (exc, filename), 2)
+        log.Warn(_("Error '%s' processing %s") % (exc, filename))
 
     def log_prev_error(self, index):
         """Call function if no pending exception"""
@@ -405,8 +406,8 @@ class ITRBranch:
             index_str = "."
         else:
             index_str = os.path.join(*index)
-        log.Log(_("Skipping %s because of previous error") % index_str, 2)
+        log.Warn(_("Skipping %s because of previous error") % index_str)
 
 
-import duplicity.log as log
-import duplicity.robust as robust
+from duplicity import log
+from duplicity import robust

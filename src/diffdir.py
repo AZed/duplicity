@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -29,9 +29,13 @@ the second, the ROPath iterator is put into tar block form.
 
 from __future__ import generators
 import cStringIO, re, types
-import tarfile, librsync, log, statistics, util
-from path import *
-from lazy import *
+from duplicity import tarfile
+from duplicity import librsync
+from duplicity import log
+from duplicity import statistics
+from duplicity import util
+from duplicity.path import *
+from duplicity.lazy import *
 
 # A StatsObj will be written to this whenever DirDelta_WriteSig is
 # run.
@@ -93,7 +97,7 @@ def delta_iter_error_handler(exc, new_path, sig_path, sig_tar = None):
         index_string = sig_path.get_relative_path()
     else:
         assert 0, "Both new and sig are None for some reason"
-    log.Log(_("Error %s getting delta for %s") % (str(exc), index_string), 2)
+    log.Warn(_("Error %s getting delta for %s") % (str(exc), index_string))
     return None
 
 
@@ -105,7 +109,7 @@ def get_delta_path(new_path, sig_path, sigTarFile = None):
         ti = new_path.get_tarinfo()
         index = new_path.index
     delta_path = new_path.get_ropath()
-    log.Log(_("Getting delta of %s and %s") % (new_path, sig_path), 7)
+    log.Info(_("Getting delta of %s and %s") % (new_path, sig_path))
 
     def callback(sig_string):
         """Callback activated when FileWithSignature read to end"""
@@ -144,14 +148,14 @@ def get_delta_path(new_path, sig_path, sigTarFile = None):
 def log_delta_path(delta_path, new_path = None, stats = None):
     """Look at delta path and log delta.  Add stats if new_path is set"""
     if delta_path.difftype == "snapshot":
-        if new_path:
+        if new_path and stats:
             stats.add_new_file(new_path)
         log.Info(_("Generating delta - new file: %s") %
                  (delta_path.get_relative_path(),),
                  log.InfoCode.diff_file_new,
                  util.escape(delta_path.get_relative_path()))
     else:
-        if new_path:
+        if new_path and stats:
             stats.add_changed_file(new_path)
         log.Info(_("Generating delta - changed file: %s") %
                  (delta_path.get_relative_path(),),
@@ -174,8 +178,8 @@ def get_delta_iter(new_iter, sig_iter, sig_fileobj=None):
     else:
         sigTarFile = None
     for new_path, sig_path in collated:
-        log.Log(_("Comparing %s and %s") % (new_path and new_path.index,
-                                            sig_path and sig_path.index), 6)
+        log.Info(_("Comparing %s and %s") % (new_path and new_path.index,
+                                             sig_path and sig_path.index))
         if not new_path or not new_path.type:
             # file doesn't exist
             if sig_path and sig_path.exists():
@@ -192,14 +196,15 @@ def get_delta_iter(new_iter, sig_iter, sig_fileobj=None):
                 yield ROPath(sig_path.index)
         elif not sig_path or new_path != sig_path:
             # Must calculate new signature and create delta
-            delta_path = robust.check_common_error(
-                delta_iter_error_handler, get_delta_path,
-                (new_path, sig_path, sigTarFile))
+            delta_path = robust.check_common_error(delta_iter_error_handler,
+                                                   get_delta_path,
+                                                   (new_path, sig_path, sigTarFile))
             if delta_path:
-                # if not, an error must have occurred
-                log_delta_path(delta_path)
+                # log and collect stats
+                log_delta_path(delta_path, new_path, stats)
                 yield delta_path
             else:
+                # if not, an error must have occurred
                 stats.Errors += 1
         else:
             stats.add_unchanged_file(new_path)

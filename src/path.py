@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -27,8 +27,11 @@ associates stat information with filenames
 """
 
 import stat, os, errno, socket, time, re, gzip
-import librsync, log, dup_time
-from lazy import *
+
+from duplicity import librsync
+from duplicity import log
+from duplicity import dup_time
+from duplicity.lazy import *
 
 _copy_blocksize = 64 * 1024
 _tmp_path_counter = 1
@@ -327,7 +330,7 @@ class ROPath:
         """
         def log_diff(log_string):
             log_str = _("Difference found:") + " " + log_string
-            log.Log(log_str % (self.get_relative_path(),), 4)
+            log.Notice(log_str % (self.get_relative_path(),))
 
         if not self.type and not other.type:
             return 1
@@ -520,7 +523,7 @@ class Path(ROPath):
 
     def mkdir(self):
         """Make a directory at specified path"""
-        log.Log(_("Making directory %s") % (self.name,), 7)
+        log.Info(_("Making directory %s") % (self.name,))
         try:
             os.mkdir(self.name)
         except OSError:
@@ -530,7 +533,7 @@ class Path(ROPath):
 
     def delete(self):
         """Remove this file"""
-        log.Log(_("Deleting %s") % (self.name,), 7)
+        log.Info(_("Deleting %s") % (self.name,))
         if self.isdir():
             os.rmdir(self.name)
         else:
@@ -539,14 +542,14 @@ class Path(ROPath):
 
     def touch(self):
         """Open the file, write 0 bytes, close"""
-        log.Log(_("Touching %s") % (self.name,), 7)
+        log.Info(_("Touching %s") % (self.name,))
         fp = self.open("wb")
         fp.close()
 
     def deltree(self):
         """Remove self by recursively deleting files under it"""
-        import duplicity.selection as selection # todo: avoid circ. dep. issue
-        log.Log(_("Deleting tree %s") % (self.name,), 7)
+        from duplicity import selection # todo: avoid circ. dep. issue
+        log.Info(_("Deleting tree %s") % (self.name,))
         itr = IterTreeReducer(PathDeleter, [])
         for path in selection.Select(self).set_iter():
             itr(path.index, path)
@@ -617,7 +620,7 @@ class Path(ROPath):
 
     def compare_recursive(self, other, verbose = None):
         """Compare self to other Path, descending down directories"""
-        import duplicity.selection as selection # todo: avoid circ. dep. issue
+        from duplicity import selection # todo: avoid circ. dep. issue
         selfsel = selection.Select(self).set_iter()
         othersel = selection.Select(other).set_iter()
         return Iter.equal(selfsel, othersel, verbose)

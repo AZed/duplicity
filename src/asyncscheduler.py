@@ -8,7 +8,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -25,11 +25,11 @@ Asynchronous job scheduler, for concurrent execution with minimalistic
 dependency guarantees.
 """
 
-import duplicity
-import duplicity.log as log
 import sys
 import gettext
 
+import duplicity
+from duplicity import log
 from duplicity.dup_threading import require_threading
 from duplicity.dup_threading import interruptably_wait
 from duplicity.dup_threading import async_split

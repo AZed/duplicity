@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -30,13 +30,14 @@ import time
 import re
 import getpass
 import gettext
+import urllib
 
-import duplicity.dup_temp as dup_temp
-import duplicity.dup_threading as dup_threading
-import duplicity.file_naming as file_naming
-import duplicity.globals as globals
-import duplicity.log as log
-import duplicity.urlparse_2_5 as urlparser
+from duplicity import dup_temp
+from duplicity import dup_threading
+from duplicity import file_naming
+from duplicity import globals
+from duplicity import log
+from duplicity import urlparse_2_5 as urlparser
 
 from duplicity.errors import BackendException
 from duplicity.errors import ConflictingScheme
@@ -128,10 +129,12 @@ class ParsedUrl:
     """
     Parse the given URL as a duplicity backend URL.
 
-    @return A parsed URL of the same form as that of the standard
-            urlparse.urlparse().
+    Returns the data of a parsed URL with the same names as that of
+    the standard urlparse.urlparse() except that all values have been
+    resolved rather than deferred.  There are no get_* members.  This
+    makes sure that the URL parsing errors are detected early.
 
-    @raise InvalidBackendURL
+    Raise InvalidBackendURL on invalid URL's
     """
     def __init__(self, url_string):
         self.url_string = url_string
@@ -166,6 +169,10 @@ class ParsedUrl:
             self.username = pu.username
         except:
             raise InvalidBackendURL("Syntax error (username) in: %s" % url_string)
+        if self.username:
+            self.username = urllib.unquote(pu.username)
+        else:
+            self.username = None
 
         try:
             self.password = pu.password
@@ -293,7 +300,7 @@ class Backend:
         raise a BackendException.
         """
         private = self.munge_password(commandline)
-        log.Log(_("Running '%s'") % private, 5)
+        log.Info(_("Running '%s'") % private)
         if os.system(commandline):
             raise BackendException("Error running '%s'" % private)
 
@@ -304,19 +311,20 @@ class Backend:
         """
         private = self.munge_password(commandline)
         for n in range(1, globals.num_retries+1):
-            log.Log(gettext.ngettext("Running '%s' (attempt #%d)",
-                                     "Running '%s' (attempt #%d)", n) %
-                                     (private, n), 5)
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
+            log.Info(gettext.ngettext("Running '%s' (attempt #%d)",
+                                      "Running '%s' (attempt #%d)", n) %
+                                      (private, n))
             if not os.system(commandline):
                 return
-            log.Log(gettext.ngettext("Running '%s' failed (attempt #%d)",
-                                     "Running '%s' failed (attempt #%d)", n) %
-                                     (private, n), 1)
-            time.sleep(30)
-        log.Log(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
+            log.Warn(gettext.ngettext("Running '%s' failed (attempt #%d)",
+                                      "Running '%s' failed (attempt #%d)", n) %
+                                      (private, n), 1)
+        log.Warn(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
                                  "Giving up trying to execute '%s' after %d attempts",
-                                 globals.num_retries) % (private, globals.num_retries),
-                1)
+                                 globals.num_retries) % (private, globals.num_retries))
         raise BackendException("Error running '%s'" % private)
 
     def popen(self, commandline):
@@ -325,7 +333,7 @@ class Backend:
         contents read from stdout) as a string.
         """
         private = self.munge_password(commandline)
-        log.Log(_("Reading results of '%s'") % private, 5)
+        log.Info(_("Reading results of '%s'") % private)
         fout = os.popen(commandline)
         results = fout.read()
         if fout.close():
@@ -339,7 +347,10 @@ class Backend:
         """
         private = self.munge_password(commandline)
         for n in range(1, globals.num_retries+1):
-            log.Log(_("Reading results of '%s'") % private, 5)
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
+            log.Info(_("Reading results of '%s'") % private)
             fout = os.popen(commandline)
             results = fout.read()
             result_status = fout.close()
@@ -349,14 +360,12 @@ class Backend:
                 # This squelches the "file not found" result fromm ncftpls when
                 # the ftp backend looks for a collection that does not exist.
                 return ''
-            log.Log(gettext.ngettext("Running '%s' failed (attempt #%d)",
+            log.Warn(gettext.ngettext("Running '%s' failed (attempt #%d)",
                                      "Running '%s' failed (attempt #%d)", n) %
-                                     (private, n), 1)
-            time.sleep(30)
-        log.Log(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
-                                 "Giving up trying to execute '%s' after %d attempts",
-                                 globals.num_retries) % (private, globals.num_retries),
-                1)
+                                      (private, n))
+        log.Warn(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
+                                  "Giving up trying to execute '%s' after %d attempts",
+                                  globals.num_retries) % (private, globals.num_retries))
         raise BackendException("Error running '%s'" % private)
 
     def get_fileobj_read(self, filename, parseresults = None):

@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,7 +22,9 @@
 """Create and edit manifest for session contents"""
 
 import re
-import log, globals
+
+from duplicity import log
+from duplicity import globals
 
 class ManifestError(Exception):
     """Exception raised when problem with manifest"""
@@ -31,34 +33,49 @@ class ManifestError(Exception):
 class Manifest:
     """List of volumes and information about each one"""
     def __init__(self):
-        """Create blank Manifest"""
-        self.hostname = None; self.local_dirname = None
+        """
+        Create blank Manifest
+
+        @rtype: Manifest
+        @return: manifest
+        """
+        self.hostname = None;
+        self.local_dirname = None
         self.volume_info_dict = {} # dictionary vol numbers -> vol infos
 
     def set_dirinfo(self):
-        """Set information about directory from globals"""
+        """
+        Set information about directory from globals
+
+        @rtype: Manifest
+        @return: manifest
+        """
         self.hostname = globals.hostname
         self.local_dirname = globals.local_path.name
         return self
 
     def check_dirinfo(self):
-        """Return None if dirinfo is the same, otherwise error message
+        """
+        Return None if dirinfo is the same, otherwise error message
 
         Does not raise an error message if hostname or local_dirname
         are not available.
 
+        @rtype: string
+        @return: None or error message
         """
         if globals.allow_source_mismatch:
             return
+
         if self.hostname and self.hostname != globals.hostname:
-            errmsg = """Fatal Error: Backup source host has changed.
-Current hostname: %s
-Previous hostname: %s""" % (globals.hostname, self.hostname)
-        elif (self.local_dirname and
-              self.local_dirname != globals.local_path.name):
-            errmsg = """Fatal Error: Backup source directory has changed.
-Current directory: %s
-Previous directory: %s""" % (self.local_dirname, globals.local_path.name)
+            errmsg = _("Fatal Error: Backup source host has changed.\n"
+                       "Current hostname: %s\n"
+                       "Previous hostname: %s") % (globals.hostname, self.hostname)
+
+        elif (self.local_dirname and self.local_dirname != globals.local_path.name):
+            errmsg = _("Fatal Error: Backup source directory has changed.\n"
+                       "Current directory: %s\n"
+                       "Previous directory: %s") % (self.local_dirname, globals.local_path.name)
         else:
             return
 
@@ -71,14 +88,26 @@ Previous directory: %s""" % (self.local_dirname, globals.local_path.name)
                          "message"), log.ErrorCode.source_mismatch)
 
     def add_volume_info(self, vi):
-        """Add volume info vi to manifest"""
+        """
+        Add volume info vi to manifest
+
+        @param vi: volume info to add
+        @type vi: VolumeInfo
+
+        @return: void
+        """
         vol_num = vi.volume_number
         if self.volume_info_dict.has_key(vol_num):
             raise ManifestError("Volume %d already present" % (vol_num,))
         self.volume_info_dict[vol_num] = vi
 
     def to_string(self):
-        """Return string version of self (just concatenate vi strings)"""
+        """
+        Return string version of self (just concatenate vi strings)
+
+        @rtype: string
+        @return: self in string form
+        """
         result = ""
         if self.hostname:
             result += "Hostname %s\n" % self.hostname
@@ -92,6 +121,7 @@ Previous directory: %s""" % (self.local_dirname, globals.local_path.name)
         result = "%s%s\n" % (result,
                              "\n".join(map(vol_num_to_string, vol_num_list)))
         return result
+
     __str__ = to_string
 
     def from_string(self, s):
@@ -123,17 +153,22 @@ Previous directory: %s""" % (self.local_dirname, globals.local_path.name)
         vi_list1.sort()
         vi_list2 = other.volume_info_dict.keys()
         vi_list2.sort()
+
         if vi_list1 != vi_list2:
-            log.Log(_("Manifests not equal because different volume numbers"), 3)
-            return None
+            log.Notice(_("Manifests not equal because different volume numbers"))
+            return False
+
         for i in range(len(vi_list1)):
             if not vi_list1[i] == vi_list2[i]:
-                return None
+                log.Notice(_("Manifests not equal because volume lists differ"))
+                return False
 
         if (self.hostname != other.hostname or
             self.local_dirname != other.local_dirname):
-            return None
-        return 1
+            log.Notice(_("Manifests not equal because hosts or directories differ"))
+            return False
+
+        return True
 
     def __ne__(self, other):
         """Defines !=.  Not doing this always leads to annoying bugs..."""
@@ -248,7 +283,7 @@ class VolumeInfo:
             field_name = line_split[0].lower()
             other_fields = line_split[1:]
             if field_name == "Volume":
-                log.Log(_("Warning, found extra Volume identifier"), 2)
+                log.Warn(_("Warning, found extra Volume identifier"))
                 break
             elif field_name == "startingpath":
                 self.start_index = string_to_index(other_fields[0])
@@ -264,23 +299,23 @@ class VolumeInfo:
     def __eq__(self, other):
         """Used in test suite"""
         if not isinstance(other, VolumeInfo):
-            log.Log(_("Other is not VolumeInfo"), 3)
+            log.Notice(_("Other is not VolumeInfo"))
             return None
         if self.volume_number != other.volume_number:
-            log.Log(_("Volume numbers don't match"), 3)
+            log.Notice(_("Volume numbers don't match"))
             return None
         if self.start_index != other.start_index:
-            log.Log(_("start_indicies don't match"), 3)
+            log.Notice(_("start_indicies don't match"))
             return None
         if self.end_index != other.end_index:
-            log.Log(_("end_index don't match"), 3)
+            log.Notice(_("end_index don't match"))
             return None
         hash_list1 = self.hashes.items()
         hash_list1.sort()
         hash_list2 = other.hashes.items()
         hash_list2.sort()
         if hash_list1 != hash_list2:
-            log.Log(_("Hashes don't match"), 3)
+            log.Notice(_("Hashes don't match"))
             return None
         return 1
 

@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,7 +22,11 @@
 """duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
 
 import select, os, sys, thread, types, cStringIO, tempfile, re, gzip
-import GnuPGInterface, misc, log
+
+from duplicity import misc
+from duplicity import log
+from duplicity import globals
+from duplicity import GnuPGInterface
 
 try:
     from hashlib import sha1
@@ -91,6 +95,8 @@ class GPGFile:
         gnupg = GnuPGInterface.GnuPG()
         gnupg.options.meta_interactive = 0
         gnupg.options.extra_args.append('--no-secmem-warning')
+        if globals.use_agent:
+            gnupg.options.extra_args.append('--use-agent')
         if gpg_options:
             for opt in gpg_options.split():
                 gnupg.options.extra_args.append(opt)
@@ -129,39 +135,56 @@ class GPGFile:
     def read(self, length = -1):
         try:
             res = self.gpg_output.read(length)
-        except:
-            self.print_log()
-            raise
+        except Exception, e:
+            self.gpg_failed()
         return res
 
     def write(self, buf):
         try:
             res = self.gpg_input.write(buf)
         except:
-            self.print_log()
-            raise
+            self.gpg_failed()
         return res
 
-    def print_log(self):
+    def gpg_failed(self):
+        msg = "GPG Failed, see log below:\n"
+        msg += "===== Begin GnuPG log =====\n"
         self.logger_fp.seek(0)
         for line in self.logger_fp:
-            print line,
+            msg += line.strip() + "\n"
+        msg += "===== End GnuPG log =====\n"
+        raise GPGError, msg
 
     def close(self):
         if self.encrypt:
-            self.gpg_input.close()
+            try:
+                self.gpg_input.close()
+            except:
+                self.gpg_failed()
             if self.status_fp:
                 self.set_signature()
-            self.gpg_process.wait()
+            try:
+                self.gpg_process.wait()
+            except:
+                self.gpg_failed()
         else:
-            while self.gpg_output.read(blocksize):
-                pass # discard remaining output to avoid GPG error
-            self.gpg_output.close()
+            res = 1
+            while res:
+                # discard remaining output to avoid GPG error
+                try:
+                    res = self.gpg_output.read(blocksize)
+                except:
+                    self.gpg_failed()
+            try:
+                self.gpg_output.close()
+            except:
+                self.gpg_failed()
             if self.status_fp:
                 self.set_signature()
-            self.gpg_process.wait()
-        if log.getverbosity() >= 5:
-            self.print_log()
+            try:
+                self.gpg_process.wait()
+            except:
+                self.gpg_failed()
         self.logger_fp.close()
         self.closed = 1
 

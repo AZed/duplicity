@@ -1,3 +1,10 @@
+duplicity (0.5.16-1) unstable; urgency=low
+
+  * New upstream release (closes: #524786)
+  * removed last remaining debian-local patch
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 23 Apr 2009 14:51:28 +1000
+
 duplicity (0.5.11-2) unstable; urgency=low
 
   * changed the setup to temporarily include upstream's repaired copy of 

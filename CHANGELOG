@@ -1,3 +1,144 @@
+New in v0.5.16 (2009/04/21)
+---------------------------
+bug #24825: duplicity warn on insufficient TMPDIR
+            space availability and low max open
+            file limits pre-backup.
+https://savannah.nongnu.org/bugs/?24825
+
+bug #25594: wrong backup statistics
+https://savannah.nongnu.org/bugs/?25594
+
+bug #25976: Password requested when not needed.
+https://savannah.nongnu.org/bugs/?25976
+
+patch #6806: More graceful handling of old
+             --short-filename files
+https://savannah.nongnu.org/patch/?6806
+
+Added tilde and variable expansion to the source or
+target argument that is not a URL.
+
+
+New in v0.5.15 (2009/04/09)
+---------------------------
+FTP backend was failing on PureFTPd when the "-x ''"
+option was removed from the second ncftpls popen, a fix
+that was implemented due to bug #24741.  This fix does
+the ls in one pass by extracting the last entry on the
+'ls -l' listing.
+
+If a file is unreadable due to access rights or other
+non-fatal errors, put out error message and continue
+rather than dying messily with a traceback.
+
+Added tilde '~' expansion and variable expansion in the
+options that require a filename.  You can now have this
+"--archive-dir=~/ArchDir/$SYSNAME" if you need it.  No
+expansion is applied to the source or target URL's.
+
+Fixed problem I caused, again, where sys.exit() was
+trapping instead of exiting.  Added big note to not
+to do that again.
+
+
+New in v0.5.14 (2009/04/02)
+---------------------------
+After email voting among known duplicity contributors,
+the decision was reached to revert to the GPL Version 2
+license, so with their consensus, duplicity is now under
+GPL Version 2.
+
+Revert to calling NcFTP utilities (ls, get, put) directly
+rather than scripting ncftp via pexpect by reverting to the
+0.5.07 version of ftpbackend.py.
+
+Changed fatal error regarding version 3.2.0 of ncftpput to
+warning level since it has been reported that the problem
+does not occur on most distributions.
+
+Changed from log.Log with numbered log levels to log.Debug,
+log.Info, log.Notice, log.Warn, log.FatalError as below:
+    0    log.FatalError
+    1-2  log.Warn
+    3-4  log.Notice
+    5-8  log.Info
+    9 log.Debug
+The -vN option has not changed.  Verbosity may also be one
+of: character [ewnid], or word ['error', 'warning', 'notice',
+'info', 'debug'].  The default is 4 (Notice).  The options
+-v4, -vn, and -vnotice are functionally equivalent, as are
+the mixed-case versions, -vN, -vNotice, -vNOTICE.
+
+Normalized include statements and tried to insure that all
+duplicity includes were from the duplicity module.
+
+patch #6790: Add --exclude-if-present
+https://savannah.nongnu.org/patch/?6790
+
+
+New in v0.5.13 (2009/03/26)
+---------------------------
+Add more error detection to FTP backend.
+
+Fix backends so sleep does not occur after last retry.
+
+Fix so BackendException does not cause traceback except when
+verbosity is at level 5 or higher (Info level).
+
+Adjust log levels so some errors show up with default verbosity.
+
+Fixed bug where an extra comma caused a traceback during a warning
+about unnecessary sig files.  Plus fixed print so the real filename
+would show up and not a Python object representation.
+
+Add Changelog.GNU to website and distribution to add a bit of detail
+showing the CVS changes via rcs2log.  Added dist/mkGNUChangelog.sh.
+
+bug #22908: Don't block gpg-agent
+https://savannah.nongnu.org/bugs/?22908
+
+To fix the above, --use-agent was added as a command line option.
+When this is specified and asymetric encryption is enabled, then all
+GnuPG passphrases will come from the gpg-agent or equivalent program
+and no passphrase prompt will be issued.
+
+bug #25787: Usernames with escaped @-sign are not handled properly
+https://savannah.nongnu.org/bugs/?25787
+
+bug #25976: Password requested when not needed.
+https://savannah.nongnu.org/bugs/?25976
+
+patch #6787: import duplicity.GnuPGInterface explicitly
+https://savannah.nongnu.org/patch/?6787
+
+
+New in v0.5.12 (2009/03/15)
+---------------------------
+bug #25838: Backup fails / ncftp - remote file already exists
+https://savannah.nongnu.org/bugs/?25838
+With this fix we also get resume in ftp get/put.  If a put or
+get fails part of the way through, ncftp will resume on the
+next retry.
+
+bug #25853: duplicity fails with boto passwords coming from ~/.boto
+https://savannah.nongnu.org/bugs/?25853
+
+patch #6773: Make user name optional in rsync backend
+https://savannah.nongnu.org/patch/?6773
+
+GPG errors will no longer cause tracebacks, but will produce a
+log entry, from gpg, similar to the following:
+===== Begin GnuPG log =====
+gpg: BAD0BAD0: skipped: public key not found
+gpg: [stdin]: encryption failed: public key not found
+===== End GnuPG log =====
+This will let the user know what really caused the GPG process
+to fail, and what really caused errors like 'broken pipe'.
+
+Add Epydoc output to web site and start adding documentation.
+http://duplicity.nongnu.org/epydoc/index.html
+
+
 New in v0.5.11 (2009/03/08)
 ---------------------------
 bug #25787: Usernames with @-sign are not handled properly

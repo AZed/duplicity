@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -34,19 +34,15 @@ from duplicity import log
 from duplicity import path
 from duplicity import selection
 
-# Also import the sshbackend module specifically because we stomp on
-# its options.
-import duplicity.backends.sshbackend as sshbackend
-import duplicity.backends.imapbackend as imapbackend
-
 
 select_opts = [] # Will hold all the selection options
 select_files = [] # Will hold file objects when filelist given
-full_backup = None # Will be set to true if -f or --full option given
-list_current = None # Will be set to true if --list-current option given
-collection_status = None # Will be set to true if --collection-status given
-cleanup = None # Set to true if --cleanup option given
-verify = None # Set to true if --verify option given
+
+full_backup = None # Will be set to true if full command given
+list_current = None # Will be set to true if list-current command given
+collection_status = None # Will be set to true if collection-status command given
+cleanup = None # Set to true if cleanup command given
+verify = None # Set to true if verify command given
 
 commands = ["cleanup",
             "collection-status",
@@ -66,6 +62,7 @@ options = ["allow-source-mismatch",
            "dry-run",
            "encrypt-key=",
            "exclude=",
+           "exclude-if-present=",
            "exclude-device-files",
            "exclude-filelist=",
            "exclude-globbing-filelist=",
@@ -93,7 +90,6 @@ options = ["allow-source-mismatch",
            "null-separator",
            "num-retries=",
            "old-filenames",
-           "restore-dir=",
            "restore-time=",
            "s3-european-buckets",
            "s3-use-new-style",
@@ -107,6 +103,7 @@ options = ["allow-source-mismatch",
            "time=",
            "timeout=",
            "time-separator=",
+           "use-agent",
            "verbosity=",
            "version",
            "volsize=",
@@ -129,6 +126,9 @@ def parse_cmdline_options(arglist):
         except IOError:
             log.FatalError(_("Error opening file %s") % filename,
                            log.ErrorCode.cant_open_filelist)
+
+    def expand_fn(filename):
+        return os.path.expanduser(os.path.expandvars(filename))
 
     # expect no cmd and two positional args
     cmd = ""
@@ -195,7 +195,7 @@ def parse_cmdline_options(arglist):
         if opt == "--allow-source-mismatch":
             globals.allow_source_mismatch = 1
         elif opt == "--archive-dir":
-            set_archive_dir(arg)
+            set_archive_dir(expand_fn(arg))
         elif opt == "--asynchronous-upload":
             globals.async_concurrency = 1 # (yes 1, this is not a boolean)
         elif opt == "--current-time":
@@ -206,8 +206,11 @@ def parse_cmdline_options(arglist):
             globals.gpg_profile.recipients.append(arg)
         elif opt in ["--exclude",
                      "--exclude-regexp",
+                     "--exclude-if-present",
                      "--include",
                      "--include-regexp"]:
+            if not opt.endswith("regexp"):
+                arg = expand_fn(arg)
             select_opts.append((opt, arg))
         elif opt in ["--exclude-device-files",
                      "--exclude-other-filesystems"]:
@@ -216,6 +219,7 @@ def parse_cmdline_options(arglist):
                      "--include-filelist",
                      "--exclude-globbing-filelist",
                      "--include-globbing-filelist"]:
+            arg = expand_fn(arg)
             select_opts.append((opt, arg))
             select_files.append(sel_fl(arg))
         elif opt == "--exclude-filelist-stdin":
@@ -230,7 +234,7 @@ def parse_cmdline_options(arglist):
         elif opt == "--ftp-regular":
             globals.ftp_connection = 'regular'
         elif opt == "--imap-mailbox":
-            imapbackend.imap_mailbox = arg.strip()
+            globals.imap_mailbox = arg.strip()
         elif opt == "--gpg-options":
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
@@ -248,6 +252,7 @@ def parse_cmdline_options(arglist):
             except:
                 command_line_error("Cannot write to log-fd %s." % arg)
         elif opt == "--log-file":
+            arg = expand_fn(arg)
             try:
                 log.add_file(arg)
             except:
@@ -264,7 +269,7 @@ def parse_cmdline_options(arglist):
             globals.old_filenames = True
             old_fn_deprecation(opt)
         elif opt in ["-r", "--file-to-restore"]:
-            globals.restore_dir = arg
+            globals.restore_dir = expand_fn(arg)
         elif opt in ["-t", "--time", "--restore-time"]:
             globals.restore_time = dup_time.genstrtotime(arg)
         elif opt == "--s3-european-buckets":
@@ -272,18 +277,18 @@ def parse_cmdline_options(arglist):
         elif opt == "--s3-use-new-style":
             globals.s3_use_new_style = True
         elif opt == "--scp-command":
-            sshbackend.scp_command = arg
+            globals.scp_command = arg
         elif opt == "--sftp-command":
-            sshbackend.sftp_command = arg
+            globals.sftp_command = arg
         elif opt == "--short-filenames":
             globals.short_filenames = 1
             old_fn_deprecation(opt)
         elif opt == "--sign-key":
             set_sign_key(arg)
         elif opt == "--ssh-askpass":
-            sshbackend.ssh_askpass = True
+            globals.ssh_askpass = True
         elif opt == "--ssh-options":
-            sshbackend.ssh_options = (sshbackend.ssh_options + ' ' + arg).strip()
+            globals.ssh_options = (globals.ssh_options + ' ' + arg).strip()
         elif opt == "--tempdir":
             globals.temproot = arg
         elif opt == "--timeout":
@@ -294,13 +299,30 @@ def parse_cmdline_options(arglist):
             globals.time_separator = arg
             dup_time.curtimestr = dup_time.timetostring(dup_time.curtime)
             old_fn_deprecation(opt)
+        elif opt == "--use-agent":
+            globals.use_agent = True
         elif opt in ["-V", "--version"]:
             print "duplicity", str(globals.version)
             sys.exit(0)
         elif opt in ["-v", "--verbosity"]:
-            verb = int(arg)
-            if verb < 0 or verb > 9:
-                command_line_error("verbosity must be between 0 and 9.")
+            arg = arg.lower()
+            if arg in ['e', 'error']:
+                verb = log.ERROR
+            elif arg in ['w', 'warning']:
+                verb = log.WARNING
+            elif arg in ['n', 'notice']:
+                verb = log.NOTICE
+            elif arg in ['i', 'info']:
+                verb = log.INFO
+            elif arg in ['d', 'debug']:
+                verb = log.DEBUG
+            elif arg.isdigit() and (len(arg) == 1):
+                verb = int(arg)
+            else:
+                command_line_error("\nVerbosity must be one of: digit [0-9], character [ewnid],\n"
+                                   "or word ['error', 'warning', 'notice', 'info', 'debug'].\n"
+                                   "The default is 4 (Notice).  It is strongly recommended\n"
+                                   "that verbosity level is set at 2 (Warning) or higher.")
             log.setverbosity(verb)
         elif opt == "--volsize":
             globals.volsize = int(arg)*1024*1024
@@ -315,6 +337,10 @@ def parse_cmdline_options(arglist):
 
     if len(args) != num_expect:
         command_line_error("Expected %d args, got %d" % (num_expect, len(args)))
+
+    for loc in range(len(args)):
+        if not '://' in args[loc]:
+            args[loc] = expand_fn(args[loc])
 
     return args
 
@@ -407,9 +433,14 @@ Options:
     --timeout <seconds>
     -t<time>, --time <time>, --restore-time <time>
     --time-separator <char>
+    --use-agent
     --version
     --volsize <number>
     -v[0-9], --verbosity [0-9]
+    Verbosity must be one of: digit [0-9], character [ewnid],
+    or word ['error', 'warning', 'notice', 'info', 'debug'].
+    The default is 4 (Notice).  It is strongly recommended
+    that verbosity level is set at 2 (Warning) or higher.
 """) % (globals.version, sys.platform))
 
 
@@ -521,7 +552,7 @@ def check_consistency(action):
             command_line_error("--verify option cannot be used "
                                       "when backing up")
         if globals.restore_dir:
-            command_line_error("--restore-dir option incompatible with %s backup"
+            command_line_error("restore option incompatible with %s backup"
                                % (action,))
 
 def ProcessCommandLine(cmdline_list):
@@ -576,5 +607,5 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
         command_line_error("Too many arguments")
 
     check_consistency(action)
-    log.Log(_("Main action: ") + action, 7)
+    log.Info(_("Main action: ") + action)
     return action

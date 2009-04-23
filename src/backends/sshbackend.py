@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -29,25 +29,15 @@ import string
 import time
 
 import duplicity.backend
-import duplicity.globals as globals
-import duplicity.log as log
-import duplicity.pexpect as pexpect
+from duplicity import globals
+from duplicity import log
+from duplicity import pexpect
 from duplicity.errors import *
-
-scp_command = "scp"
-sftp_command = "sftp"
-
-# default to batch mode using public-key encryption
-ssh_askpass = False
-
-# user added ssh options
-ssh_options = ""
 
 class SSHBackend(duplicity.backend.Backend):
     """This backend copies files using scp.  List not supported"""
     def __init__(self, parsed_url):
         """scpBackend initializer"""
-        global ssh_askpass
         duplicity.backend.Backend.__init__(self, parsed_url)
 
         # host string of form [user@]hostname
@@ -64,29 +54,32 @@ class SSHBackend(duplicity.backend.Backend):
         self.remote_prefix = self.remote_dir + '/'
         # maybe use different ssh port
         if parsed_url.port:
-            self.ssh_options = ssh_options + " -oPort=%s" % parsed_url.port
+            globals.ssh_options = globals.ssh_options + " -oPort=%s" % parsed_url.port
         else:
-            self.ssh_options = ssh_options
+            globals.ssh_options = globals.ssh_options
         # set network timeout.  CountMax is how many retries to do, not how many tries.
         # Use CountMax=1 just in case there's a tiny network blip.
-        self.ssh_options += " -oServerAliveInterval=%i -oServerAliveCountMax=1" % ((int)(globals.timeout / 2))
+        globals.ssh_options += " -oServerAliveInterval=%i -oServerAliveCountMax=1" % ((int)(globals.timeout / 2))
         # set up password
-        if ssh_askpass:
+        if globals.ssh_askpass:
             self.password = self.get_password()
         else:
             if parsed_url.password:
                 self.password = parsed_url.password
-                ssh_askpass = True
+                globals.ssh_askpass = True
             else:
                 self.password = ''
 
     def run_scp_command(self, commandline):
         """ Run an scp command, responding to password prompts """
         for n in range(1, globals.num_retries+1):
-            log.Log("Running '%s' (attempt #%d)" % (commandline, n), 5)
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
+            log.Info("Running '%s' (attempt #%d)" % (commandline, n))
             child = pexpect.spawn(commandline, timeout = None)
             cmdloc = 0
-            if ssh_askpass:
+            if globals.ssh_askpass:
                 state = "authorizing"
             else:
                 state = "copying"
@@ -97,21 +90,21 @@ class SSHBackend(duplicity.backend.Backend):
                                           "(?i)pass(word|phrase .*):",
                                           "(?i)permission denied",
                                           "authenticity"])
-                    log.Log("State = %s, Before = '%s'" % (state, child.before.strip()), 9)
+                    log.Debug("State = %s, Before = '%s'" % (state, child.before.strip()))
                     if match == 0:
-                        log.Log("Failed to authenticate", 5)
+                        log.Warn("Failed to authenticate")
                         break
                     elif match == 1:
-                        log.Log("Timeout waiting to authenticate", 5)
+                        log.Warn("Timeout waiting to authenticate")
                         break
                     elif match == 2:
                         child.sendline(self.password)
                         state = "copying"
                     elif match == 3:
-                        log.Log("Invalid SSH password", 1)
+                        log.Warn("Invalid SSH password")
                         break
                     elif match == 4:
-                        log.Log("Remote host authentication failed (missing known_hosts entry?)", 1)
+                        log.Warn("Remote host authentication failed (missing known_hosts entry?)")
                         break
                 elif state == "copying":
                     match = child.expect([pexpect.EOF,
@@ -119,35 +112,34 @@ class SSHBackend(duplicity.backend.Backend):
                                           "stalled",
                                           "authenticity",
                                           "ETA"])
-                    log.Log("State = %s, Before = '%s'" % (state, child.before.strip()), 9)
+                    log.Debug("State = %s, Before = '%s'" % (state, child.before.strip()))
                     if match == 0:
                         break
                     elif match == 1:
-                        log.Log("Timeout waiting for response", 5)
+                        log.Warn("Timeout waiting for response")
                         break
                     elif match == 2:
                         state = "stalled"
                     elif match == 3:
-                        log.Log("Remote host authentication failed (missing known_hosts entry?)", 1)
+                        log.Warn("Remote host authentication failed (missing known_hosts entry?)")
                         break
                 elif state == "stalled":
                     match = child.expect([pexpect.EOF,
                                           "(?i)timeout, server not responding",
                                           "ETA"])
-                    log.Log("State = %s, Before = '%s'" % (state, child.before.strip()), 9)
+                    log.Debug("State = %s, Before = '%s'" % (state, child.before.strip()))
                     if match == 0:
                         break
                     elif match == 1:
-                        log.Log("Stalled for too long, aborted copy", 5)
+                        log.Warn("Stalled for too long, aborted copy")
                         break
                     elif match == 2:
                         state = "copying"
             child.close(force = True)
             if child.exitstatus == 0:
                 return
-            log.Log("Running '%s' failed (attempt #%d)" % (commandline, n), 1)
-            time.sleep(30)
-        log.Log("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries), 1)
+            log.Warn("Running '%s' failed (attempt #%d)" % (commandline, n))
+        log.Warn("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries))
         raise BackendException("Error running '%s'" % commandline)
 
     def run_sftp_command(self, commandline, commands):
@@ -162,22 +154,25 @@ class SSHBackend(duplicity.backend.Backend):
         max_response_len = max([len(p) for p in responses])
         responses = [pexpect.EOF] + responses
         for n in range(1, globals.num_retries+1):
-            log.Log("Running '%s' (attempt #%d)" % (commandline, n), 5)
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
+            log.Info("Running '%s' (attempt #%d)" % (commandline, n))
             child = pexpect.spawn(commandline, timeout = None, maxread=maxread)
             cmdloc = 0
             while 1:
                 match = child.expect(responses,
                                      searchwindowsize=maxread+max_response_len)
-                log.Log("State = sftp, Before = '%s'" % (child.before.strip()), 9)
+                log.Debug("State = sftp, Before = '%s'" % (child.before.strip()))
                 if match == 0:
                     break
                 elif match == 1:
-                    log.Log("Timeout waiting for response", 5)
+                    log.Info("Timeout waiting for response")
                     break
                 if match == 2:
                     if cmdloc < len(commands):
                         command = commands[cmdloc]
-                        log.Log("sftp command: '%s'" % (command,), 5)
+                        log.Info("sftp command: '%s'" % (command,))
                         child.sendline(command)
                         cmdloc += 1
                     else:
@@ -187,34 +182,34 @@ class SSHBackend(duplicity.backend.Backend):
                 elif match == 3:
                     child.sendline(self.password)
                 elif match == 4:
-                    log.Log("Invalid SSH password", 1)
+                    log.Warn("Invalid SSH password")
                     break
                 elif match == 5:
-                    log.Log("Host key authenticity could not be verified (missing known_hosts entry?)", 1)
+                    log.Warn("Host key authenticity could not be verified (missing known_hosts entry?)")
                     break
                 elif match == 6:
-                    log.Log("Remote file or directory '%s' does not exist" % self.remote_dir, 1)
+                    log.Warn("Remote file or directory '%s' does not exist" % self.remote_dir)
                     break
             child.close(force = True)
             if child.exitstatus == 0:
                 return res
-            log.Log("Running '%s' failed (attempt #%d)" % (commandline, n), 1)
-            time.sleep(30)
-        log.Log("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries), 1)
+            log.Warn("Running '%s' failed (attempt #%d)" % (commandline, n))
+        log.Warn("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries))
         raise BackendException("Error running '%s'" % commandline)
 
     def put(self, source_path, remote_filename = None):
         """Use scp to copy source_dir/filename to remote computer"""
-        if not remote_filename: remote_filename = source_path.get_filename()
+        if not remote_filename:
+            remote_filename = source_path.get_filename()
         commandline = "%s %s %s %s:%s%s" % \
-            (scp_command, self.ssh_options, source_path.name, self.host_string,
+            (globals.scp_command, globals.ssh_options, source_path.name, self.host_string,
              self.remote_prefix, remote_filename)
         self.run_scp_command(commandline)
 
     def get(self, remote_filename, local_path):
         """Use scp to get a remote file"""
         commandline = "%s %s %s:%s%s %s" % \
-            (scp_command, self.ssh_options, self.host_string, self.remote_prefix,
+            (globals.scp_command, globals.ssh_options, self.host_string, self.remote_prefix,
              remote_filename, local_path.name)
         self.run_scp_command(commandline)
         local_path.setdata()
@@ -233,8 +228,8 @@ class SSHBackend(duplicity.backend.Backend):
         commands = ["mkdir %s" % (self.remote_dir,),
                     "cd %s" % (self.remote_dir,),
                     "ls -1"]
-        commandline = ("%s %s %s" % (sftp_command,
-                                     self.ssh_options,
+        commandline = ("%s %s %s" % (globals.sftp_command,
+                                     globals.ssh_options,
                                      self.host_string))
 
         l = self.run_sftp_command(commandline, commands).split('\n')[1:]
@@ -248,7 +243,7 @@ class SSHBackend(duplicity.backend.Backend):
         commands = ["cd %s" % (self.remote_dir,)]
         for fn in filename_list:
             commands.append("rm %s" % fn)
-        commandline = ("%s %s %s" % (sftp_command, self.ssh_options, self.host_string))
+        commandline = ("%s %s %s" % (globals.sftp_command, globals.ssh_options, self.host_string))
         self.run_sftp_command(commandline, commands)
 
 duplicity.backend.register_backend("ssh", SSHBackend)

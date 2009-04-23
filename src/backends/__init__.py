@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -27,6 +27,9 @@ sub-modules. Users need only import this module, unless they want to
 specifically refer to a particular backend.
 """
 
+import gettext
+gettext.install('duplicity')
+
 import duplicity.backends.botobackend
 import duplicity.backends.ftpbackend
 import duplicity.backends.imapbackend
@@ -35,4 +38,3 @@ import duplicity.backends.localbackend
 import duplicity.backends.rsyncbackend
 import duplicity.backends.sshbackend
 import duplicity.backends.webdavbackend
-

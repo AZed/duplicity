@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,7 +22,9 @@
 """Miscellaneous classes and methods"""
 
 import os
-import log
+
+from duplicity import log
+
 
 class MiscError(Exception):
     """Signifies a miscellaneous error..."""
@@ -94,7 +96,7 @@ class FileVolumeWriter:
             raise StopIteration
 
         filename = "%s.%d" % (self.prefix, self.current_index)
-        log.Log(_("Starting to write %s") % filename, 5)
+        log.Info(_("Starting to write %s") % filename)
         outfp = open(filename, "wb")
 
         if not self.write_volume(outfp):
@@ -102,8 +104,8 @@ class FileVolumeWriter:
             self.finished = 1
             if self.current_index == 1:
                 # special case first index
-                log.Log(_("One only volume required.\n"
-                          "Renaming %s to %s") % (filename, self.prefix), 4)
+                log.Notice(_("One only volume required.\n"
+                             "Renaming %s to %s") % (filename, self.prefix))
                 os.rename(filename, self.prefix)
                 return self.prefix
         else:
@@ -148,8 +150,8 @@ class BufferedFile:
 
     def close(self):
         self.fileobj.close()
-        
-    
+
+
 def copyfileobj(infp, outfp, byte_count = -1):
     """Copy byte_count bytes from infp to outfp, or all if byte_count < 0
 

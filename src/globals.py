@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -24,7 +24,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.5.11"
+version = "0.5.16"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -138,5 +138,25 @@ s3_european_buckets = False
 # part of the email address is used.
 imap_full_address = False
 
+# Name of the imap folder where we want to store backups.
+# Can be changed with a command line argument.
+imap_mailbox = "INBOX"
+
 # Whether the old filename format is in effect.
 old_filenames = False
+
+# Wheter to specify --use-agent in GnuPG options
+use_agent = False
+
+# ssh commands to use
+scp_command = "scp"
+sftp_command = "sftp"
+
+# default to batch mode using public-key encryption
+ssh_askpass = False
+
+# user added ssh options
+ssh_options = ""
+
+# if recovery in progress
+recovering = False
