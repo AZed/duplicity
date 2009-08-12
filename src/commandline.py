@@ -26,6 +26,13 @@ import os
 import re
 import sys
 
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import new as md5
+
+import duplicity.backends
+
 from duplicity import backend
 from duplicity import dup_time
 from duplicity import globals
@@ -35,14 +42,14 @@ from duplicity import path
 from duplicity import selection
 
 
-select_opts = [] # Will hold all the selection options
-select_files = [] # Will hold file objects when filelist given
+select_opts = []            # Will hold all the selection options
+select_files = []           # Will hold file objects when filelist given
 
-full_backup = None # Will be set to true if full command given
-list_current = None # Will be set to true if list-current command given
-collection_status = None # Will be set to true if collection-status command given
-cleanup = None # Set to true if cleanup command given
-verify = None # Set to true if verify command given
+full_backup = None          # Will be set to true if full command given
+list_current = None         # Will be set to true if list-current command given
+collection_status = None    # Will be set to true if collection-status command given
+cleanup = None              # Set to true if cleanup command given
+verify = None               # Set to true if verify command given
 
 commands = ["cleanup",
             "collection-status",
@@ -69,13 +76,16 @@ options = ["allow-source-mismatch",
            "exclude-filelist-stdin",
            "exclude-other-filesystems",
            "exclude-regexp=",
+           "fail-on-volume=",
            "file-to-restore=",
            "force",
            "ftp-passive",
            "ftp-regular",
            "full-if-older-than=",
+           "gio",
            "gpg-options=",
            "help",
+           "ignore-errors",
            "imap-full-address",
            "imap-mailbox=",
            "include=",
@@ -85,6 +95,7 @@ options = ["allow-source-mismatch",
            "include-regexp=",
            "log-fd=",
            "log-file=",
+           "name=",
            "no-encryption",
            "no-print-statistics",
            "null-separator",
@@ -109,15 +120,53 @@ options = ["allow-source-mismatch",
            "volsize=",
            ]
 
+
 def old_fn_deprecation(opt):
     print >>sys.stderr, _("Warning: Option %s is pending deprecation "
                           "and will be removed in a future release.\n"
                           "Use of default filenames is strongly suggested.") % opt
 
+
+def expand_fn(filename):
+    return os.path.expanduser(os.path.expandvars(filename))
+
+
+def expand_archive_dir(archdir, backname):
+    """
+    Return expanded version of archdir joined with backname.
+    """
+    assert globals.backup_name is not None, \
+        "expand_archive_dir() called prior to globals.backup_name being set"
+
+    return expand_fn(os.path.join(archdir, backname))
+
+
+def generate_default_backup_name(backend_url):
+    """
+    @param backend_url: URL to backend.
+    @returns A default backup name (string).
+    """
+    # For default, we hash args to obtain a reasonably safe default.
+    # We could be smarter and resolve things like relative paths, but
+    # this should actually be a pretty good compromise. Normally only
+    # the destination will matter since you typically only restart
+    # backups of the same thing to a given destination. The inclusion
+    # of the source however, does protect against most changes of
+    # source directory (for whatever reason, such as
+    # /path/to/different/snapshot). If the user happens to have a case
+    # where relative paths are used yet the relative path is the same
+    # (but duplicity is run from a different directory or similar),
+    # then it is simply up to the user to set --archive-dir properly.
+    burlhash = md5()
+    burlhash.update(backend_url)
+    return burlhash.hexdigest()
+
+
 def parse_cmdline_options(arglist):
     """Parse argument list"""
     global select_opts, select_files, full_backup
     global list_current, collection_status, cleanup, remove_time, verify
+
 
     def sel_fl(filename):
         """Helper function for including/excluding filelists below"""
@@ -126,9 +175,6 @@ def parse_cmdline_options(arglist):
         except IOError:
             log.FatalError(_("Error opening file %s") % filename,
                            log.ErrorCode.cant_open_filelist)
-
-    def expand_fn(filename):
-        return os.path.expanduser(os.path.expandvars(filename))
 
     # expect no cmd and two positional args
     cmd = ""
@@ -176,14 +222,11 @@ def parse_cmdline_options(arglist):
         except:
             command_line_error("Missing count for remove-all-but-n-full")
         globals.keep_chains = int(arg)
-
         if not globals.keep_chains > 0:
             command_line_error("remove-all-but-n-full count must be > 0")
-
         num_expect = 1
     elif cmd == "verify":
         verify = True
-        num_expect = 2
 
     # parse the remaining args
     try:
@@ -195,11 +238,11 @@ def parse_cmdline_options(arglist):
         if opt == "--allow-source-mismatch":
             globals.allow_source_mismatch = 1
         elif opt == "--archive-dir":
-            set_archive_dir(expand_fn(arg))
+            globals.archive_dir = arg
         elif opt == "--asynchronous-upload":
             globals.async_concurrency = 1 # (yes 1, this is not a boolean)
         elif opt == "--current-time":
-            dup_time.setcurtime(get_int(arg, "current-time"))
+            dup_time.setcurtime(get_int(arg, opt))
         elif opt == "--dry-run":
             globals.dry_run = True
         elif opt == "--encrypt-key":
@@ -225,6 +268,8 @@ def parse_cmdline_options(arglist):
         elif opt == "--exclude-filelist-stdin":
             select_opts.append(("--exclude-filelist", "standard input"))
             select_files.append(sys.stdin)
+        elif opt == "--fail-on-volume":
+            globals.fail_on_volume = get_int(arg, opt)
         elif opt == "--full-if-older-than":
             globals.full_force_time = dup_time.genstrtotime(arg)
         elif opt == "--force":
@@ -235,6 +280,12 @@ def parse_cmdline_options(arglist):
             globals.ftp_connection = 'regular'
         elif opt == "--imap-mailbox":
             globals.imap_mailbox = arg.strip()
+        elif opt == "--gio":
+            try:
+                import duplicity.backends.giobackend
+                backend.force_backend(duplicity.backends.giobackend.GIOBackend)
+            except ImportError:
+                log.FatalError(_("Unable to load gio module"), log.ErrorCode.gio_not_available)
         elif opt == "--gpg-options":
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
@@ -244,7 +295,7 @@ def parse_cmdline_options(arglist):
             select_opts.append(("--include-filelist", "standard input"))
             select_files.append(sys.stdin)
         elif opt == "--log-fd":
-            log_fd = int(arg)
+            log_fd = get_int(arg, opt)
             if log_fd < 1:
                 command_line_error("log-fd must be greater than zero.")
             try:
@@ -257,6 +308,8 @@ def parse_cmdline_options(arglist):
                 log.add_file(arg)
             except:
                 command_line_error("Cannot write to log-file %s." % arg)
+        elif opt == "--name":
+            globals.backup_name = arg
         elif opt == "--no-encryption":
             globals.encryption = 0
         elif opt == "--no-print-statistics":
@@ -264,12 +317,12 @@ def parse_cmdline_options(arglist):
         elif opt == "--null-separator":
             globals.null_separator = 1
         elif opt == "--num-retries":
-            globals.num_retries = int(arg)
+            globals.num_retries = get_int(arg, opt)
         elif opt == "--old-filenames":
             globals.old_filenames = True
             old_fn_deprecation(opt)
         elif opt in ["-r", "--file-to-restore"]:
-            globals.restore_dir = expand_fn(arg)
+            globals.restore_dir = expand_fn(arg.rstrip('/'))
         elif opt in ["-t", "--time", "--restore-time"]:
             globals.restore_time = dup_time.genstrtotime(arg)
         elif opt == "--s3-european-buckets":
@@ -292,7 +345,7 @@ def parse_cmdline_options(arglist):
         elif opt == "--tempdir":
             globals.temproot = arg
         elif opt == "--timeout":
-            globals.timeout = int(arg)
+            globals.timeout = get_int(arg, opt)
         elif opt == "--time-separator":
             if arg == '-':
                 command_line_error("Dash ('-') not valid for time-separator.")
@@ -317,7 +370,7 @@ def parse_cmdline_options(arglist):
             elif arg in ['d', 'debug']:
                 verb = log.DEBUG
             elif arg.isdigit() and (len(arg) == 1):
-                verb = int(arg)
+                verb = get_int(arg, opt)
             else:
                 command_line_error("\nVerbosity must be one of: digit [0-9], character [ewnid],\n"
                                    "or word ['error', 'warning', 'notice', 'info', 'debug'].\n"
@@ -325,7 +378,11 @@ def parse_cmdline_options(arglist):
                                    "that verbosity level is set at 2 (Warning) or higher.")
             log.setverbosity(verb)
         elif opt == "--volsize":
-            globals.volsize = int(arg)*1024*1024
+            globals.volsize = get_int(arg, opt)*1024*1024
+        elif opt == "--ignore-errors":
+            log.Warn(_("running in 'ignore errors' mode due to --ignore-errors; please "
+                       "re-consider if this was not intended"))
+            globals.ignore_errors = True
         elif opt == "--imap-full-address":
             globals.imap_full_address = True
         else:
@@ -338,11 +395,36 @@ def parse_cmdline_options(arglist):
     if len(args) != num_expect:
         command_line_error("Expected %d args, got %d" % (num_expect, len(args)))
 
+    # expand pathname args, but not URL
     for loc in range(len(args)):
         if not '://' in args[loc]:
             args[loc] = expand_fn(args[loc])
 
+    # Note that ProcessCommandLine depends on us verifying the arg
+    # count here; do not remove without fixing it. We must make the
+    # checks here in order to make enough sense of args to identify
+    # the backend URL/lpath for args_to_path_backend().
+    if len(args) < 1:
+        command_line_error("Too few arguments")
+    elif len(args) == 1:
+        backend_url = args[0]
+    elif len(args) == 2:
+        lpath, backend_url = args_to_path_backend(args[0], args[1])
+    else:
+        command_line_error("Too many arguments")
+
+    if globals.backup_name is None:
+        globals.backup_name = generate_default_backup_name(backend_url)
+
+    # set and expand archive dir
+    set_archive_dir(expand_archive_dir(globals.archive_dir,
+                                       globals.backup_name))
+
+    log.Info(_("Using archive dir: %s") % (globals.archive_dir.name,))
+    log.Info(_("Using backup name: %s") % (globals.backup_name,))
+
     return args
+
 
 def command_line_error(message):
     """Indicate a command line error and exit"""
@@ -350,98 +432,217 @@ def command_line_error(message):
                    _("Enter 'duplicity --help' for help screen."),
                    log.ErrorCode.command_line)
 
+
 def usage():
-    """Print terse usage info"""
-    sys.stdout.write(_("""
-duplicity version %s running on %s.
-Usage:
-    duplicity [full|incremental] [options] source_dir target_url
-    duplicity [restore] [options] source_url target_dir
-    duplicity verify [options] source_url target_dir
-    duplicity collection-status [options] target_url
-    duplicity list-current-files [options] target_url
-    duplicity cleanup [options] target_url
-    duplicity remove-older-than time [options] target_url
-    duplicity remove-all-but-n-full count [options] target_url
+    """Print terse usage info. The code is broken down into pieces for ease of
+    translation maintenance. Any comments that look extraneous or redundant should
+    be assumed to be for the benefit of translators, since they can get each string
+    (paired with its preceding comment, if any) independently of the others."""
 
-Backends and their URL formats:
-    ssh://user[:password]@other.host[:port]/some_dir
-    scp://user[:password]@other.host[:port]/some_dir
-    ftp://user[:password]@other.host[:port]/some_dir
-    hsi://user[:password]@other.host[:port]/some_dir
-    file:///some_dir
-    imap://user[:password]@other.host[:port]/some_dir
-    rsync://user[:password]@other.host[:port]::/module/some_dir
-    rsync://user[:password]@other.host[:port]/relative_path
-    rsync://user[:password]@other.host[:port]//absolute_path
-    s3://other.host/bucket_name[/prefix]
-    s3+http://bucket_name[/prefix]
-    webdav://user[:password]@other.host/some_dir
-    webdavs://user[:password]@other.host/some_dir
+    dict = {
+        # Used in usage help to represent a Unix-style path name. Example:
+        # rsync://user[:password]@other_host[:port]//absolute_path
+        'absolute_path'  : _("absolute_path"),
+        # Used in usage help. Example:
+        # tahoe://alias/some_dir
+        'alias'          : _("alias"),
+        # Used in usage help (noun)
+        'backup_name'    : _("backup name"),
+        # Used in help to represent a "bucket name" for Amazon Web Services' Simple
+        # Storage Service (S3). Example:
+        # s3://other.host/bucket_name[/prefix]
+        'bucket_name'    : _("bucket_name"),
+        # Used in usage help, abbreviation for "character" (noun)
+        'char'           : _("char"),
+        # Used in usage help (noun)
+        'command'        : _("command"),
+        # Used in usage help to represent the name of a container in Amazon Web
+        # Services' Cloudfront. Example:
+        # cf+http://container_name
+        'container_name' : _("container_name"),
+        # Used in usage help (noun)
+        'count'          : _("count"),
+        # Used in usage help to represent the name of a file directory
+        'directory'      : _("directory"),
+        # Used in usage help to represent the name of a file. Example:
+        # --log-file <filename>
+        'filename'       : _("filename"),
+        # Used in usage help to represent an ID for a GnuPG key. Example:
+        # --encrypt-key <gpg_key_id>
+        'gpg_key_id'     : _("gpg-key-id"),
+        # Used in usage help, e.g. to represent the name of a code module. Example:
+        # rsync://user[:password]@other.host[:port]::/module/some_dir
+        'module'         : _("module"),
+        # Used in usage help to represent a desired number of something. Example:
+        # --num-retries <number>
+        'number'         : _("number"),
+        # Used in usage help. (Should be consistent with the "Options:" header.)
+        # Example:
+        # duplicity [full|incremental] [options] source_dir target_url
+        'options'        : _("options"),
+        # Used in usage help to represent an internet hostname. Example:
+        # ftp://user[:password]@other.host[:port]/some_dir
+        'other_host'     : _("other.host"),
+        # Used in usage help. Example:
+        'password'       : _("password"),
+        # Used in usage help to represent a Unix-style path name. Example:
+        # --archive-dir <path>
+        'path'           : _("path"),
+        # Used in usage help to represent a TCP port number. Example:
+        # ftp://user[:password]@other.host[:port]/some_dir
+        'port'           : _("port"),
+        # Used in usage help. This represents a string to be used as a prefix to
+        # names for backup files created by Duplicity. Example:
+        # s3://other.host/bucket_name[/prefix]
+        'prefix'         : _("prefix"),
+        # Used in usage help to represent a Unix-style path name. Example:
+        # rsync://user[:password]@other.host[:port]/relative_path
+        'relative_path'  : _("relative_path"),
+        # Used in usage help. Example:
+        # --timeout <seconds>
+        'seconds'        : _("seconds"),
+        # Used in usage help to represent a "glob" style pattern for matching one or
+        # more files, as described in the documentation. Example:
+        # --exclude <%shell_pattern>
+        'shell_pattern'  : _("shell_pattern"),
+        # Used in usage help to represent the name of a single file directory or a
+        # Unix-style path to a directory. Example:
+        # file:///%(x_some_dir)s
+        'some_dir'       : _("some_dir"),
+        # Used in usage help to represent the name of a single file directory or a
+        # Unix-style path to a directory where files will be coming FROM. Example:
+        # duplicity [full|incremental] [options] source_dir target_url
+        'source_dir'     : _("source_dir"),
+        # Used in usage help to represent a URL files will be coming FROM. Example:
+        # duplicity [restore] [options] source_url target_dir
+        'source_url'     : _("source_url"),
+        # Used in usage help to represent the name of a single file directory or a
+        # Unix-style path to a directory. where files will be going TO. Example:
+        # duplicity [restore] [options] source_url target_dir
+        'target_dir'     : _("target_dir"),
+        # Used in usage help to represent a URL files will be going TO. Example:
+        # duplicity [full|incremental] [options] source_dir target_url
+        'target_url'     : _("target_url"),
+        # Used in usage help to represent a time spec for a previous point in time,
+        # as described in the documentation. Example:
+        # duplicity remove-older-than time [options] target_url
+        'time'           : _("time"),
+        # Used in usage help to represent a user name (i.e. login). Example:
+        # ftp://user[:password]@other.host[:port]/some_dir
+        'user'           : _("user") }
 
-Commands:
-    cleanup <target_url>
-    collection-status <target_url>
-    full <source_dir> <target_url>
-    incr <source_dir> <target_url>
-    list-current-files <target_url>
-    restore <target_url> <source_dir>
-    remove-older-than <time> <target_url>
-    remove-all-but-n-full <count> <target_url>
-    verify <target_url> <source_dir>
+    msg = _("duplicity version %s running on %s.") % (globals.version, sys.platform)
+    msg = "\n" + msg + "\n"
 
-Options:
+    # Header in usage help
+    msg = msg + _("Usage:") + """
+    duplicity [full|incremental] [%(options)s] %(source_dir)s %(target_url)s
+    duplicity [restore] [%(options)s] %(source_url)s %(target_dir)s
+    duplicity verify [%(options)s] %(source_url)s %(target_dir)s
+    duplicity collection-status [%(options)s] %(target_url)s
+    duplicity list-current-files [%(options)s] %(target_url)s
+    duplicity cleanup [%(options)s] %(target_url)s
+    duplicity remove-older-than %(time)s [%(options)s] %(target_url)s
+    duplicity remove-all-but-n-full %(count)s [%(options)s] %(target_url)s
+
+""" % dict
+
+    # Header in usage help
+    msg = msg + _("Backends and their URL formats:") + """
+    cf+http://%(container_name)s
+    file:///%(some_dir)s
+    ftp://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
+    hsi://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
+    imap://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
+    rsync://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]::/%(module)s/%(some_dir)s
+    rsync://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(relative_path)s
+    rsync://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]//%(absolute_path)s
+    s3://%(other_host)s/%(bucket_name)s[/%(prefix)s]
+    s3+http://%(bucket_name)s[/%(prefix)s]
+    scp://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
+    ssh://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
+    tahoe://%(alias)s/%(directory)s
+    webdav://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
+    webdavs://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
+
+""" % dict
+
+    # Header in usage help
+    msg = msg + _("Commands:") + """
+    cleanup <%(target_url)s>
+    collection-status <%(target_url)s>
+    full <%(source_dir)s> <%(target_url)s>
+    incr <%(source_dir)s> <%(target_url)s>
+    list-current-files <%(target_url)s>
+    restore <%(target_url)s> <%(source_dir)s>
+    remove-older-than <%(time)s> <%(target_url)s>
+    remove-all-but-n-full <%(count)s> <%(target_url)s>
+    verify <%(target_url)s> <%(source_dir)s>
+
+""" % dict
+
+    # Header in usage help
+    msg = msg + _("Options:") + """
     --allow-source-mismatch
-    --archive-dir <path>
+    --archive-dir <%(path)s>
     --asynchronous-upload
     --dry-run
-    --encrypt-key <gpg-key-id>
-    --exclude <shell_pattern>
+    --encrypt-key <%(gpg_key_id)s>
+    --exclude <%(shell_pattern)s>
     --exclude-device-files
-    --exclude-filelist <filename>
+    --exclude-filelist <%(filename)s>
     --exclude-filelist-stdin
-    --exclude-globbing-filelist <filename>
+    --exclude-globbing-filelist <%(filename)s>
     --exclude-other-filesystems
     --exclude-regexp <regexp>
-    --file-to-restore <path>
-    --full-if-older-than <time>
+    --file-to-restore <%(path)s>
+    --full-if-older-than <%(time)s>
     --force
     --ftp-passive
     --ftp-regular
+    --gio
     --gpg-options
-    --include <shell_pattern>
-    --include-filelist <filename>
+    --include <%(shell_pattern)s>
+    --include-filelist <%(filename)s>
     --include-filelist-stdin
-    --include-globbing-filelist <filename>
+    --include-globbing-filelist <%(filename)s>
     --include-regexp <regexp>
     --log-fd <fd>
-    --log-file <filename>
+    --log-file <%(filename)s>
+    --name <%(backup_name)s>
     --no-encryption
     --no-print-statistics
     --null-separator
-    --num-retries <number>
+    --num-retries <%(number)s>
     --old-filenames
     --s3-european-buckets
     --s3-use-new-style
-    --scp-command <command>
-    --sftp-command <command>
-    --sign-key <gpg-key-id>
+    --scp-command <%(command)s>
+    --sftp-command <%(command)s>
+    --sign-key <%(gpg_key_id)s>
     --ssh-askpass
     --ssh-options
     --short-filenames
-    --tempdir <directory>
-    --timeout <seconds>
-    -t<time>, --time <time>, --restore-time <time>
-    --time-separator <char>
+    --tempdir <%(directory)s>
+    --timeout <%(seconds)s>
+    -t<%(time)s>, --time <%(time)s>, --restore-time <%(time)s>
+    --time-separator <%(char)s>
     --use-agent
     --version
-    --volsize <number>
+    --volsize <%(number)s>
     -v[0-9], --verbosity [0-9]
-    Verbosity must be one of: digit [0-9], character [ewnid],
+""" % dict
+
+    # In this portion of the usage instructions, "[ewnid]" indicates which
+    # characters are permitted (e, w, n, i, or d); the brackets imply their own
+    # meaning in regex; i.e., only one of the characters is allowed in an instance.
+    msg = msg + _("""    Verbosity must be one of: digit [0-9], character [ewnid],
     or word ['error', 'warning', 'notice', 'info', 'debug'].
     The default is 4 (Notice).  It is strongly recommended
     that verbosity level is set at 2 (Warning) or higher.
-""") % (globals.version, sys.platform))
+""")
+
+    sys.stdout.write(msg)
 
 
 def get_int(int_string, description):
@@ -450,16 +651,22 @@ def get_int(int_string, description):
         return int(int_string)
     except ValueError:
         command_line_error("Received '%s' for %s, need integer" %
-                                          (int_string, description))
+                                          (int_string, description.lstrip('-')))
 
 def set_archive_dir(dirstring):
     """Check archive dir and set global"""
-    archive_dir = path.Path(os.path.expanduser(dirstring))
+    if not os.path.exists(dirstring):
+        try:
+            os.makedirs(dirstring)
+        except:
+            pass
+    archive_dir = path.Path(dirstring)
     if not archive_dir.isdir():
         log.FatalError(_("Specified archive directory '%s' does not exist, "
                          "or is not a directory") % (archive_dir.name,),
                        log.ErrorCode.bad_archive_dir)
     globals.archive_dir = archive_dir
+
 
 def set_sign_key(sign_key):
     """Set globals.sign_key assuming proper key given"""
@@ -469,12 +676,36 @@ def set_sign_key(sign_key):
                        log.ErrorCode.bad_sign_key)
     globals.gpg_profile.sign_key = sign_key
 
+
 def set_selection():
     """Return selection iter starting at filename with arguments applied"""
     global select_opts, select_files
     sel = selection.Select(globals.local_path)
     sel.ParseArgs(select_opts, select_files)
     globals.select = sel.set_iter()
+
+def args_to_path_backend(arg1, arg2):
+    """
+    Given exactly two arguments, arg1 and arg2, figure out which one
+    is the backend URL and which one is a local path, and return
+    (local, backend).
+    """
+    arg1_is_backend, arg2_is_backend = backend.is_backend_url(arg1), backend.is_backend_url(arg2)
+
+    if not arg1_is_backend and not arg2_is_backend:
+        command_line_error(
+"""One of the arguments must be an URL.  Examples of URL strings are
+"scp://user@host.net:1234/path" and "file:///usr/local".  See the man
+page for more information.""")
+    if arg1_is_backend and arg2_is_backend:
+        command_line_error("Two URLs specified.  "
+                           "One argument should be a path.")
+    if arg1_is_backend:
+        return (arg2, arg1)
+    elif arg2_is_backend:
+        return (arg1, arg2)
+    else:
+        raise AssertionError('should not be reached')
 
 def set_backend(arg1, arg2):
     """Figure out which arg is url, set backend
@@ -483,21 +714,15 @@ def set_backend(arg1, arg2):
     path made from arg1.
 
     """
-    backend1, backend2 = backend.get_backend(arg1), backend.get_backend(arg2)
-    if not backend1 and not backend2:
-        command_line_error(
-"""One of the arguments must be an URL.  Examples of URL strings are
-"scp://user@host.net:1234/path" and "file:///usr/local".  See the man
-page for more information.""")
-    if backend1 and backend2:
-        command_line_error("Two URLs specified.  "
-                           "One argument should be a path.")
-    if backend1:
-        globals.backend = backend1
-        return (None, arg2)
-    elif backend2:
-        globals.backend = backend2
-        return (1, arg1)
+    path, bend = args_to_path_backend(arg1, arg2)
+
+    globals.backend = backend.get_backend(bend)
+
+    if path == arg2:
+        return (None, arg2) # False?
+    else:
+        return (1, arg1) # True?
+
 
 def process_local_dir(action, local_pathname):
     """Check local directory, set globals.local_path"""
@@ -520,6 +745,7 @@ def process_local_dir(action, local_pathname):
                            log.ErrorCode.backup_dir_doesnt_exist)
 
     globals.local_path = local_path
+
 
 def check_consistency(action):
     """Final consistency check, see if something wrong with command line"""
@@ -555,6 +781,7 @@ def check_consistency(action):
             command_line_error("restore option incompatible with %s backup"
                                % (action,))
 
+
 def ProcessCommandLine(cmdline_list):
     """Process command line, set globals, return action
 
@@ -565,9 +792,15 @@ def ProcessCommandLine(cmdline_list):
     globals.gpg_profile = gpg.GPGProfile()
 
     args = parse_cmdline_options(cmdline_list)
-    if len(args) < 1:
-        command_line_error("Too few arguments")
-    elif len(args) == 1:
+
+    # we can now try to import all the backends
+    duplicity.backend.import_backends()
+
+    # parse_cmdline_options already verified that we got exactly 1 or 2
+    # non-options arguments
+    assert len(args) >= 1 and len(args) <= 2, "arg count should have been checked already"
+
+    if len(args) == 1:
         if list_current:
             action = "list-current"
         elif collection_status:
@@ -604,7 +837,7 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
         if action in ['full', 'inc', 'verify']:
             set_selection()
     elif len(args) > 2:
-        command_line_error("Too many arguments")
+        raise AssertionError("this code should not be reachable")
 
     check_consistency(action)
     log.Info(_("Main action: ") + action)

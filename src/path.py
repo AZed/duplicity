@@ -28,6 +28,8 @@ associates stat information with filenames
 
 import stat, os, errno, socket, time, re, gzip
 
+import duplicity.util as util
+
 from duplicity import librsync
 from duplicity import log
 from duplicity import dup_time
@@ -431,9 +433,9 @@ class ROPath:
     def copy_attribs(self, other):
         """Only copy attributes from self to other"""
         if isinstance(other, Path):
-            os.chown(other.name, self.stat.st_uid, self.stat.st_gid)
-            os.chmod(other.name, self.mode)
-            os.utime(other.name, (time.time(), self.stat.st_mtime))
+            util.maybe_ignore_errors(lambda: os.chown(other.name, self.stat.st_uid, self.stat.st_gid))
+            util.maybe_ignore_errors(lambda: os.chmod(other.name, self.mode))
+            util.maybe_ignore_errors(lambda: os.utime(other.name, (time.time(), self.stat.st_mtime)))
             other.setdata()
         else:
             # write results to fake stat object
@@ -450,11 +452,11 @@ class ROPath:
 
 
 class Path(ROPath):
-    """Path class - wrapper around ordinary local files
+    """
+    Path class - wrapper around ordinary local files
 
     Besides caching stat() results, this class organizes various file
     code.
-
     """
     regex_chars_to_quote = re.compile("[\\\\\\\"\\$`]")
 
@@ -501,11 +503,11 @@ class Path(ROPath):
         return self.isdir() and not self.listdir()
 
     def open(self, mode = "rb"):
-        """Return fileobj associated with self
+        """
+        Return fileobj associated with self
 
         Usually this is just the file data on disk, but can be
         replaced with arbitrary data using the setfileobj method.
-
         """
         assert not self.opened
         if self.fileobj:
@@ -522,10 +524,10 @@ class Path(ROPath):
         self.setdata()
 
     def mkdir(self):
-        """Make a directory at specified path"""
+        """Make directory(s) at specified path"""
         log.Info(_("Making directory %s") % (self.name,))
         try:
-            os.mkdir(self.name)
+            os.makedirs(self.name)
         except OSError:
             if (not globals.force):
                 raise PathException("Error creating directory %s" % (self.name,), 7)
@@ -630,11 +632,11 @@ class Path(ROPath):
         return "(%s %s %s)" % (self.index, self.name, self.type)
 
     def quote(self, s = None):
-        """Return quoted version of s (defaults to self.name)
+        """
+        Return quoted version of s (defaults to self.name)
 
         The output is meant to be interpreted with shells, so can be
         used with os.system.
-
         """
         if not s:
             s = self.name
@@ -660,12 +662,12 @@ class Path(ROPath):
         return components[-1]
 
     def get_canonical(self):
-        """Return string of canonical version of path
+        """
+        Return string of canonical version of path
 
         Remove ".", and trailing slashes where possible.  Note that
         it's harder to remove "..", as "foo/bar/.." is not necessarily
         "foo", so we can't use path.normpath()
-
         """
         newpath = "/".join(filter(lambda x: x and x != ".",
                                   self.name.split("/")))
@@ -678,14 +680,15 @@ class Path(ROPath):
 
 
 class DupPath(Path):
-    """Represent duplicity data files
+    """
+    Represent duplicity data files
 
     Based on the file name, files that are compressed or encrypted
     will have different open() methods.
-
     """
     def __init__(self, base, index = (), parseresults = None):
-        """DupPath initializer
+        """
+        DupPath initializer
 
         The actual filename (no directory) must be the single element
         of the index, unless parseresults is given.
@@ -701,14 +704,13 @@ class DupPath(Path):
         Path.__init__(self, base, index)
 
     def filtered_open(self, mode = "rb", gpg_profile = None):
-        """Return fileobj with appropriate encryption/compression
+        """
+        Return fileobj with appropriate encryption/compression
 
         If encryption is specified but no gpg_profile, use
         globals.default_profile.
-
         """
         assert not self.opened and not self.fileobj
-        assert mode == "rb" or mode == "wb" # demand binary mode, no appends
         assert not (self.pr.encrypted and self.pr.compressed)
         if gpg_profile:
             assert self.pr.encrypted
@@ -719,9 +721,9 @@ class DupPath(Path):
             if not gpg_profile:
                 gpg_profile = globals.gpg_profile
             if mode == "rb":
-                return gpg.GPGFile(None, self, gpg_profile)
+                return gpg.GPGFile(False, self, gpg_profile)
             elif mode == "wb":
-                return gpg.GPGFile(1, self, gpg_profile)
+                return gpg.GPGFile(True, self, gpg_profile)
         else:
             return self.open(mode)
 

@@ -1,3 +1,12 @@
+duplicity (0.6.04-1) unstable; urgency=low
+
+  * New upstream release (closes: #536361, #537260, #42858, 
+    #399371, #388180, #386749 )
+  * new project homepage
+  * added notes regarding changed archive-dir behaviour
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 12 Aug 2009 12:34:01 +1000
+
 duplicity (0.5.16-1) unstable; urgency=low
 
   * New upstream release (closes: #524786)

@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "April 21, 2009" "Version 0.5.16" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "August 01, 2009" "Version 0.6.04" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -61,7 +61,7 @@ WebDAV, WebDAVs, HSi and Amazon S3 backends are available.
 Because duplicity uses
 librsync, the incremental archives are space efficient and only record
 the parts of files that have changed since the last backup.  Currently
-duplicity supports deleted files, full unix permissions, directories,
+duplicity supports deleted files, full Unix permissions, directories,
 symbolic links, fifos, etc., but not hard links.
 
 Duplicity will read the PASSPHRASE environment variable to find the
@@ -214,14 +214,53 @@ this switch.
 
 .TP
 .BI "--archive-dir " path
-When backing up or restoring, specify the local archive directory.
-This option is not necessary, but if hash data is found locally in
-.I path
-it will be used in preference to the remote hash data. Use of this
-option does not imply that the archive data is no longer stored
-in the backup destination, nor that the local archive directory
-need be kept safe. The local archive directory is a performance
-optimization only, and may safely be discarded at any time.
+The archive directory.
+.B NOTE:
+This option changed in 0.6.0.  The archive directory is now necessary
+in order to manage persistence for current and future enhancements.
+As such, this option is now used only to change the location of the
+archive directory.  The archive directory should
+.B not
+be deleted, or duplicity will have to recreate it from
+the remote repository (which may require decrypting the backup contents).
+
+When backing up or restoring, this option specifies that the local
+archive directory is to be created in
+.IR path .
+If the archive directory is not specified, the default will be to
+create the archive directory in
+.IR ~/.cache/duplicity/ .
+
+The archive directory can be shared between backups to multiple targets,
+because a subdirectory of the archive dir is used for individual backups (see 
+.B --name
+).
+
+The combination of archive directory and backup name must be unique 
+in order to separate the data of different backups.
+
+The interaction between the 
+.B --archive-dir 
+and the 
+.B --name 
+options allows for four possible combinations for the location of the archive dir:
+
+.RS
+.IP 1.
+neither specified (default)
+ ~/.cache/duplicity/\c
+.IR hash-of-url
+.IP 2.
+--archive-dir=/arch, no --name
+ /arch/\c
+.IR hash-of-url
+.IP 3.
+no --archive-dir, --name=foo
+ ~/.cache/duplicity/foo
+.IP 4.
+--archive-dir=/arch, --name=foo
+ /arch/foo
+.RE
 
 .TP
 .BI "--asynchronous-upload "
@@ -335,6 +374,31 @@ out.
 Use regular (PORT) data connections.
 
 .TP
+.B --gio
+Use the GIO backend and interpret any URLs as GIO would.
+
+.TP
+.B --ignore-errors
+Try to ignore certain errors if they happen. This option is only
+intended to allow the restoration of a backup in the face of certain
+problems that would otherwise cause the backup to fail. It is not ever
+recommended to use this option unless you have a situation where you
+are trying to restore from backup and it is failing because of an
+issue which you want duplicity to ignore. Even then, depending on the
+issue, this option may not have an effect.
+
+Please note that while ignored errors will be logged, there will be no
+summary at the end of the operation to tell you what was ignored, if
+anything. If this is used for emergency restoration of data, it is
+recommended that you run the backup in such a way that you can revisit
+the backup log (look for lines containing the string IGNORED_ERROR).
+
+If you ever have to use this option for reasons that are not
+understood or understood but not your own responsibility, please
+contact duplicity maintainers. The need to use this option under
+production circumstances would normally be considered a bug.
+
+.TP
 .BI "--imap-mailbox " option
 Allows you to specify a different mailbox.  The default is
 "INBOX".
@@ -402,6 +466,20 @@ programs.
 .BI "--log-file " filename
 Write specially-formatted versions of output messages to the specified file.
 The format used is designed to be easily consumable by other programs.
+
+.TP
+.BI "--name " symbolicname
+Set the symbolic name of the backup being operated on. The intent is
+to use a separate name for each logically distinct backup. For
+example, someone may use "home_daily_s3" for the daily backup of a
+home directory to Amazon S3. The structure of the name is up to the
+user, it is only important that the names be distinct. The symbolic
+name is currently only used to affect the expansion of
+.B --archive-dir
+, but may be used for additional features in the future. Users running
+more than one distinct backup are encouraged to use this option.
+
+If not specified, the default value is a hash of the backend URL.
 
 .TP
 .B --no-encryption
@@ -588,19 +666,17 @@ filesystem path.
 Formats of each of the URL schemes follow:
 .PP
 .RS
-ssh://user[:password]@other.host[:port]/some_dir
+cf+http://container_name
 .PP
-scp://user[:password]@other.host[:port]/some_dir
+file:///some_dir
 .PP
 ftp://user[:password]@other.host[:port]/some_dir
+.PP
+hsi://user[:password]@other.host/some_dir
 .PP
 imap://user[:password]@host.com[/from_address_prefix]
 .PP
 imaps://user[:password]@host.com[/from_address_prefix]
-.PP
-hsi://user[:password]@other.host/some_dir
-.PP
-file:///some_dir
 .PP
 rsync://user[:password]@other.host[:port]::/module/some_dir
 .PP
@@ -612,9 +688,16 @@ s3://host/bucket_name[/prefix]
 .PP
 s3+http://bucket_name[/prefix]
 .PP
+scp://user[:password]@other.host[:port]/some_dir
+.PP
+ssh://user[:password]@other.host[:port]/some_dir
+.PP
+tahoe://alias/directory
+.PP
 webdav://user[:password]@other.host/some_dir
 .PP
 webdavs://user[:password]@other.host/some_dir
+
 .RE
 
 .SH TIME FORMATS
@@ -967,11 +1050,11 @@ These start with
 .B duplicity-full-signatures
 and
 .B duplicity-new-signatures
-respectively.  If
-.B --archive-dir
-is used, these signatures will be stored both locally and remotely.
+respectively. These signatures will be stored both locally and remotely.
 The remote signatures will be encrypted if encryption is enabled.
-The local signatures will not be encrypted
+The local signatures will not be encrypted and stored in the archive dir (see
+.B "--archive-dir"
+).
 
 .SH ENVIRONMENT VARIABLES
 
@@ -1016,13 +1099,13 @@ Amazon S3, but in practice you may experience timeouts, socket errors
 or HTTP errors when trying to upload files to your newly created
 bucket. Give it a few minutes and the bucket should function normally.
 .SH IMAP
-An Imap account can be used as a target for the upload.  The userid may
+An IMAP account can be used as a target for the upload.  The userid may
 be specified and the password will be requested.
 .PP
 The
 .B from_address_prefix
 may be specified (and probably should be). The text will be used as
-the "From" address in the imap server.  Then on a restore (or list) command
+the "From" address in the IMAP server.  Then on a restore (or list) command
 the
 .B from_address_prefix
 will distinguish between different backups.

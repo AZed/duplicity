@@ -19,12 +19,13 @@
 # along with duplicity; if not, write to the Free Software Foundation,
 # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-"""duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
+"""
+duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface
+"""
 
-import select, os, sys, thread, types, cStringIO, tempfile, re, gzip
+import os, types, tempfile, re, gzip
 
 from duplicity import misc
-from duplicity import log
 from duplicity import globals
 from duplicity import GnuPGInterface
 
@@ -42,22 +43,26 @@ gpg_options = ""
 
 
 class GPGError(Exception):
-    """Indicate some GPG Error"""
+    """
+    Indicate some GPG Error
+    """
     pass
 
 
 class GPGProfile:
-    """Just hold some GPG settings, avoid passing tons of arguments"""
+    """
+    Just hold some GPG settings, avoid passing tons of arguments
+    """
     def __init__(self, passphrase = None, sign_key = None,
                  recipients = None):
-        """Set all data with initializer
+        """
+        Set all data with initializer
 
         passphrase is the passphrase.  If it is None (not ""), assume
         it hasn't been set.  sign_key can be blank if no signing is
         indicated, and recipients should be a list of keys.  For all
         keys, the format should be an 8 character hex key like
         'AA0E73D2'.
-
         """
         assert passphrase is None or type(passphrase) is types.StringType
         if sign_key:
@@ -73,9 +78,12 @@ class GPGProfile:
 
 
 class GPGFile:
-    """File-like object that decrypts another file on the fly"""
+    """
+    File-like object that encrypts decrypts another file on the fly
+    """
     def __init__(self, encrypt, encrypt_path, profile):
-        """GPGFile initializer
+        """
+        GPGFile initializer
 
         If recipients is set, use public key encryption and encrypt to
         the given keys.  Otherwise, use symmetric encryption.
@@ -85,11 +93,11 @@ class GPGFile:
 
         If passphrase is false, do not set passphrase - GPG program
         should prompt for it.
-
         """
         self.status_fp = None # used to find signature
         self.closed = None # set to true after file closed
         self.logger_fp = tempfile.TemporaryFile()
+        self.stderr_fp = tempfile.TemporaryFile()
 
         # Start GPG process - copied from GnuPGInterface docstring.
         gnupg = GnuPGInterface.GnuPG()
@@ -116,6 +124,7 @@ class GPGFile:
                 gnupg.options.extra_args.append('--force-mdc')
             p1 = gnupg.run(cmdlist, create_fhs=['stdin', 'passphrase'],
                            attach_fhs={'stdout': encrypt_path.open("wb"),
+                                       'stderr': self.stderr_fp,
                                        'logger': self.logger_fp})
             p1.handles['passphrase'].write(profile.passphrase)
             p1.handles['passphrase'].close()
@@ -125,6 +134,7 @@ class GPGFile:
             p1 = gnupg.run(['--decrypt'], create_fhs=['stdout', 'passphrase'],
                            attach_fhs={'stdin': encrypt_path.open("rb"),
                                        'status': self.status_fp,
+                                       'stderr': self.stderr_fp,
                                        'logger': self.logger_fp})
             p1.handles['passphrase'].write(profile.passphrase)
             p1.handles['passphrase'].close()
@@ -135,7 +145,7 @@ class GPGFile:
     def read(self, length = -1):
         try:
             res = self.gpg_output.read(length)
-        except Exception, e:
+        except Exception:
             self.gpg_failed()
         return res
 
@@ -149,11 +159,15 @@ class GPGFile:
     def gpg_failed(self):
         msg = "GPG Failed, see log below:\n"
         msg += "===== Begin GnuPG log =====\n"
-        self.logger_fp.seek(0)
-        for line in self.logger_fp:
-            msg += line.strip() + "\n"
+        for fp in (self.logger_fp, self.stderr_fp):
+            fp.seek(0)
+            for line in fp:
+                msg += line.strip() + "\n"
         msg += "===== End GnuPG log =====\n"
-        raise GPGError, msg
+        if not (msg.find("invalid packet (ctb=14)") > -1):
+            raise GPGError, msg
+        else:
+            return ""
 
     def close(self):
         if self.encrypt:
@@ -186,14 +200,15 @@ class GPGFile:
             except:
                 self.gpg_failed()
         self.logger_fp.close()
+        self.stderr_fp.close()
         self.closed = 1
 
     def set_signature(self):
-        """Set self.signature to 8 character signature keyID
+        """
+        Set self.signature to 8 character signature keyID
 
         This only applies to decrypted files.  If the file was not
         signed, set self.signature to None.
-
         """
         self.status_fp.seek(0)
         status_buf = self.status_fp.read()
@@ -206,14 +221,18 @@ class GPGFile:
             self.signature = match.group(1)[-8:]
 
     def get_signature(self):
-        """Return 8 character keyID of signature, or None if none"""
+        """
+        Return 8 character keyID of signature, or None if none
+        """
         assert self.closed
         return self.signature
 
 
 def GPGWriteFile(block_iter, filename, profile,
-                 size = 5 * 1024 * 1024, max_footer_size = 16 * 1024):
-    """Write GPG compressed file of given size
+                 size = 200 * 1024 * 1024,
+                 max_footer_size = 16 * 1024):
+    """
+    Write GPG compressed file of given size
 
     This function writes a gpg compressed file by reading from the
     input iter and writing to filename.  When it has read an amount
@@ -230,19 +249,18 @@ def GPGWriteFile(block_iter, filename, profile,
     However, do assume that bytes_out <= bytes_in approximately.
 
     Returns true if succeeded in writing until end of block_iter.
-
     """
 
     # workaround for circular module imports
     from duplicity import path
 
     def top_off(bytes, file):
-        """Add bytes of incompressible data to to_gpg_fp
+        """
+        Add bytes of incompressible data to to_gpg_fp
 
         In this case we take the incompressible data from the
         beginning of filename (it should contain enough because size
         >> largest block size).
-
         """
         incompressible_fp = open(filename, "rb")
         assert misc.copyfileobj(incompressible_fp, file.gpg_input, bytes) == bytes
@@ -251,17 +269,17 @@ def GPGWriteFile(block_iter, filename, profile,
     def get_current_size():
         return os.stat(filename).st_size
 
-    minimum_block_size = 128 * 1024 # don't bother requesting blocks smaller
+    block_size = 128 * 1024        # don't bother requesting blocks smaller, but also don't ask for bigger
     target_size = size - 50 * 1024 # fudge factor, compensate for gpg buffering
     data_size = target_size - max_footer_size
     file = GPGFile(True, path.Path(filename), profile)
     at_end_of_blockiter = 0
-    while 1:
+    while True:
         bytes_to_go = data_size - get_current_size()
-        if bytes_to_go < minimum_block_size:
+        if bytes_to_go < block_size:
             break
         try:
-            data = block_iter.next(bytes_to_go).data
+            data = block_iter.next(min(block_size, bytes_to_go)).data
         except StopIteration:
             at_end_of_blockiter = 1
             break
@@ -277,9 +295,11 @@ def GPGWriteFile(block_iter, filename, profile,
     return at_end_of_blockiter
 
 
-def GzipWriteFile(block_iter, filename, size = 5 * 1024 * 1024,
+def GzipWriteFile(block_iter, filename,
+                  size = 200 * 1024 * 1024,
                   max_footer_size = 16 * 1024):
-    """Write gzipped compressed file of given size
+    """
+    Write gzipped compressed file of given size
 
     This is like the earlier GPGWriteFile except it writes a gzipped
     file instead of a gpg'd file.  This function is somewhat out of
@@ -288,10 +308,11 @@ def GzipWriteFile(block_iter, filename, size = 5 * 1024 * 1024,
 
     The input requirements on block_iter and the output is the same as
     GPGWriteFile (returns true if wrote until end of block_iter).
-
     """
     class FileCounted:
-        """Wrapper around file object that counts number of bytes written"""
+        """
+        Wrapper around file object that counts number of bytes written
+        """
         def __init__(self, fileobj):
             self.fileobj = fileobj
             self.byte_count = 0
@@ -305,12 +326,12 @@ def GzipWriteFile(block_iter, filename, size = 5 * 1024 * 1024,
     file_counted = FileCounted(open(filename, "wb"))
     gzip_file = gzip.GzipFile(None, "wb", 6, file_counted)
     at_end_of_blockiter = 0
-    while 1:
+    while True:
         bytes_to_go = size - file_counted.byte_count
         if bytes_to_go < 32 * 1024:
             break
         try:
-            new_block = block_iter.next(bytes_to_go)
+            new_block = block_iter.next(min(128*1024, bytes_to_go))
         except StopIteration:
             at_end_of_blockiter = 1
             break
@@ -321,11 +342,11 @@ def GzipWriteFile(block_iter, filename, size = 5 * 1024 * 1024,
 
 
 def get_hash(hash, path, hex = 1):
-    """Return hash of path
+    """
+    Return hash of path
 
     hash should be "MD5" or "SHA1".  The output will be in hexadecimal
     form if hex is true, and in text (base64) otherwise.
-
     """
     assert path.isreg()
     fp = path.open("rb")

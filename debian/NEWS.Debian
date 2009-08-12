@@ -1,35 +1,41 @@
-duplicity (0.4.8-1) unstable; urgency=low
-
-  * There was a major problem with the rsync backend
-    in version 0.4.7 (and upstream's 0.4.8). 
-
-    If you used these versions more than once,
-    YOUR BACKED-UP DATA WAS LOST!
-
-    This version fixes the problem. 
-      
- -- Alexander Zangerl <az@debian.org>  Fri, 21 Dec 2007 17:31:52 +1000
-
-duplicity (0.4.7-1) unstable; urgency=low
-
-  * duplicity's command line format has changed with 0.4.4.
-    these changes are NOT BACKWARDS COMPATIBLE!
-    please refer to the duplicity(1) manpage for a detailed description.
+duplicity (0.6.04-1) unstable; urgency=low
   
-  * old-style rsync urls with modules (and only with modules!)
-    must be written differently now, because the new url parser 
-    library is stricter than before (and because rsync's way
-    of saying "module please!" by ending the hostname with
-    a colon is not rfc-compliant).
+  The --archive-dir handling has changed substantially in 0.6, 
+  in ways that affect existing backups.
   
-    a url referring to module modname on bhost for versions < 0.4.7 
-    would have looked like
-  
-    	rsync://buser@bhost:/modname/somedir
-  
-    and now must be written as
-  
-    	rsync://buser@bhost::/modname/somedir
-    
- -- Alexander Zangerl <az@debian.org>  Sat,  8 Dec 2007 10:32:59 +1000
+  Duplicity now requires an archive dir, and if you don't give it one
+  explicitely it will use ~/.cache/duplicy/.
 
+  To distinguish between multiple backups, a per-backup subdirectory
+  of the archive dir is used. This suffix is a hash of the target url
+  or can be set with --name. 
+  
+  The suffix is ALWAYS ADDED, the archive dir itself is no longer used.
+  
+  Consequences:
+  
+  * If you have existing backups with an archive dir (where you had
+    to specify unique archive dirs), you must add an 
+    appropriate --name to have duplicity use the right archive directory.
+
+    Using your existing, specific --archive-dir and --name '' works.
+  
+  * If you do not do that or if you have no existing archive dir, 
+    then duplicity will create a new archive dir and 
+    synchronize/recreate the archive dir content from the remote repository. 
+  
+    If you use encryption then the first duplicity run (attempting this
+    resynchronization) will fail unless you give it the encryption passphrase 
+    (or access to and passphrase of the relevant gnupg key) - local
+    archive dir contents are not encrypted but remote repositories are.
+  
+  For existing backups I'd highly recommend that you run a 
+  collection-status first, with the appropriate --archive-dir and --name.
+  It may pay off to ls the archive dir afterwards, confirming that no
+  unintended --name subdirs have been created. 
+  
+  After that step any required resynchronizations should be complete and
+  duplicity should again work fine for unattended backups with or without
+  encryption.
+  
+ -- Alexander Zangerl <az@debian.org>  Fri, 31 Jul 2009 10:50:30 +1000

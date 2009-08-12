@@ -8,7 +8,7 @@ XS-Python-Version: all
 
 Package: duplicity
 Architecture: any
-Homepage: http://www.nongnu.org/duplicity/
+Homepage: https://launchpad.net/duplicity
 XB-Python-Version: ${python:Versions}
 Depends: ${shlibs:Depends}, ${python:Depends}, gnupg, python-gnupginterface, python-pexpect
 Suggests: python-boto, ncftp

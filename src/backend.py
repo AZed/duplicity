@@ -25,6 +25,7 @@ intended to be used by the backends themselves.
 """
 
 import os
+import sys
 import socket
 import time
 import re
@@ -44,10 +45,49 @@ from duplicity.errors import ConflictingScheme
 from duplicity.errors import InvalidBackendURL
 from duplicity.errors import UnsupportedBackendScheme
 
+import duplicity.backends
+
+
 # todo: this should really NOT be done here
 socket.setdefaulttimeout(globals.timeout)
 
+_forced_backend = None
 _backends = {}
+
+
+def import_backends():
+    """
+    Import files in the duplicity/backends directory where
+    the filename ends in 'backend.py' and ignore the rest.
+
+    @rtype: void
+    @return: void
+    """
+    path = duplicity.backends.__path__[0]
+    assert path.endswith("duplicity/backends"), duplicity.backends.__path__
+
+    files = os.listdir(path)
+    for fn in files:
+        if fn.endswith("backend.py"):
+            fn = fn[:-3]
+            imp = "duplicity.backends.%s" % (fn,)
+            try:
+                __import__(imp)
+                res = "Succeeded"
+            except:
+                res = "Failed: " + str(sys.exc_info()[1])
+            log.Info("Import of %s %s" % (imp, res))
+        else:
+            continue
+
+
+def force_backend(backend):
+    """
+    Forces the use of a particular backend, regardless of schema
+    """
+    global _forced_backend
+    _forced_backend = backend
+
 
 def register_backend(scheme, backend_factory):
     """
@@ -68,11 +108,25 @@ def register_backend(scheme, backend_factory):
     assert callable(backend_factory), "backend factory must be callable"
 
     if scheme in _backends:
-        raise ConflictingSchemeError("the scheme %s already has a backend "
-                                     "associated with it"
-                                     "" % (scheme,))
+        raise ConflictingScheme("the scheme %s already has a backend "
+                                "associated with it"
+                                "" % (scheme,))
 
     _backends[scheme] = backend_factory
+
+
+def is_backend_url(url_string):
+    """
+    @return Whether the given string looks like a backend URL.
+    """
+    pu = ParsedUrl(url_string)
+
+    # Be verbose to actually return True/False rather than string.
+    if pu.scheme:
+        return True
+    else:
+        return False
+
 
 def get_backend(url_string):
     """
@@ -81,18 +135,23 @@ def get_backend(url_string):
 
     Raise InvalidBackendURL if the URL is not a valid URL.
     """
+    if not is_backend_url(url_string):
+        return None
+
     pu = ParsedUrl(url_string)
 
     # Implicit local path
-    if not pu.scheme:
-        return None
+    assert pu.scheme, "should be a backend url according to is_backend_url"
 
-    global _backends
+    global _backends, _forced_backend
 
-    if not pu.scheme in _backends:
+    if _forced_backend:
+        return _forced_backend(pu)
+    elif not pu.scheme in _backends:
         raise UnsupportedBackendScheme(url_string)
     else:
         return _backends[pu.scheme](pu)
+
 
 _urlparser_initialized = False
 _urlparser_initialized_lock = dup_threading.threading_module().Lock()
@@ -114,7 +173,14 @@ def _ensure_urlparser_initialized():
             # is a hack. we should instead not stomp on the url parsing module to begin with.
             #
             # todo: eliminate the need for backend specific hacking here completely.
-            urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs', 'http', 'https', 'imap', 'imaps' ]
+            urlparser.uses_netloc = ['ftp',
+                                     'hsi',
+                                     'rsync',
+                                     's3',
+                                     'scp', 'ssh',
+                                     'webdav', 'webdavs',
+                                     'http', 'https',
+                                     'imap', 'imaps']
 
             # Do not transform or otherwise parse the URL path component.
             urlparser.uses_query = []
@@ -122,8 +188,7 @@ def _ensure_urlparser_initialized():
 
             _urlparser_initialized = True
 
-    dup_threading.with_lock(_urlparser_initialized_lock,
-                            init)
+    dup_threading.with_lock(_urlparser_initialized_lock, init)
 
 class ParsedUrl:
     """
@@ -211,6 +276,7 @@ class ParsedUrl:
     def geturl(self):
         return self.url_string
 
+
 def strip_auth_from_url(parsed_url):
     """Return a URL from a urlparse object without a username or password."""
 
@@ -219,6 +285,7 @@ def strip_auth_from_url(parsed_url):
 
     # Replace the full network location with the stripped copy.
     return parsed_url.geturl().replace(parsed_url.netloc, straight_netloc, 1)
+
 
 class Backend:
     """
