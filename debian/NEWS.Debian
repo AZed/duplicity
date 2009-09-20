@@ -4,7 +4,7 @@ duplicity (0.6.04-1) unstable; urgency=low
   in ways that affect existing backups.
   
   Duplicity now requires an archive dir, and if you don't give it one
-  explicitely it will use ~/.cache/duplicy/.
+  explicitly it will use ~/.cache/duplicy/.
 
   To distinguish between multiple backups, a per-backup subdirectory
   of the archive dir is used. This suffix is a hash of the target url

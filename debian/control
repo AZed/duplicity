@@ -3,7 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Alexander Zangerl <az@debian.org>
 Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev, python-central (>= 0.5), dpatch
-Standards-Version: 3.8.0
+Standards-Version: 3.8.3
 XS-Python-Version: all
 
 Package: duplicity
