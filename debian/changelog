@@ -1,3 +1,10 @@
+duplicity (0.6.05-2) unstable; urgency=low
+
+  * adjusted rules to cater for future python2.6 install
+    setup (closes: #547825)
+
+ -- Alexander Zangerl <az@debian.org>  Fri, 25 Sep 2009 11:05:38 +1000
+
 duplicity (0.6.05-1) unstable; urgency=low
 
   * New upstream release

@@ -59,10 +59,8 @@ install: build
 # remove GnuPGInterface.py as we already have it in
 # python-gnupginterface
 # az Mon Mar 16 15:54:51 2009: currently disabled until #509415 is gone
-#	rm -f $(PREFIX)/lib/python*/site-packages/duplicity/GnuPGInterface.py
+#	rm -f $(PREFIX)/lib/python*/*-packages/duplicity/GnuPGInterface.py
 
-# fix permission for tarfile.py
-	chmod 755 $(PREFIX)/lib/python*/site-packages/duplicity/tarfile.py
 # remove docs as we create them with debhelper
 	rm -rf $(PREFIX)/share/doc/duplicity-*
 
