@@ -1,3 +1,13 @@
+duplicity (0.6.06-1) unstable; urgency=low
+
+  * New upstream release (closes: #539903, #420858)
+  * does no longer depend on python-gnupginterface: upstream
+    provides a modified version which is claimed to be incompatible
+  * does not install a local version of python-pexpect 
+    anymore (closes: #555359)
+    
+ -- Alexander Zangerl <az@debian.org>  Fri, 13 Nov 2009 07:30:49 +1000
+
 duplicity (0.6.05-2) unstable; urgency=low
 
   * adjusted rules to cater for future python2.6 install

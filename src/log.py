@@ -90,6 +90,7 @@ class InfoCode:
     asynchronous_upload_begin = 12
     synchronous_upload_done = 13
     asynchronous_upload_done = 14
+    skipping_socket = 15
 
 def Info(s, code=InfoCode.generic, extra=None):
     """Shortcut used for info messages (verbosity 5)."""
@@ -123,10 +124,14 @@ class WarningCode:
     incomplete_backup = 5
     orphaned_backup = 6
     ftp_ncftp_v320 = 7 # moved from error
+    cannot_iterate = 8
+    cannot_stat = 9
+    cannot_read = 10
+    no_sig_for_time = 11
 
-def Warn(s, code=WarningCode.generic):
+def Warn(s, code=WarningCode.generic, extra=None):
     """Shortcut used for warning messages (verbosity 2)"""
-    Log(s, WARNING, code)
+    Log(s, WARNING, code, extra)
 
 class ErrorCode:
     """Enumeration class to hold error code values.
@@ -135,7 +140,7 @@ class ErrorCode:
        to indicate which error occurred via both exit code and log."""
     generic = 1 # Don't use if possible, please create a new code and use it
     command_line = 2
-    source_mismatch = 3
+    hostname_mismatch = 3
     no_manifests = 4
     mismatched_manifests = 5
     unreadable_manifests = 6
@@ -173,6 +178,7 @@ class ErrorCode:
     connection_failed = 38
     restart_file_not_found = 39
     gio_not_available = 40
+    source_dir_mismatch = 42 # 41 is reserved for par2
 
 def FatalError(s, code, extra=None):
     """Write fatal error message and exit"""

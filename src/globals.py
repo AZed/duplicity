@@ -24,7 +24,7 @@
 import socket, sys, os
 
 # The current version of duplicity
-version = "0.6.05"
+version = "0.6.06"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -178,3 +178,6 @@ fail_on_volume = 0
 # circumstances. the default should absolutely always be True unless
 # you know what you are doing.
 ignore_errors = False
+
+# If we should be particularly aggressive when cleaning up
+extra_clean = False

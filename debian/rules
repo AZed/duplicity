@@ -61,6 +61,9 @@ install: build
 # az Mon Mar 16 15:54:51 2009: currently disabled until #509415 is gone
 #	rm -f $(PREFIX)/lib/python*/*-packages/duplicity/GnuPGInterface.py
 
+# no more local pexpect
+	rm -f $(PREFIX)/lib/python*/*-packages/duplicity/pexpect.py
+
 # remove docs as we create them with debhelper
 	rm -rf $(PREFIX)/share/doc/duplicity-*
 
