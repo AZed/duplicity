@@ -1,3 +1,10 @@
+duplicity (0.6.06-2) unstable; urgency=high
+
+  * fixed ssh backend failure (tried to import local pexpect module)
+    (closes: #556095)
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 16 Nov 2009 04:48:45 +1000
+
 duplicity (0.6.06-1) unstable; urgency=low
 
   * New upstream release (closes: #539903, #420858)

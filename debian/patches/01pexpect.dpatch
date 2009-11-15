@@ -1,0 +1,19 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 01pexpect.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: import global pexpect module, not a local one (#556095)
+
+@DPATCH@
+diff -urNad duplicity-0.6.06~/src/backends/sshbackend.py duplicity-0.6.06/src/backends/sshbackend.py
+--- duplicity-0.6.06~/src/backends/sshbackend.py	2009-10-30 06:51:44.000000000 +1000
++++ duplicity-0.6.06/src/backends/sshbackend.py	2009-11-16 04:46:37.259920543 +1000
+@@ -31,7 +31,7 @@
+ import duplicity.backend
+ from duplicity import globals
+ from duplicity import log
+-from duplicity import pexpect
++import pexpect
+ from duplicity.errors import *
+ 
+ class SSHBackend(duplicity.backend.Backend):
