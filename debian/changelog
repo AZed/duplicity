@@ -1,3 +1,9 @@
+duplicity (0.6.06-3) unstable; urgency=low
+
+  * applied fix for upstream bug#497243: cache desynchronization.
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 26 Jan 2010 17:12:18 +1000
+
 duplicity (0.6.06-2) unstable; urgency=high
 
   * fixed ssh backend failure (tried to import local pexpect module)
