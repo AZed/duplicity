@@ -26,14 +26,17 @@ associates stat information with filenames
 
 """
 
-import stat, os, errno, socket, time, re, gzip
+import stat, errno, socket, time, re, gzip
 
-import duplicity.util as util
-
+from duplicity import file_naming
+from duplicity import globals
+from duplicity import gpg
+from duplicity import tarfile
+from duplicity import util
 from duplicity import librsync
-from duplicity import log
+from duplicity import log #@UnusedImport
 from duplicity import dup_time
-from duplicity.lazy import *
+from duplicity.lazy import * #@UnusedWildImport
 
 _copy_blocksize = 64 * 1024
 _tmp_path_counter = 1
@@ -260,7 +263,7 @@ class ROPath:
                     ti.type = tarfile.BLKTYPE
                 ti.devmajor, ti.devminor = self.devnums
             else:
-                raise PathError("Unrecognized type " + str(self.type))
+                raise PathException("Unrecognized type " + str(self.type))
 
             ti.mode = self.mode
             ti.uid, ti.gid = self.stat.st_uid, self.stat.st_gid
@@ -459,14 +462,27 @@ class Path(ROPath):
     """
     regex_chars_to_quote = re.compile("[\\\\\\\"\\$`]")
 
+    def rename_index(self, index):
+        if not globals.rename or not index:
+            return index # early exit
+        path = os.path.normcase(os.path.join(*index))
+        tail = []
+        while path and path not in globals.rename:
+            path, extra = os.path.split(path)
+            tail.insert(0, extra)
+        if path:
+            return globals.rename[path].split(os.sep) + tail
+        else:
+            return index # no rename found
+
     def __init__(self, base, index = ()):
         """Path initializer"""
         # self.opened should be true if the file has been opened, and
         # self.fileobj can override returned fileobj
         self.opened, self.fileobj = None, None
         self.base = base
-        self.index = index
-        self.name = os.path.join(base, *index)
+        self.index = self.rename_index(index)
+        self.name = os.path.join(base, *self.index)
         self.setdata()
 
     def setdata(self):
@@ -475,7 +491,7 @@ class Path(ROPath):
             self.stat = os.lstat(self.name)
         except OSError, e:
             err_string = errno.errorcode[e[0]]
-            if err_string == "ENOENT" or err_string == "ENOTDIR":
+            if err_string == "ENOENT" or err_string == "ENOTDIR" or err_string == "ELOOP":
                 self.stat, self.type = None, None # file doesn't exist
                 self.mode = None
             else:
@@ -737,10 +753,3 @@ class PathDeleter(ITRBranch):
         return not path.isdir()
     def fast_process(self, index, path):
         path.delete()
-
-
-# Wait until end to avoid circular module trouble
-from duplicity import file_naming
-from duplicity import globals
-from duplicity import gpg
-from duplicity import tarfile

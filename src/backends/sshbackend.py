@@ -32,7 +32,7 @@ import duplicity.backend
 from duplicity import globals
 from duplicity import log
 from duplicity import pexpect
-from duplicity.errors import *
+from duplicity.errors import * #@UnusedWildImport
 
 class SSHBackend(duplicity.backend.Backend):
     """This backend copies files using scp.  List not supported"""
@@ -69,6 +69,77 @@ class SSHBackend(duplicity.backend.Backend):
                 globals.ssh_askpass = True
             else:
                 self.password = ''
+
+    def run_scp_command(self, commandline):
+        """ Run an scp command, responding to password prompts """
+        for n in range(1, globals.num_retries+1):
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
+            log.Info("Running '%s' (attempt #%d)" % (commandline, n))
+            child = pexpect.spawn(commandline, timeout = None)
+            if globals.ssh_askpass:
+                state = "authorizing"
+            else:
+                state = "copying"
+            while 1:
+                if state == "authorizing":
+                    match = child.expect([pexpect.EOF,
+                                          "(?i)timeout, server not responding",
+                                          "(?i)pass(word|phrase .*):",
+                                          "(?i)permission denied",
+                                          "authenticity"])
+                    log.Debug("State = %s, Before = '%s'" % (state, child.before.strip()))
+                    if match == 0:
+                        log.Warn("Failed to authenticate")
+                        break
+                    elif match == 1:
+                        log.Warn("Timeout waiting to authenticate")
+                        break
+                    elif match == 2:
+                        child.sendline(self.password)
+                        state = "copying"
+                    elif match == 3:
+                        log.Warn("Invalid SSH password")
+                        break
+                    elif match == 4:
+                        log.Warn("Remote host authentication failed (missing known_hosts entry?)")
+                        break
+                elif state == "copying":
+                    match = child.expect([pexpect.EOF,
+                                          "(?i)timeout, server not responding",
+                                          "stalled",
+                                          "authenticity",
+                                          "ETA"])
+                    log.Debug("State = %s, Before = '%s'" % (state, child.before.strip()))
+                    if match == 0:
+                        break
+                    elif match == 1:
+                        log.Warn("Timeout waiting for response")
+                        break
+                    elif match == 2:
+                        state = "stalled"
+                    elif match == 3:
+                        log.Warn("Remote host authentication failed (missing known_hosts entry?)")
+                        break
+                elif state == "stalled":
+                    match = child.expect([pexpect.EOF,
+                                          "(?i)timeout, server not responding",
+                                          "ETA"])
+                    log.Debug("State = %s, Before = '%s'" % (state, child.before.strip()))
+                    if match == 0:
+                        break
+                    elif match == 1:
+                        log.Warn("Stalled for too long, aborted copy")
+                        break
+                    elif match == 2:
+                        state = "copying"
+            child.close(force = True)
+            if child.exitstatus == 0:
+                return
+            log.Warn("Running '%s' failed (attempt #%d)" % (commandline, n))
+        log.Warn("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries))
+        raise BackendException("Error running '%s'" % commandline)
 
     def run_sftp_command(self, commandline, commands):
         """ Run an sftp command, responding to password prompts, passing commands from list """
@@ -126,24 +197,56 @@ class SSHBackend(duplicity.backend.Backend):
         raise BackendException("Error running '%s'" % commandline)
 
     def put(self, source_path, remote_filename = None):
+        if globals.use_scp:
+            self.put_scp(source_path, remote_filename = remote_filename)
+        else:
+            self.put_sftp(source_path, remote_filename = remote_filename)
+
+    def put_sftp(self, source_path, remote_filename = None):
         """Use sftp to copy source_dir/filename to remote computer"""
         if not remote_filename:
             remote_filename = source_path.get_filename()
-        commands = ["put %s %s%s" %
+        commands = ["put \"%s\" \"%s%s\"" %
                     (source_path.name, self.remote_prefix, remote_filename)]
         commandline = ("%s %s %s" % (globals.sftp_command,
                                      globals.ssh_options,
                                      self.host_string))
         self.run_sftp_command(commandline, commands)
 
+    def put_scp(self, source_path, remote_filename = None):
+        """Use scp to copy source_dir/filename to remote computer"""
+        if not remote_filename:
+            remote_filename = source_path.get_filename()
+        commandline = "%s %s %s %s:%s%s" % \
+            (globals.scp_command, globals.ssh_options, source_path.name, self.host_string,
+             self.remote_prefix, remote_filename)
+        self.run_scp_command(commandline)
+
     def get(self, remote_filename, local_path):
+        if globals.use_scp:
+            self.get_scp(remote_filename, local_path)
+        else:
+            self.get_sftp(remote_filename, local_path)
+
+    def get_sftp(self, remote_filename, local_path):
         """Use sftp to get a remote file"""
-        commands = ["get %s%s %s" %
+        commands = ["get \"%s%s\" \"%s\"" %
                     (self.remote_prefix, remote_filename, local_path.name)]
         commandline = ("%s %s %s" % (globals.sftp_command,
                                      globals.ssh_options,
                                      self.host_string))
         self.run_sftp_command(commandline, commands)
+        local_path.setdata()
+        if not local_path.exists():
+            raise BackendException("File %s not found locally after get "
+                                   "from backend" % local_path.name)
+
+    def get_scp(self, remote_filename, local_path):
+        """Use scp to get a remote file"""
+        commandline = "%s %s %s:%s%s %s" % \
+            (globals.scp_command, globals.ssh_options, self.host_string, self.remote_prefix,
+             remote_filename, local_path.name)
+        self.run_scp_command(commandline)
         local_path.setdata()
         if not local_path.exists():
             raise BackendException("File %s not found locally after get "
@@ -157,8 +260,8 @@ class SSHBackend(duplicity.backend.Backend):
         files with newlines in them, as the embedded newlines cannot
         be distinguished from the file boundaries.
         """
-        commands = ["mkdir %s" % (self.remote_dir,),
-                    "cd %s" % (self.remote_dir,),
+        commands = ["mkdir \"%s\"" % (self.remote_dir,),
+                    "cd \"%s\"" % (self.remote_dir,),
                     "ls -1"]
         commandline = ("%s %s %s" % (globals.sftp_command,
                                      globals.ssh_options,
@@ -172,9 +275,9 @@ class SSHBackend(duplicity.backend.Backend):
         """
         Runs sftp rm to delete files.  Files must not require quoting.
         """
-        commands = ["cd %s" % (self.remote_dir,)]
+        commands = ["cd \"%s\"" % (self.remote_dir,)]
         for fn in filename_list:
-            commands.append("rm %s" % fn)
+            commands.append("rm \"%s\"" % fn)
         commandline = ("%s %s %s" % (globals.sftp_command, globals.ssh_options, self.host_string))
         self.run_sftp_command(commandline, commands)
 

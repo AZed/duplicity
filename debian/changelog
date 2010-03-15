@@ -1,3 +1,29 @@
+duplicity (0.6.08b-1) unstable; urgency=low
+
+  * New upstream release
+  * backed out patch for upstream bug#497243 from 06-3 and -4, as
+    that fix was only cosmetic.
+    This version now enforces extra-clean cleanups on any remove operation,
+    which both fixes the cache desync issue as well as the accumulation of
+    old cruft in remote archive and local cache. 
+    NEWS.Debian and manpage have been updated to 
+    mention that behaviour. (closes: #572792)
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 15 Mar 2010 20:52:56 +1000
+
+duplicity (0.6.06-5) unstable; urgency=low
+
+  * updated watch file (closes: #573890)
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 15 Mar 2010 19:48:37 +1000
+
+duplicity (0.6.06-4) unstable; urgency=low
+
+  * updated fix for upstream bug#497243 to fix one remaining
+    case where cache desynchronization occurs.
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 28 Feb 2010 11:10:07 +1000
+
 duplicity (0.6.06-3) unstable; urgency=low
 
   * applied fix for upstream bug#497243: cache desynchronization.

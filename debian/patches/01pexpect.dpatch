@@ -5,15 +5,15 @@
 ## DP: import global pexpect module, not a local one (#556095)
 
 @DPATCH@
-diff -urNad duplicity-0.6.06~/src/backends/sshbackend.py duplicity-0.6.06/src/backends/sshbackend.py
---- duplicity-0.6.06~/src/backends/sshbackend.py	2009-10-30 06:51:44.000000000 +1000
-+++ duplicity-0.6.06/src/backends/sshbackend.py	2009-11-16 04:46:37.259920543 +1000
+diff -urNad duplicity-0.6.08b~/src/backends/sshbackend.py duplicity-0.6.08b/src/backends/sshbackend.py
+--- duplicity-0.6.08b~/src/backends/sshbackend.py	2010-03-12 11:39:06.000000000 +1000
++++ duplicity-0.6.08b/src/backends/sshbackend.py	2010-03-15 20:39:42.163263716 +1000
 @@ -31,7 +31,7 @@
  import duplicity.backend
  from duplicity import globals
  from duplicity import log
 -from duplicity import pexpect
 +import pexpect
- from duplicity.errors import *
+ from duplicity.errors import * #@UnusedWildImport
  
  class SSHBackend(duplicity.backend.Backend):
