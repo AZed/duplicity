@@ -1,3 +1,9 @@
+duplicity (0.6.09-1) unstable; urgency=low
+
+  * New upstream release (closes: #581260, #572102, #531786)
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 25 Aug 2010 23:32:30 +1000
+
 duplicity (0.6.08b-1) unstable; urgency=low
 
   * New upstream release
