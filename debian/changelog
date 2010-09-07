@@ -1,7 +1,14 @@
+duplicity (0.6.09-4) unstable; urgency=low
+
+  * and again i uploaded the Lenny-built package..sigh. (closes: #594562)
+  * lifted standards version, updated suggests a bit
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 07 Sep 2010 16:45:19 +1000
+
 duplicity (0.6.09-3) unstable; urgency=low
 
   * add patch to prime option parser with proper arguments 
-    (fixes: #595567)
+    (closes: #595567)
 
  -- Alexander Zangerl <az@debian.org>  Mon, 06 Sep 2010 12:57:46 +1000
 
