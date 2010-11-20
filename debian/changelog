@@ -1,3 +1,10 @@
+duplicity (0.6.09-5) unstable; urgency=low
+
+  * changed homepage field (closes: #599060)
+  * added patch for problems with rsync 3.0.7++ (closes: #595562)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 20 Nov 2010 14:37:54 +1000
+
 duplicity (0.6.09-4) unstable; urgency=low
 
   * and again i uploaded the Lenny-built package..sigh. (closes: #594562)

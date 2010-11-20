@@ -8,10 +8,10 @@ XS-Python-Version: all
 
 Package: duplicity
 Architecture: any
-Homepage: https://launchpad.net/duplicity
+Homepage: http://duplicity.nongnu.org/
 XB-Python-Version: ${python:Versions}
 Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}, gnupg, python-pexpect (>=2.3-1)
-Suggests: python-boto, ncftp, rsync
+Suggests: python-boto, ncftp, rsync, ssh
 Description: encrypted bandwidth-efficient backup
  Duplicity backs directories by producing encrypted tar-format volumes
  and uploading them to a remote or local file server. Because duplicity

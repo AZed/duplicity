@@ -1,0 +1,19 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 05rsyncuri.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad duplicity-0.6.09~/src/backends/rsyncbackend.py duplicity-0.6.09/src/backends/rsyncbackend.py
+--- duplicity-0.6.09~/src/backends/rsyncbackend.py	2010-11-20 14:39:29.000000000 +1000
++++ duplicity-0.6.09/src/backends/rsyncbackend.py	2010-11-20 14:48:58.365647526 +1000
+@@ -50,7 +50,7 @@
+         if self.over_rsyncd():
+             # its a module path
+             (path, port) = self.get_rsync_path()
+-            self.url_string = "rsync://%s::/%s" % (host, path.lstrip('/:'))
++            self.url_string = "%s::%s" % (host, path.lstrip('/:'))
+             if port:
+                 port = " --port=%s" % port
+         else:
