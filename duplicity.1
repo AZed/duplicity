@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "July 25, 2010" "Version 0.6.09" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "March 08, 2011" "Version 0.6.12" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -48,6 +48,12 @@ duplicity \- Encrypted backup using rsync algorithm
 .I target_url
 
 .B duplicity remove-all-but-n-full
+.I count
+.BI [ options ]
+.BI [ --force ]
+.I target_url
+
+.B duplicity remove-all-inc-of-but-n-full
 .I count
 .BI [ options ]
 .BI [ --force ]
@@ -193,6 +199,16 @@ full backups and associated incremental sets).
 .I count
 must be larger than zero. A value of 1 means that only the single most
 recent backup chain will be kept.  Note that
+.I --force
+will be needed to delete the files rather than just list them.
+
+.TP
+.BI "remove-all-inc-of-but-n-full " count
+Delete incremental sets of all backups sets that are older than the count:th last full
+backup (in other words, keep only old full backups and not their increments).
+.I count
+must be larger than zero. A value of 1 means that only the single most
+recent backup chain will be kept intact.  Note that
 .I --force
 will be needed to delete the files rather than just list them.
 
@@ -539,12 +555,26 @@ the default (requires
 section.
 
 .TP
+.BI "--s3-unencrypted-connection"
+Don't use SSL for connections to S3.
+
+This may be much faster, at some cost to confidentiality.
+
+With this option, anyone who can observe traffic between your computer and S3
+will be able to tell: that you are using Duplicity, the name of the bucket,
+your AWS Access Key ID, the increment dates and the amount of data in each
+increment.
+
+This option affects only the connection, not the GPG encryption of the backup
+increment files.  Unless that is disabled, an observer will not be able to see
+the file names or contents.
+
+.TP
 .BI "--s3-use-new-style"
 When operating on Amazon S3 buckets, use new-style subdomain bucket
 addressing. This is now the preferred method to access Amazon S3, but
 is not backwards compatible if your bucket name contains upper-case
 characters or other characters that are not valid in a hostname.
-
 .TP
 .BI "--scp-command " command
 This option only matters when using the ssh/scp backend.  The
@@ -680,6 +710,17 @@ Change the volume size to
 .IR number
 Mb. Default is 25Mb.
 
+.SH ENVIRONMENT VARIABLES
+
+.TP
+.B TMPDIR, TEMP, TMP
+In decreasing order of importance, specifies the directory to use for
+temporary files (inherited from Python's tempfile module).
+.TP
+.B FTP_PASSWORD
+Supported by most backends which are password capable. More secure than 
+setting it in the backend url.
+
 
 .SH URL FORMAT
 Duplicity tries to maintain a standard URL format as much as possible.
@@ -692,6 +733,9 @@ scheme://user[:password]@host[:port]/[/]path
 It is not recommended to expose the password on the command line since
 it could be revealed to anyone with permissions to do process listings,
 however, it is permitted.
+Consider setting the environment variable FTP_PASSWORD instead, which 
+is supported by most, but not all backends. Regardless of its name it 
+can be used with other backends.
 .PP
 In protocols that support it, the path may be preceded by a single
 slash, '/path', to represent a relative path to the target home directory,
@@ -713,11 +757,15 @@ imap://user[:password]@host.com[/from_address_prefix]
 .PP
 imaps://user[:password]@host.com[/from_address_prefix]
 .PP
-rsync://user[:password]@other.host[:port]::/module/some_dir
+.BI "using rsync daemon"
+.br
+rsync://user[:password]@host.com[:port]::/module/some_dir 
 .PP
-rsync://user[:password]@other.host[:port]/relative_path
-.PP
-rsync://user[:password]@other.host[:port]//absolute_path
+.BI "using rsync over ssh (only key auth)"
+.br
+rsync://user@host.com[:port]/relative_path
+.BR
+rsync://user@host.com[:port]//absolute_path
 .PP
 s3://host/bucket_name[/prefix]
 .PP
@@ -1090,13 +1138,6 @@ The remote signatures will be encrypted if encryption is enabled.
 The local signatures will not be encrypted and stored in the archive dir (see
 .B "--archive-dir"
 ).
-
-.SH ENVIRONMENT VARIABLES
-
-.TP
-.B TMPDIR, TEMP, TMP
-In decreasing order of importance, specifies the directory to use for
-temporary files (inherited from Python's tempfile module).
 
 .SH EUROPEAN S3 BUCKETS
 Amazon S3 provides the ability to choose the location of a bucket upon

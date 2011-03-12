@@ -1,5 +1,5 @@
 01pexpect
 02cachedesync
 03forcecleanup
-04optparser
-05rsyncuri
+04future
+05upstreamgpgintf

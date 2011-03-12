@@ -1,3 +1,11 @@
+duplicity (0.6.12-1) unstable; urgency=low
+
+  * New upstream release (closes: #615668, #579966)
+  * switched to dh_python2 (closes: #616797)
+  * now uses mainstream GnuPGInterface module again
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 13 Mar 2011 00:03:18 +1000
+
 duplicity (0.6.09-5) unstable; urgency=low
 
   * changed homepage field (closes: #599060)

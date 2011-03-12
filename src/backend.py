@@ -174,6 +174,7 @@ def _ensure_urlparser_initialized():
             #
             # todo: eliminate the need for backend specific hacking here completely.
             urlparser.uses_netloc = ['ftp',
+                                     'ftps',
                                      'hsi',
                                      'rsync',
                                      's3',
@@ -364,11 +365,10 @@ class Backend:
 
         This is intended for display purposes only, and it is not
         guaranteed that the results are correct (i.e., more than just
-        the password may be substituted if the password is also a
-        substring of another part of the command line).
+        the ':password@' may be substituted.
         """
         if self.parsed_url.password:
-            return re.sub(self.parsed_url.password, '<passwd>', commandline)
+            return re.sub( r'(:([^\s:/@]+)@([^\s@]+))', r':*****@\3', commandline )
         else:
             return commandline
 
@@ -401,14 +401,14 @@ class Backend:
         from subprocess import Popen, PIPE
         p = Popen(commandline, shell=True, stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
-
+        
         return p.returncode, stdout, stderr
 
     def subprocess_popen(self, commandline):
         """
         Execute the given command line with error check.
         Returns int Exitcode, string StdOut, string StdErr
-
+        
         Raise a BackendException on failure.
         """
         private = self.munge_password(commandline)
@@ -418,15 +418,20 @@ class Backend:
             raise BackendException("Error running '%s'" % private)
         return result, stdout, stderr
 
+    """ a dictionary for persist breaking exceptions, syntax is 
+        { 'command' : [ code1, code2 ], ... } see ftpbackend for an example """
+    popen_persist_breaks = {}
+
     def subprocess_popen_persist(self, commandline):
         """
         Execute the given command line with error check.
         Retries globals.num_retries times with 30s delay.
         Returns int Exitcode, string StdOut, string StdErr
-
+        
         Raise a BackendException on failure.
         """
         private = self.munge_password(commandline)
+
         for n in range(1, globals.num_retries+1):
             # sleep before retry
             if n > 1:
@@ -435,15 +440,23 @@ class Backend:
             result, stdout, stderr = self._subprocess_popen(commandline)
             if result == 0:
                 return result, stdout, stderr
-            elif result == 1280 and self.parsed_url.scheme == 'ftp':
-                # This squelches the "file not found" result fromm ncftpls when
-                # the ftp backend looks for a collection that does not exist.
-                return ''
-            log.Warn(gettext.ngettext("Running '%s' failed (attempt #%d)",
-                                     "Running '%s' failed (attempt #%d)", n) %
-                                      (private, n))
+            
+            try:
+                m = re.search("^\s*([\S]+)", commandline)
+                cmd = m.group(1)
+                ignores = self.popen_persist_breaks[ cmd ]
+                ignores.index(result)
+                """ ignore a predefined set of error codes """
+                return 0, '', ''
+            except (KeyError, ValueError):
+                pass
+
+            log.Warn(gettext.ngettext("Running '%s' failed with code %d (attempt #%d)",
+                                     "Running '%s' failed with code %d (attempt #%d)", n) %
+                                      (private, result, n))
             if stdout or stderr:
-                log.Warn(_("Error is:\n%s") % stderr + (stderr and stdout and "\n") + stdout)
+                    log.Warn(_("Error is:\n%s") % stderr + (stderr and stdout and "\n") + stdout)
+
         log.Warn(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
                                   "Giving up trying to execute '%s' after %d attempts",
                                   globals.num_retries) % (private, globals.num_retries))

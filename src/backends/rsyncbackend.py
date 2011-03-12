@@ -39,18 +39,22 @@ class RsyncBackend(duplicity.backend.Backend):
         duplicity.backend.Backend.__init__(self, parsed_url)
         """
         rsyncd module url: rsync://[user:password@]host[:port]::[/]modname/path
-                      cmd: rsync [--port=port] rsync://host::/modname/path
+                      Note: 3.0.7 is picky about syntax use either 'rsync://' or '::'
+                      cmd: rsync [--port=port] host::modname/path
         -or-
         rsync via ssh/rsh url: rsync://user@host[:port]://some_absolute_path
              -or-              rsync://user@host[:port]:/some_relative_path
-                          cmd: rsync 'ssh [-p=port]' [user@]host:[/]path
+                          cmd: rsync -e 'ssh [-p=port]' [user@]host:[/]path
         """
         host = parsed_url.hostname
         port = ""
+        # RSYNC_RSH from calling shell might conflict with our settings
+        if 'RSYNC_RSH' in os.environ:
+            del os.environ['RSYNC_RSH']
         if self.over_rsyncd():
             # its a module path
             (path, port) = self.get_rsync_path()
-            self.url_string = "rsync://%s::/%s" % (host, path.lstrip('/:'))
+            self.url_string = "%s::%s" % (host, path.lstrip('/:'))
             if port:
                 port = " --port=%s" % port
         else:
@@ -80,7 +84,7 @@ class RsyncBackend(duplicity.backend.Backend):
         if self.over_rsyncd():
             self.cmd = "rsync%s" % port
         else:
-            self.cmd = "rsync -e 'ssh%s'" % port
+            self.cmd = "rsync -e 'ssh -oBatchMode=yes%s'" % port
 
     def over_rsyncd(self):
         url = self.parsed_url.url_string
@@ -95,7 +99,7 @@ class RsyncBackend(duplicity.backend.Backend):
         if m:
             return m.group(2), m.group(1).lstrip(':')
         raise InvalidBackendURL("Could not determine rsync path: %s"
-                                    "" % (self.parsed_url.url_string))
+                                    "" % self.munge_password( url ) )
 
     def run_command(self, commandline):
         result, stdout, stderr = self.subprocess_popen_persist(commandline)

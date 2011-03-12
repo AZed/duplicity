@@ -1,3 +1,60 @@
+New in v0.6.12 (2011/03/08)
+----------------------------
+Bugs closed in this release:
+486489     Only full backups done on webdav
+578663     Use log codes for common backend errors
+581054     Inverted "Current directory" "Previous directory" in error message
+620163     OSError: [Errno 2] No such file or directory
+629136     sslerror: The read operation timed out with cf
+629984     boto backend uses Python 2.5 conditional
+655797     symbolic link ownership not preserved
+670891     Cygwin: TypeError: basis_file must be a (true) file ...
+681980     Duplicity 0.6.11 aborts if RSYNC_RSH not set
+700390     Backup fails silently when target is full (sftp, verbosity=4)
+704314     Exception in log module
+
+Enhancements added this release:
+626915     ftps support using lftp (ftpsbackend)
+
+Merges:
+lp:~mterry/duplicity/backend-log-codes3
+lp:~blueyed/duplicity/path-enodev-bugfix
+
+
+New in v0.6.11 (2010/11/20)
+----------------------------
+Bugs closed in this release:
+433970     Add an option to connect to S3 with regular HTTP (and not HTTPS)
+578663     Use log codes for common backend errors
+631275     missing ssh on rsyncd url - rsync: Failed to exec ssh: ...
+635494     backed up to S3, wiped drive, reinstalled, unable to restore backup
+637556     os.execve should get passed program as first argument
+669225     sftp: "Couldn't delete file: Failure'" only logged on level 9
+655468     0.6.10 does not work with S3
+674506     RsyncBackend instance has no attribute 'subprocess_popen_persist'
+
+Merges:
+lp:~blueyed/duplicity/bug-669225
+lp:~duplicity-team/duplicity/po-updates
+lp:~ed.so/duplicity/0.6.10-backend_fixes
+lp:~ed.so/duplicity/RSYNC_RSH-fix
+lp:~ed.so/duplicity/sign_symmetric2
+lp:~ed.so/duplicity/survive_spaces
+lp:~l2g/duplicity/use-py.test
+lp:~mbp/duplicity/433970-non-ssl
+
+
+New in v0.6.10 (2010/09/19)
+----------------------------
+Bugs closed in this release:
+542482     Offer command to remove old incremental backups from target
+578663     Use log codes for common backend errors
+589495     duplicity --short-filenames crashes with TypeError
+612714     NameError: global name 'parsed_url' is not defined
+613448     ftpbackend fails if target directory doesn't exist
+615449     Command-line verbosity parsing crash
+
+
 New in v0.6.09 (2010/07/25)
 ----------------------------
 Bugs closed in this release:

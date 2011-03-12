@@ -62,6 +62,11 @@ class FTPBackend(duplicity.backend.Backend):
 
         self.url_string = duplicity.backend.strip_auth_from_url(self.parsed_url)
 
+        # This squelches the "file not found" result from ncftpls when
+        # the ftp backend looks for a collection that does not exist.
+        # version 3.2.2 has error code 5, 1280 is some legacy value
+        self.popen_persist_breaks[ 'ncftpls' ] = [ 5, 1280 ]
+
         # Use an explicit directory name.
         if self.url_string[-1] != '/':
             self.url_string += '/'
@@ -107,7 +112,7 @@ class FTPBackend(duplicity.backend.Backend):
         l = self.popen_persist(commandline).split('\n')
         l = filter(lambda x: x, l)
         # Look for our files as the last element of a long list line
-        return [x.split()[-1] for x in l]
+        return [x.split()[-1] for x in l if not x.startswith("total ")]
 
     def delete(self, filename_list):
         """Delete files in filename_list"""

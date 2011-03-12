@@ -5,21 +5,21 @@
 ## DP: fix for #572792: we force a extra-clean cleanup for all remove* ops
 
 @DPATCH@
-diff -urNad duplicity-0.6.08b~/duplicity duplicity-0.6.08b/duplicity
---- duplicity-0.6.08b~/duplicity	2010-03-20 14:15:52.000000000 +1000
-+++ duplicity-0.6.08b/duplicity	2010-03-20 14:15:52.945258047 +1000
-@@ -768,12 +768,24 @@
-             for set in setlist:
-                 set.delete()
-             col_stats.set_values(sig_chain_warning=None)
-+
-+            # force a cleanup operation to get rid of unnecessary old cruft
-+            # we said we want to remove them! didn't we, huh?
-+            # bad duplicity, bad doggy!
-+            # note: in the long run backing out changeset 616 might be
-+            # better, but for now this will ease the pain.
-+            globals.extra_clean=True
-+            cleanup(col_stats)
+diff -urNad duplicity-0.6.12~/duplicity duplicity-0.6.12/duplicity
+--- duplicity-0.6.12~/duplicity	2011-03-12 19:45:46.000000000 +1000
++++ duplicity-0.6.12/duplicity	2011-03-12 19:50:23.011966125 +1000
+@@ -774,12 +774,24 @@
+                     log.Notice("Deleting set " + set.type + " " + dup_time.timetopretty(set.get_time()))
+                     set.delete()
+         col_stats.set_values(sig_chain_warning=None)
++ 
++        # force a cleanup operation to get rid of unnecessary old cruft
++        # we said we want to remove them! didn't we, huh?
++        # bad duplicity, bad doggy!
++        # note: in the long run backing out changeset 616 might be
++        # better, but for now this will ease the pain.
++        globals.extra_clean=True
++        cleanup(col_stats)
      else:
          log.Notice(gettext.ngettext("Found old backup set at the following time:",
                                      "Found old backup sets at the following times:",
@@ -33,12 +33,12 @@ diff -urNad duplicity-0.6.08b~/duplicity duplicity-0.6.08b/duplicity
  
  
  def sync_archive():
-diff -urNad duplicity-0.6.08b~/duplicity.1 duplicity-0.6.08b/duplicity.1
---- duplicity-0.6.08b~/duplicity.1	2010-03-12 11:39:07.000000000 +1000
-+++ duplicity-0.6.08b/duplicity.1	2010-03-20 14:24:42.856263504 +1000
-@@ -184,6 +184,14 @@
- .I --force
- will be needed to delete the files rather than just list them.
+diff -urNad duplicity-0.6.12~/duplicity.1 duplicity-0.6.12/duplicity.1
+--- duplicity-0.6.12~/duplicity.1	2011-03-12 19:45:46.000000000 +1000
++++ duplicity-0.6.12/duplicity.1	2011-03-12 19:45:52.722966225 +1000
+@@ -178,6 +178,14 @@
+ the other hand if the archive has been deleted or corrupted, this
+ command may not detect it.
  
 +.B Note: 
 +the Debian version of duplicity automatically runs a 
@@ -49,9 +49,9 @@ diff -urNad duplicity-0.6.08b~/duplicity.1 duplicity-0.6.08b/duplicity.1
 +in the archive dir.
 +
  .TP
- .BI "remove-all-but-n-full " count
- Delete all backups sets that are older than the count:th last full
-@@ -196,6 +204,9 @@
+ .BI "remove-older-than " time
+ Delete all backup sets older than the given time.  Old backup sets
+@@ -223,6 +231,9 @@
  .I --force
  will be needed to delete the files rather than just list them.
  
@@ -61,9 +61,9 @@ diff -urNad duplicity-0.6.08b~/duplicity.1 duplicity-0.6.08b/duplicity.1
  .TP
  .B verify
  Enter verify mode instead of restore.  If the --file-to-restore option
-diff -urNad duplicity-0.6.08b~/src/collections.py duplicity-0.6.08b/src/collections.py
---- duplicity-0.6.08b~/src/collections.py	2010-03-20 14:15:52.000000000 +1000
-+++ duplicity-0.6.08b/src/collections.py	2010-03-20 14:15:52.945258047 +1000
+diff -urNad duplicity-0.6.12~/src/collections.py duplicity-0.6.12/src/collections.py
+--- duplicity-0.6.12~/src/collections.py	2011-03-12 19:45:52.673966360 +1000
++++ duplicity-0.6.12/src/collections.py	2011-03-12 19:45:52.722966225 +1000
 @@ -991,8 +991,6 @@
              if self.matched_chain_pair:
                  matched_sig_chain = self.matched_chain_pair[0]

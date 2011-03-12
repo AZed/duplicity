@@ -179,9 +179,17 @@ class ErrorCode:
     restart_file_not_found = 39
     gio_not_available = 40
     source_dir_mismatch = 42 # 41 is reserved for par2
+    ftps_lftp_missing = 43
+
+    # 50->69 reserved for backend errors
+    backend_error = 50
+    backend_permission_denied = 51
+    backend_not_found = 52
+    backend_no_space = 53
+
     # Reserve 255 because it is used as an error code for gksu
 
-def FatalError(s, code, extra=None):
+def FatalError(s, code=ErrorCode.generic, extra=None):
     """Write fatal error message and exit"""
     Log(s, ERROR, code, extra)
     shutdown()
