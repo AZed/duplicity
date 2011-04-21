@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.12"
+version = "0.6.13"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -35,6 +35,9 @@ local_path = None
 
 # The symbolic name of the backup being operated upon.
 backup_name = None
+
+# For testing -- set current time
+current_time = None
 
 # Set to the Path of the archive directory (the directory which
 # contains the signatures and manifests of the relevent backup
@@ -76,6 +79,9 @@ null_separator = None
 # number of retries on network operations
 num_retries = 5
 
+# True if Pydev debugger should be activated
+pydevd = False
+
 # Character used like the ":" in time strings like
 # 2002-08-06T04:22:00-07:00.  The colon isn't good for filenames on
 # windows machines.
@@ -99,8 +105,7 @@ short_filenames = False
 # the time specified
 full_force_time = None
 
-# Used to confirm certain destructive operations like deleting old
-# files.
+# Used to confirm certain destructive operations like deleting old files.
 force = None
 
 # If set, signifies time in seconds before which backup files should

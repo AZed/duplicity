@@ -1,0 +1,23 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 06moregrace.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: more verbosity for failed reads (not quite a band-aid for #601584)
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.13~/src/diffdir.py duplicity-0.6.13/src/diffdir.py
+--- duplicity-0.6.13~/src/diffdir.py	2011-04-03 03:48:22.000000000 +1000
++++ duplicity-0.6.13/src/diffdir.py	2011-04-21 18:22:15.984247869 +1000
+@@ -381,7 +381,11 @@
+         self.infile = infile
+ 
+     def read(self, length = -1):
+-        buf = self.infile.read(length)
++        try :
++            buf = self.infile.read(length)
++        except IOError, (errno, strerror):
++            print "I/O error({0}): '{1}' on '{2}'".format(errno, strerror, self.infile.name)
++            raise IOError (errno, strerror)
+         if stats:
+             stats.SourceFileSize += len(buf)
+         return buf
