@@ -7,9 +7,9 @@
 ## DP: and not the root-cause (which is the ill-advised change-set 616)
 
 @DPATCH@
-diff -urNad duplicity-0.6.08b~/src/collections.py duplicity-0.6.08b/src/collections.py
---- duplicity-0.6.08b~/src/collections.py	2010-03-12 11:39:06.000000000 +1000
-+++ duplicity-0.6.08b/src/collections.py	2010-03-15 20:41:30.904266406 +1000
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.14~/src/collections.py duplicity-0.6.14/src/collections.py
+--- duplicity-0.6.14~/src/collections.py	2011-06-18 23:53:21.000000000 +1000
++++ duplicity-0.6.14/src/collections.py	2011-07-25 18:58:44.854456333 +1000
 @@ -145,12 +145,7 @@
              if (pr
                  and pr.time == self.time
@@ -19,8 +19,8 @@ diff -urNad duplicity-0.6.08b~/src/collections.py duplicity-0.6.08b/src/collecti
 -                # do not remove new sigs from the cache:
 -                # they aren't removed from the remote archive,
 -                # and subsequent backups will have to resync
--                # which is bad if running non-interactive with encrypt-key 
+-                # which is bad if running non-interactive with encrypt-key
 +                and pr.end_time == self.end_time):
                  try:
                      globals.archive_dir.append(lfn).delete()
-                 except:
+                 except Exception:

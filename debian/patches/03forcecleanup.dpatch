@@ -5,40 +5,12 @@
 ## DP: fix for #572792: we force a extra-clean cleanup for all remove* ops
 
 @DPATCH@
-diff -urNad duplicity-0.6.12~/duplicity duplicity-0.6.12/duplicity
---- duplicity-0.6.12~/duplicity	2011-03-12 19:45:46.000000000 +1000
-+++ duplicity-0.6.12/duplicity	2011-03-12 19:50:23.011966125 +1000
-@@ -774,12 +774,24 @@
-                     log.Notice("Deleting set " + set.type + " " + dup_time.timetopretty(set.get_time()))
-                     set.delete()
-         col_stats.set_values(sig_chain_warning=None)
-+ 
-+        # force a cleanup operation to get rid of unnecessary old cruft
-+        # we said we want to remove them! didn't we, huh?
-+        # bad duplicity, bad doggy!
-+        # note: in the long run backing out changeset 616 might be
-+        # better, but for now this will ease the pain.
-+        globals.extra_clean=True
-+        cleanup(col_stats)
-     else:
-         log.Notice(gettext.ngettext("Found old backup set at the following time:",
-                                     "Found old backup sets at the following times:",
-                                     len(setlist)) +
-                    "\n" + set_times_str(setlist) + "\n" +
-                    _("Rerun command with --force option to actually delete."))
-+        # see above for rationale.
-+        # this here is to print a list of to-be-removed files (--force is off)
-+        globals.extra_clean=True
-+        cleanup(col_stats)
- 
- 
- def sync_archive():
-diff -urNad duplicity-0.6.12~/duplicity.1 duplicity-0.6.12/duplicity.1
---- duplicity-0.6.12~/duplicity.1	2011-03-12 19:45:46.000000000 +1000
-+++ duplicity-0.6.12/duplicity.1	2011-03-12 19:45:52.722966225 +1000
-@@ -178,6 +178,14 @@
- the other hand if the archive has been deleted or corrupted, this
- command may not detect it.
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.14~/duplicity.1 duplicity-0.6.14/duplicity.1
+--- duplicity-0.6.14~/duplicity.1	2011-07-25 18:59:04.000000000 +1000
++++ duplicity-0.6.14/duplicity.1	2011-07-25 19:01:30.205691745 +1000
+@@ -182,6 +182,14 @@
+ limit the amount of old outdated material that otherwise accumulates 
+ in the archive dir.
  
 +.B Note: 
 +the Debian version of duplicity automatically runs a 
@@ -51,24 +23,24 @@ diff -urNad duplicity-0.6.12~/duplicity.1 duplicity-0.6.12/duplicity.1
  .TP
  .BI "remove-older-than " time
  Delete all backup sets older than the given time.  Old backup sets
-@@ -223,6 +231,9 @@
- .I --force
- will be needed to delete the files rather than just list them.
+@@ -229,6 +237,9 @@
+ 
+ .SH OPTIONS
  
 +The note regarding automatic cleanups above
 +also applies to remove-all-but-n-full.
 +
  .TP
- .B verify
- Enter verify mode instead of restore.  If the --file-to-restore option
-diff -urNad duplicity-0.6.12~/src/collections.py duplicity-0.6.12/src/collections.py
---- duplicity-0.6.12~/src/collections.py	2011-03-12 19:45:52.673966360 +1000
-+++ duplicity-0.6.12/src/collections.py	2011-03-12 19:45:52.722966225 +1000
-@@ -991,8 +991,6 @@
+ .BI --allow-source-mismatch
+ Do not abort on attempts to use the same archive dir or remote backend
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.14~/src/collections.py duplicity-0.6.14/src/collections.py
+--- duplicity-0.6.14~/src/collections.py	2011-07-25 19:01:30.160688142 +1000
++++ duplicity-0.6.14/src/collections.py	2011-07-25 19:02:01.681211438 +1000
+@@ -989,8 +989,6 @@
              if self.matched_chain_pair:
                  matched_sig_chain = self.matched_chain_pair[0]
                  for sig_chain in self.all_sig_chains:
--                    print sig_chain.start_time, matched_sig_chain.start_time, 
+-                    print sig_chain.start_time, matched_sig_chain.start_time,
 -                    print sig_chain.end_time, matched_sig_chain.end_time
                      if (sig_chain.start_time == matched_sig_chain.start_time and
                          sig_chain.end_time == matched_sig_chain.end_time):

@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "April 02, 2011" "Version 0.6.13" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "June 18, 2011" "Version 0.6.14" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -69,10 +69,6 @@ librsync, the incremental archives are space efficient and only record
 the parts of files that have changed since the last backup.  Currently
 duplicity supports deleted files, full Unix permissions, directories,
 symbolic links, fifos, etc., but not hard links.
-
-Duplicity will read the PASSPHRASE environment variable to find the
-passphrase to give to GnuPG.  If this is not set, the user will be
-prompted for the passphrase.
 
 If you are backing up the root directory /, remember to --exclude
 /proc, or else duplicity will probably crash on the weird stuff in
@@ -297,6 +293,15 @@ Calculate what would be done, but do not perform any backend actions
 .BI "--encrypt-key " key
 When backing up, encrypt to the given public key, instead of using
 symmetric (traditional) encryption.  Can be specified multiple times.
+
+.TP
+.BI "--encrypt-secret-keyring " filename
+This option can only be used with
+.BR --encrypt-key ,
+and changes the path to the secret keyring for the encrypt key to
+.I filename
+This keyring is not used when creating a backup. If not specified, the
+default secret keyring is used which is usually located at .gnupg/secring.gpg
 
 .TP
 .BI "--exclude " shell_pattern
@@ -655,6 +660,13 @@ Use
 as the time separator in filenames instead of colon (":").
 
 .TP
+.BI "--timeout " seconds
+Use
+.IR seconds
+as the socket timeout value if duplicity begins to timeout during
+network operations.  The default is 30 seconds.
+
+.TP
 .BI --use-agent
 If this option is specified, then
 .I --use-agent
@@ -718,9 +730,19 @@ In decreasing order of importance, specifies the directory to use for
 temporary files (inherited from Python's tempfile module).
 .TP
 .B FTP_PASSWORD
-Supported by most backends which are password capable. More secure than 
-setting it in the backend url.
-
+Supported by most backends which are password capable. More secure than
+setting it in the backend url (which might be readable in the operating
+systems process listing to other users on the same machine).
+.TP
+.B PASSPHRASE
+This passphrase is passed to GnuPG. If this is not set, the user will be
+prompted for the passphrase.
+.TP
+.B SIGN_PASSPHRASE
+The passphrase to be used for
+.B --sign-key
+, if SIGN_PASSPHRASE is not set but PASSPHRASE is set, the latter will be used.
+Otherwise, if no passphrase is available, the user will be prompted for it.
 
 .SH URL FORMAT
 Duplicity tries to maintain a standard URL format as much as possible.
@@ -733,8 +755,8 @@ scheme://user[:password]@host[:port]/[/]path
 It is not recommended to expose the password on the command line since
 it could be revealed to anyone with permissions to do process listings,
 however, it is permitted.
-Consider setting the environment variable FTP_PASSWORD instead, which 
-is supported by most, but not all backends. Regardless of its name it 
+Consider setting the environment variable FTP_PASSWORD instead, which
+is supported by most, but not all backends. Regardless of its name it
 can be used with other backends.
 .PP
 In protocols that support it, the path may be preceded by a single
@@ -759,21 +781,34 @@ imaps://user[:password]@host.com[/from_address_prefix]
 .PP
 .BI "using rsync daemon"
 .br
-rsync://user[:password]@host.com[:port]::/module/some_dir 
+rsync://user[:password]@host.com[:port]::[/]module/some_dir
 .PP
 .BI "using rsync over ssh (only key auth)"
 .br
 rsync://user@host.com[:port]/relative_path
-.BR
+.br
 rsync://user@host.com[:port]//absolute_path
 .PP
 s3://host/bucket_name[/prefix]
 .PP
 s3+http://bucket_name[/prefix]
 .PP
-scp://user[:password]@other.host[:port]/some_dir
+.BI "Ubuntu One"
+.br
+u1://host/volume_path
+.br
+u1+http://volume_path
 .PP
-ssh://user[:password]@other.host[:port]/some_dir
+.BI "ssh protocols"
+.br
+scp://.. or sftp://.. are synonymous for
+.br
+ssh://user[:password]@other.host[:port]/[/]some_dir
+.br
+see also
+.BI "A NOTE ON SSH/SCP PROTOCOLS"
+and
+.BI "--use-scp"
 .PP
 tahoe://alias/directory
 .PP
@@ -1175,6 +1210,14 @@ Amazon S3, but in practice you may experience timeouts, socket errors
 or HTTP errors when trying to upload files to your newly created
 bucket. Give it a few minutes and the bucket should function normally.
 
+.SH UBUNTU ONE
+Connecting to Ubuntu One requires that you be running duplicity inside of an X
+session so that you can be prompted for your credentials if necessary by the
+Ubuntu One session daemon.
+.PP
+See https://one.ubuntu.com/ for more information about Ubuntu One.
+.PP
+
 .SH IMAP
 An IMAP account can be used as a target for the upload.  The userid may
 be specified and the password will be requested.
@@ -1217,6 +1260,17 @@ regular files).
 
 Bad signatures will be treated as empty instead of logging appropriate
 error message.
+
+If symmetric encryption is used and the signing key is passphrase-protected, the
+encryption passphrase must equal the passphrase of the signing key. This
+limitation can be circumvented by using
+.B gpg-agent
+for storing the passphrase of the signing key and the
+.B PASSPHRASE
+environment variable for the encryption key or by enabling asymmetric
+encryption using the 
+.B --encrypt-key
+option.
 
 .SH AUTHOR
 Original Author - Ben Escoto <bescoto@stanford.edu>
