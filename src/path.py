@@ -198,12 +198,20 @@ class ROPath:
         self.mode = tarinfo.mode
         self.stat = StatResult()
 
-        # Set user and group id
+        """ Set user and group id 
+        use numeric id if name lookup fails
+        OR
+        --numeric-owner is set 
+        """
         try:
+            if globals.numeric_owner:
+                raise KeyError
             self.stat.st_uid = tarfile.uname2uid(tarinfo.uname)
         except KeyError:
             self.stat.st_uid = tarinfo.uid
         try:
+            if globals.numeric_owner:
+                raise KeyError
             self.stat.st_gid = tarfile.gname2gid(tarinfo.gname)
         except KeyError:
             self.stat.st_gid = tarinfo.gid
@@ -493,7 +501,7 @@ class Path(ROPath):
             self.stat = os.lstat(self.name)
         except OSError, e:
             err_string = errno.errorcode[e[0]]
-            if err_string == "ENOENT" or err_string == "ENOTDIR" or err_string == "ELOOP":
+            if err_string in ["ENOENT", "ENOTDIR", "ELOOP", "ENOTCONN"]:
                 self.stat, self.type = None, None # file doesn't exist
                 self.mode = None
             else:
@@ -554,9 +562,9 @@ class Path(ROPath):
         """Remove this file"""
         log.Info(_("Deleting %s") % (self.name,))
         if self.isdir():
-            os.rmdir(self.name)
+            util.ignore_missing(os.rmdir, self.name)
         else:
-            os.unlink(self.name)
+            util.ignore_missing(os.unlink, self.name)
         self.setdata()
 
     def touch(self):

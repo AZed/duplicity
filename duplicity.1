@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "June 18, 2011" "Version 0.6.14" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "August 19, 2011" "Version 0.6.15" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -63,7 +63,7 @@ duplicity \- Encrypted backup using rsync algorithm
 Duplicity incrementally backs up files and directory
 by encrypting tar-format volumes with GnuPG and uploading them to a
 remote (or local) file server.  Currently local, ftp, ssh/scp, rsync,
-WebDAV, WebDAVs, HSi and Amazon S3 backends are available.
+WebDAV, WebDAVs, Google Docs, HSi and Amazon S3 backends are available.
 Because duplicity uses
 librsync, the incremental archives are space efficient and only record
 the parts of files that have changed since the last backup.  Currently
@@ -304,6 +304,14 @@ This keyring is not used when creating a backup. If not specified, the
 default secret keyring is used which is usually located at .gnupg/secring.gpg
 
 .TP
+.BI "--encrypt-sign-key " key
+Convenience parameter. Same as
+.BR --encrypt-key 
+.IR key 
+.BR --sign-key 
+.IR "key" .
+
+.TP
 .BI "--exclude " shell_pattern
 Exclude the file or files matched by
 .IR shell_pattern .
@@ -529,6 +537,13 @@ affects the expected format of the files specified by the
 the directory statistics file.
 
 .TP
+.B --numeric-owner
+On restore always use the numeric uid/gid from the archive and not the 
+archived user/group names, which is the default behaviour.
+Recommended for restoring from live cds which might have the users with 
+identical names but different uids/gids.
+
+.TP
 .BI "--num-retries " number
 Number of retries to make on errors before giving up.
 
@@ -603,13 +618,16 @@ and
 
 .TP
 .BI "--sign-key " key
-This option can be used when backing up or restoring.  When backing
-up, all backup files will be signed with keyid
+This option can be used when backing up, restoring or verifying. 
+When backing up, all backup files will be signed with keyid
 .IR key .
 When restoring, duplicity will signal an error if any remote file is
 not signed with the given keyid.
 .I key
-should be an 8 character hex string, like AA0E73D2.
+should be an 8 character hex string, like AA0E73D2. 
+Should be specified only once because currently only 
+.B one
+signing key is supported. Last entry overrides all other entries.
 
 .TP
 .B --ssh-askpass
@@ -815,6 +833,8 @@ tahoe://alias/directory
 webdav://user[:password]@other.host/some_dir
 .PP
 webdavs://user[:password]@other.host/some_dir
+.PP
+gdocs://user[:password]@other.host/some_dir
 
 .RE
 

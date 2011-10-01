@@ -43,6 +43,7 @@ from duplicity import urlparse_2_5 as urlparser
 from duplicity.util import exception_traceback
 
 from duplicity.errors import BackendException
+from duplicity.errors import TemporaryLoadException
 from duplicity.errors import ConflictingScheme
 from duplicity.errors import InvalidBackendURL
 from duplicity.errors import UnsupportedBackendScheme
@@ -183,6 +184,7 @@ def _ensure_urlparser_initialized():
                                      'u1',
                                      'scp', 'ssh', 'sftp',
                                      'webdav', 'webdavs',
+                                     'gdocs',
                                      'http', 'https',
                                      'imap', 'imaps']
 
@@ -310,6 +312,8 @@ def retry(fn):
                          % (n, e.__class__.__name__, str(e)))
                 log.Debug("Backtrace of previous error: %s"
                           % exception_traceback())
+                if isinstance(e, TemporaryLoadException):
+                    time.sleep(30) # wait a bit before trying again
         # Now try one last time, but fatal-log instead of raising errors
         kwargs = {"raise_errors" : False}
         return fn(*args, **kwargs)

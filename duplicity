@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.14 released June 18, 2011
+# Version 0.6.15 released August 19, 2011
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -81,13 +81,24 @@ def get_passphrase(n, action, for_signing = False):
     try:
         if for_signing:
             return os.environ['SIGN_PASSPHRASE']
+        else:
+            return os.environ['PASSPHRASE']
     except KeyError:
         pass
 
-    try:
-        return os.environ['PASSPHRASE']
-    except KeyError:
-        pass
+    # check if we can reuse an already set (signing_)passphrase
+    ## if signing key is also an encryption key assume that the passphrase is identical
+    if ( for_signing
+         and globals.gpg_profile.sign_key in globals.gpg_profile.recipients
+         and globals.gpg_profile.passphrase is not None ):
+        log.Notice(_("Reuse already set PASSPHRASE as SIGNING_PASSPHRASE"))
+        return globals.gpg_profile.passphrase
+    ## if one encryption key is also the signing key assume that the passphrase is identical
+    if ( not for_signing
+         and globals.gpg_profile.sign_key in globals.gpg_profile.recipients
+         and globals.gpg_profile.signing_passphrase is not None ):
+        log.Notice(_("Reuse already set SIGNING_PASSPHRASE as PASSPHRASE"))
+        return globals.gpg_profile.signing_passphrase
 
     # Next, verify we need to ask the user
 
@@ -100,15 +111,12 @@ def get_passphrase(n, action, for_signing = False):
     if not globals.encryption or globals.use_agent:
         return ""
 
-    # no passphrase needed if --list-current
-    elif (action == "list-current"):
-        return ""
-
-    # these commands don't look inside the collection
+    # these commands don't need a password
     elif action in ["collection-status",
-                    "remove-old",
+                    "list-current",
                     "remove-all-but-n-full",
                     "remove-all-inc-of-but-n-full",
+                    "remove-old",
                     ]:
         return ""
 
@@ -128,7 +136,7 @@ def get_passphrase(n, action, for_signing = False):
 
     # Finally, ask the user for the passphrase
     else:
-        log.Info("PASSPHRASE variable not set, asking user.")
+        log.Info(_("PASSPHRASE variable not set, asking user."))
         use_cache = True
         while 1:
             # ask the user to enter a new passphrase to avoid an infinite loop
@@ -143,27 +151,27 @@ def get_passphrase(n, action, for_signing = False):
                     if use_cache and globals.gpg_profile.signing_passphrase:
                         pass1 = globals.gpg_profile.signing_passphrase
                     else:
-                        pass1 = getpass.getpass("GnuPG passphrase for signing key: ")
+                        pass1 = getpass.getpass(_("GnuPG passphrase for signing key:")+" ")
                 else:
                     if use_cache and globals.gpg_profile.passphrase:
                         pass1 = globals.gpg_profile.passphrase
                     else:
-                        pass1 = getpass.getpass("GnuPG passphrase: ")
+                        pass1 = getpass.getpass(_("GnuPG passphrase:")+" ")
 
             if n == 1:
                 pass2 = pass1
             elif for_signing:
-                pass2 = getpass.getpass("Retype passphrase for signing key to confirm: ")
+                pass2 = getpass.getpass(_("Retype passphrase for signing key to confirm: "))
             else:
-                pass2 = getpass.getpass("Retype passphrase to confirm: ")
+                pass2 = getpass.getpass(_("Retype passphrase to confirm: "))
 
             if not pass1 == pass2:
-                print "First and second passphrases do not match!  Please try again."
+                print _("First and second passphrases do not match!  Please try again.")
                 use_cache = False
                 continue
 
             if not pass1 and not globals.gpg_profile.recipients and not for_signing:
-                print "Cannot use empty passphrase with symmetric encryption!  Please try again."
+                print _("Cannot use empty passphrase with symmetric encryption!  Please try again.")
                 use_cache = False
                 continue
 
@@ -625,7 +633,16 @@ def restore_get_enc_fileobj(backend, filename, volume_info):
     parseresults = file_naming.parse(filename)
     tdp = dup_temp.new_tempduppath(parseresults)
     backend.get(filename, tdp)
-    restore_check_hash(volume_info, tdp)
+
+    """ verify hash of the remote file """
+    verified, hash_pair, calculated_hash = restore_check_hash(volume_info, tdp)
+    if not verified:
+        log.FatalError("%s\n %s\n %s\n %s\n" %
+                           (_("Invalid data - %s hash mismatch for file:") % hash_pair[0],
+                            filename,
+                            _("Calculated hash: %s") % calculated_hash,
+                            _("Manifest hash: %s") % hash_pair[1]),
+                           log.ErrorCode.mismatched_hash)
 
     fileobj = tdp.filtered_open_with_delete("rb")
     if parseresults.encrypted and globals.gpg_profile.sign_key:
@@ -637,18 +654,16 @@ def restore_check_hash(volume_info, vol_path):
     """
     Check the hash of vol_path path against data in volume_info
 
-    @rtype: void
-    @return: void
+    @rtype: boolean
+    @return: true (verified) / false (failed)
     """
     hash_pair = volume_info.get_best_hash()
     if hash_pair:
         calculated_hash = gpg.get_hash(hash_pair[0], vol_path)
         if calculated_hash != hash_pair[1]:
-            log.FatalError("%s\n%s\n%s\n" %
-                           (_("Invalid data - %s hash mismatch:") % hash_pair[0],
-                            _("Calculated hash: %s") % calculated_hash,
-                            _("Manifest hash: %s") % hash_pair[1]),
-                           log.ErrorCode.mismatched_hash)
+            return False, hash_pair, calculated_hash
+    """ reached here, verification passed """
+    return True, hash_pair, calculated_hash
 
 
 def restore_add_sig_check(fileobj):
@@ -815,7 +830,7 @@ def remove_old(col_stats):
                    _("Rerun command with --force option to actually delete."))
 
 
-def sync_archive():
+def sync_archive(decrypt):
     """
     Synchronize local archive manifest file and sig chains to remote archives.
     Copy missing files from remote to local as needed to make sure the local
@@ -824,7 +839,7 @@ def sync_archive():
     @rtype: void
     @return: void
     """
-    suffixes = [".g", ".gpg", ".z", ".gz"]
+    suffixes = [".g", ".gpg", ".z", ".gz", ".part"]
 
     def get_metafiles(filelist):
         """
@@ -832,30 +847,31 @@ def sync_archive():
         Files of interest are:
           sigtar - signature files
           manifest - signature files
+          duplicity partial versions of the above
         Files excluded are:
           non-duplicity files
-          duplicity partial files
 
         @rtype: list
         @return: list of duplicity metadata files
         """
         metafiles = {}
+        partials = {}
         need_passphrase = False
         for fn in filelist:
             pr = file_naming.parse(fn)
             if not pr:
                 continue
-            if pr.partial:
-                continue
             if pr.encrypted:
                 need_passphrase = True
             if pr.type in ["full-sig", "new-sig"] or pr.manifest:
                 base, ext = os.path.splitext(fn)
-                if ext in suffixes:
-                    metafiles[base] = fn
+                if ext not in suffixes:
+                    base = fn
+                if pr.partial:
+                    partials[base] = fn
                 else:
-                    metafiles[fn] = fn
-        return metafiles, need_passphrase
+                    metafiles[base] = fn
+        return metafiles, partials, need_passphrase
 
     def copy_raw(src_iter, filename):
         """
@@ -876,28 +892,22 @@ def sync_archive():
         @return: (parsedresult, local_name, remote_name)
         """
         pr = file_naming.parse(fn)
-        if pr.manifest:
-            suffix = file_naming.get_suffix(globals.encryption, False)
-        else:
-            suffix = file_naming.get_suffix(globals.encryption, not globals.encryption)
-        rem_name = fn + suffix
 
-        if pr.manifest:
-            suffix = file_naming.get_suffix(False, False)
-        else:
-            suffix = file_naming.get_suffix(False, True)
-        loc_name = fn + suffix
+        base, ext = os.path.splitext(fn)
+        if ext not in suffixes:
+            base = fn
 
-        return (pr, loc_name, rem_name)
+        suffix = file_naming.get_suffix(False, not pr.manifest)
+        loc_name = base + suffix
+
+        return (pr, loc_name, fn)
 
     def remove_local(fn):
-        pr, loc_name, rem_name = resolve_basename(fn)
-
-        del_name = globals.archive_dir.append(loc_name).name
+        del_name = globals.archive_dir.append(fn).name
 
         log.Notice(_("Deleting local %s (not authoritative at backend).") % del_name)
         try:
-            os.unlink(del_name)
+            util.ignore_missing(os.unlink, del_name)
         except Exception, e:
             log.Warn(_("Unable to delete %s: %s") % (del_name, str(e)))
 
@@ -942,23 +952,23 @@ def sync_archive():
 
         pr, loc_name, rem_name = resolve_basename(fn)
 
-        fileobj = globals.backend.get_fileobj_read(rem_name)
+        fileobj = globals.backend.get_fileobj_read(fn)
         src_iter = SrcIter(fileobj)
+        tdp = dup_temp.new_tempduppath(file_naming.parse(loc_name))
         if pr.manifest:
-            copy_raw(src_iter,
-                     globals.archive_dir.append(loc_name).name)
+            copy_raw(src_iter, tdp.name)
         else:
-            gpg.GzipWriteFile(src_iter,
-                              globals.archive_dir.append(loc_name).name,
-                              size=sys.maxint)
+            gpg.GzipWriteFile(src_iter, tdp.name, size=sys.maxint)
+        tdp.setdata()
+        tdp.move(globals.archive_dir.append(loc_name))
 
     # get remote metafile list
     remlist = globals.backend.list()
-    remote_metafiles, rem_needpass = get_metafiles(remlist)
+    remote_metafiles, ignored, rem_needpass = get_metafiles(remlist)
 
     # get local metafile list
     loclist = globals.archive_dir.listdir()
-    local_metafiles, loc_needpass = get_metafiles(loclist)
+    local_metafiles, local_partials, loc_needpass = get_metafiles(loclist)
 
     # we have the list of metafiles on both sides. remote is always
     # authoritative. figure out which are local spurious (should not
@@ -970,12 +980,19 @@ def sync_archive():
     local_spurious = []
 
     for key in remote_keys:
-        if not key in local_keys:
-            local_missing.append(key)
+        # If we lost our cache, re-get the remote file.  But don't do it if we
+        # already have a local partial.  The local partial will already be
+        # complete in this case (seems we got interrupted before we could move
+        # it to its final location).
+        if key not in local_keys and key not in local_partials:
+            local_missing.append(remote_metafiles[key])
 
     for key in local_keys:
-        if not key in remote_keys:
-            local_spurious.append(key)
+        # If we have a file locally that is unnecessary, delete it.  Also
+        # delete final versions of partial files because if we have both, it
+        # means the write of the final version got interrupted.
+        if key not in remote_keys or key in local_partials:
+            local_spurious.append(local_metafiles[key])
 
     # finally finish the process
     if not local_missing and not local_spurious:
@@ -986,8 +1003,11 @@ def sync_archive():
         if not globals.dry_run:
             log.Notice(_("Synchronizing remote metadata to local cache..."))
             if local_missing and (rem_needpass or loc_needpass):
-                # password for the --encrypt-key
-                globals.gpg_profile.passphrase = get_passphrase(1, "sync")
+                if decrypt:
+                    # password for the --encrypt-key
+                    globals.gpg_profile.passphrase = get_passphrase(1, "sync")
+                else:
+                    local_missing = [] # don't download if we can't decrypt
             for fn in local_spurious:
                 remove_local(fn)
             for fn in local_missing:
@@ -1072,7 +1092,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.14 (June 18, 2011)", verbosity)
+    log.Log("duplicity 0.6.15 (August 19, 2011)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1161,24 +1181,16 @@ def main():
     else:
         dup_time.setcurtime()
 
-    # The following is for starting remote debugging in Eclipse with Pydev.
-    # Adjust the path to your location and version of Eclipse and Pydev.
-    if globals.pydevd:
-        pysrc = "/opt/Aptana Studio 2/plugins/org.python.pydev.debug_2.1.0.2011052613/pysrc/"
-        sys.path.append(pysrc)
-        import pydevd #@UnresolvedImport
-        pydevd.settrace()
-
     # log some debugging status info
     log_startup_parms(log.INFO)
 
     # check for disk space and available file handles
     check_resources(action)
-    
+
     # check archive synch with remote, fix if needed
- 	if action not in ["collection-status"]:
- 		sync_archive()
-    
+    decrypt = action not in ["collection-status"]
+    sync_archive(decrypt)
+
     # get current collection status
     col_stats = collections.CollectionsStatus(globals.backend,
                                               globals.archive_dir).set_values()
@@ -1249,7 +1261,7 @@ def main():
     elif action == "remove-all-but-n-full" or action == "remove-all-inc-of-but-n-full":
         remove_all_but_n_full(col_stats)
     elif action == "sync":
-        sync_archive(col_stats)
+        sync_archive(True)
     else:
         assert action == "inc" or action == "full", action
         # the passphrase for full and inc is used by --sign-key
@@ -1307,6 +1319,16 @@ def with_tempdir(fn):
 
 
 if __name__ == "__main__":
+    # The following is for starting remote debugging in Eclipse with Pydev.
+    # Adjust the path to your location and version of Eclipse and Pydev.  Comment out
+    # to run normally, or this process will hang at pydevd.settrace() waiting for the
+    # remote debugger to start.
+#    pysrc = "/opt/Aptana Studio 2/plugins/org.python.pydev.debug_2.1.0.2011052613/pysrc/"
+#    sys.path.append(pysrc)
+#    import pydevd #@UnresolvedImport
+#    pydevd.settrace()
+    # end remote debugger startup
+
     try:
         with_tempdir(main)
 

@@ -248,6 +248,10 @@ def parse_cmdline_options(arglist):
 
     # secret keyring in which the private encrypt key can be found
     parser.add_option("--encrypt-secret-keyring", type="string", metavar=_("path"))
+    
+    parser.add_option("--encrypt-sign-key", type="string", metavar=_("gpg-key-id"),
+                      dest="", action="callback",
+                      callback=lambda o, s, v, p: ( globals.gpg_profile.recipients.append(v), set_sign_key(v)) )
 
     # TRANSL: Used in usage help to represent a "glob" style pattern for
     # matching one or more files, as described in the documentation.
@@ -373,6 +377,9 @@ def parse_cmdline_options(arglist):
     # something. Example:
     # --num-retries <number>
     parser.add_option("--num-retries", type="int", metavar=_("number"))
+
+    # File owner uid keeps number from tar file. Like same option in GNU tar.
+    parser.add_option("--numeric-owner", action="store_true")
 
     # Whether the old filename format is in effect.
     parser.add_option("--old-filenames", action="callback",
@@ -746,6 +753,7 @@ def usage():
   tahoe://%(alias)s/%(directory)s
   webdav://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
   webdavs://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
+  gdocs://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
 
 """ % dict
 

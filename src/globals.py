@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.14"
+version = "0.6.15"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -155,6 +155,9 @@ s3_use_new_style = False
 # Whether to create European buckets (sorry, hard-coded to only
 # support european for now).
 s3_european_buckets = False
+
+# File owner uid keeps number from tar file. Like same option in GNU tar.
+numeric_owner = False
 
 # Whether to use plain HTTP (without SSL) to send data to S3
 # See <https://bugs.launchpad.net/duplicity/+bug/433970>.

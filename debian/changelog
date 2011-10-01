@@ -1,3 +1,11 @@
+duplicity (0.6.15-1) unstable; urgency=high
+
+  * New upstream release
+  * repaired patch for #572792 which had been misapplied/broken 
+    in 0.6.14 (closes: #643846)
+  
+ -- Alexander Zangerl <az@debian.org>  Sat, 01 Oct 2011 15:26:27 +1000
+
 duplicity (0.6.14-1) unstable; urgency=low
 
   * New upstream release (closes: #635037, #601584)
