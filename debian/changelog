@@ -1,3 +1,9 @@
+duplicity (0.6.15-2) unstable; urgency=high
+
+  * rebuilt against sid, not squeeze.
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 02 Oct 2011 11:03:40 +1000
+
 duplicity (0.6.15-1) unstable; urgency=high
 
   * New upstream release
