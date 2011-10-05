@@ -1,3 +1,10 @@
+duplicity (0.6.15-3) unstable; urgency=low
+
+  * applied upstream patch to provide fallback for SIGN_PASSPHRASE
+    as per manual (closes: #644208)
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 05 Oct 2011 10:14:43 +1000
+
 duplicity (0.6.15-2) unstable; urgency=high
 
   * rebuilt against sid, not squeeze.
