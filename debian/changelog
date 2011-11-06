@@ -1,3 +1,9 @@
+duplicity (0.6.15-4) unstable; urgency=low
+
+  * applied patch for timezone confusion (closes: #647578)
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 06 Nov 2011 10:44:56 +1000
+
 duplicity (0.6.15-3) unstable; urgency=low
 
   * applied upstream patch to provide fallback for SIGN_PASSPHRASE
