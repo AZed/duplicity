@@ -1,6 +1,4 @@
-01pexpect
+01sshbackend
 02cachedesync
 03forcecleanup
 05upstreamgpgintf
-06signpassphrase
-07timezone

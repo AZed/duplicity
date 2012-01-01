@@ -23,9 +23,9 @@
 import sys, os
 from distutils.core import setup, Extension
 
-version_string = "0.6.15"
+version_string = "0.6.17"
 
-if sys.version_info[:2] < (2,3):
+if sys.version_info[:2] < (2,4):
     print "Sorry, duplicity requires version 2.4 or later of python"
     sys.exit(1)
 
@@ -43,14 +43,15 @@ if os.name == 'posix':
         libdir_list = [os.path.join(LIBRSYNC_DIR, 'lib')]
 
 data_files = [('share/man/man1',
-               ['duplicity.1',
-                'rdiffdir.1']),
+               ['bin/duplicity.1',
+                'bin/rdiffdir.1']),
               ('share/doc/duplicity-%s' % version_string,
                ['COPYING',
-                'REPO-README',
-                'LOG-README',
                 'README',
+                'README-REPO',
+                'README-LOG',
                 'tarfile-LICENSE',
+                'tarfile-CHANGES',
                 'CHANGELOG']),
               ]
 
@@ -74,13 +75,13 @@ setup(name="duplicity",
       url="http://duplicity.nongnu.org/index.html",
       packages = ['duplicity',
                   'duplicity.backends',],
-      package_dir = {"duplicity" : "src",
-                     "duplicity.backends" : "src/backends",},
+      package_dir = {"duplicity" : "duplicity",
+                     "duplicity.backends" : "duplicity/backends",},
       ext_modules = [Extension("duplicity._librsync",
-                               ["_librsyncmodule.c"],
+                               ["duplicity/_librsyncmodule.c"],
                                include_dirs=incdir_list,
                                library_dirs=libdir_list,
                                libraries=["rsync"])],
-      scripts = ['rdiffdir', 'duplicity'],
+      scripts = ['bin/rdiffdir', 'bin/duplicity'],
       data_files = data_files,
       )

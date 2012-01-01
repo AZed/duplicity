@@ -7,9 +7,9 @@
 ## DP: and not the root-cause (which is the ill-advised change-set 616)
 
 @DPATCH@
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.14~/src/collections.py duplicity-0.6.14/src/collections.py
---- duplicity-0.6.14~/src/collections.py	2011-06-18 23:53:21.000000000 +1000
-+++ duplicity-0.6.14/src/collections.py	2011-07-25 18:58:44.854456333 +1000
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.14~/duplicity/collections.py duplicity-0.6.14/duplicity/collections.py
+--- duplicity-0.6.14~/duplicity/collections.py	2011-06-18 23:53:21.000000000 +1000
++++ duplicity-0.6.14/duplicity/collections.py	2011-07-25 18:58:44.854456333 +1000
 @@ -145,12 +145,7 @@
              if (pr
                  and pr.time == self.time

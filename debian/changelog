@@ -1,3 +1,11 @@
+duplicity (0.6.17-1) unstable; urgency=low
+
+  * New upstream release
+  * replaced sftp/scp-backend with new version that uses python-paramiko
+    (closes: #646924, #596857, #605624)
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 01 Jan 2012 15:02:59 +1000
+
 duplicity (0.6.15-4) unstable; urgency=low
 
   * applied patch for timezone confusion (closes: #647578)

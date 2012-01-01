@@ -9,8 +9,9 @@ X-Python-Version: >= 2.5
 Package: duplicity
 Architecture: any
 Homepage: http://duplicity.nongnu.org/
-Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}, python-pexpect (>=2.3-1), python-gnupginterface (>=0.3.2-9.1)
-Suggests: python-boto, ncftp, rsync, ssh
+Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}, python-gnupginterface (>=0.3.2-9.1)
+Recommends: rsync, python-paramiko
+Suggests: python-boto, ncftp, python-pexpect (>=2.3-1), python-cloudfiles, lftp, python-gdata, tahoe-lafs
 Description: encrypted bandwidth-efficient backup
  Duplicity backs directories by producing encrypted tar-format volumes
  and uploading them to a remote or local file server. Because duplicity

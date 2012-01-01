@@ -5,9 +5,9 @@
 ## DP: ensure that the public gnupginterface module is imported
 
 @DPATCH@
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.12~/src/gpg.py duplicity-0.6.12/src/gpg.py
---- duplicity-0.6.12~/src/gpg.py	2011-03-09 05:54:31.000000000 +1000
-+++ duplicity-0.6.12/src/gpg.py	2011-03-13 00:31:52.648673991 +1000
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.12~/duplicity/gpg.py duplicity-0.6.12/duplicity/gpg.py
+--- duplicity-0.6.12~/duplicity/gpg.py	2011-03-09 05:54:31.000000000 +1000
++++ duplicity-0.6.12/duplicity/gpg.py	2011-03-13 00:31:52.648673991 +1000
 @@ -27,7 +27,7 @@
  
  from duplicity import misc

@@ -1,3 +1,488 @@
+2011-11-25  Kenneth Loafman  <kenneth@loafman.com>
+
+	Not used.
+
+2011-11-25  Kenneth Loafman  <kenneth@loafman.com>
+
+	Run tests using virtualenv for each.
+
+2011-11-25  Kenneth Loafman  <kenneth@loafman.com>
+
+	- Make adjustments for the new structure.
+	- Adjust boto requirements to be 1.6a or higher.
+	- Cleanup install scripts.
+
+2011-11-24  Kenneth Loafman  <kenneth@loafman.com>
+
+	Some doc changes including new requirements.
+
+2011-11-23  Kenneth Loafman  <kenneth@loafman.com>
+
+	Don't assume dir location for Python.
+
+2011-11-23  Kenneth Loafman  <kenneth@loafman.com>
+
+	Added --rsync-options flag to allow user to pass options to rsync at will.
+
+2011-11-15  Eliot Moss  <moss@cs.umass.edu>
+
+	Adds --rsync-options to command line
+	Allows uer to pass additional options to the rsync backend
+	Commit include paragraph in man page, new global variable,
+	and the small changes needed to the backend itself
+
+2011-11-23  Kenneth Loafman  <kenneth@loafman.com>
+
+	878964: Resuming a backup with a different password should throw an error
+
+2011-11-23  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-11-22  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-11-19  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-11-08  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-30  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-22  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-17  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-16  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-20  Michael Terry  <michael.terry@canonical.com>
+
+	check that we have the right passphrase when restarting a backup
+
+2011-11-22  Kenneth Loafman  <kenneth@loafman.com>
+
+	411145  Misleading error message: "Invalid SSH password"
+
+2011-11-21  Kenneth Loafman  <kenneth@loafman.com>
+
+	Split botobackend.py into two parts, _boto_single.py which is the older single-processing version and _boto_multi.py which is the newer multi-processing version.  The default is single processing and can be overridden with --s3-use-multiprocessing.
+
+2011-11-20  Kenneth Loafman  <kenneth@loafman.com>
+
+	The function add_filename was rejecting anything non-encrypted as a legit file.  This fixes that problem and the bug.
+
+2011-11-20  Kenneth Loafman  <kenneth@loafman.com>
+
+	Fix to allow debugging from pydev.  The check for --pydevd must be done after command line is parsed.
+
+2011-11-18  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in bzr merge lp:~summer-is-gone/duplicity/tz-incremental-fix.
+
+2011-11-03  Ivan Gromov  <ivan.gromov@redsolution.ru>
+
+	Changed functions working with UTC time file format from localtime() to gmtime() and timegm()
+
+2011-11-03  ivan.gromov  <ivan.gromov@C0011>
+
+	Fixed time_separator global attribute usage in some tests
+
+2011-11-03  Ivan Gromov  <ivan.gromov@redsolution.ru>
+
+	Made proper setUp method for tests in dup_timetest.py.
+
+2011-11-18  Kenneth Loafman  <kenneth@loafman.com>
+
+	Remove random_seed from VCS, adjust .bzrignore.
+
+2011-11-17  ken
+
+	Remove localbackend.testing_in_progress since all it accomplished was to make the local backend test fail.
+
+2011-11-17  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~mterry/duplicity/ship-tests and moved a couple of things around to get manual tests working
+
+2011-11-07  Michael Terry  <michael.terry@canonical.com>
+
+	Make tarball layout match bzr layout much more closely; ship tests in tarballs and adjust things so that they can work
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	rename auto/ to tests/
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	undo accidental changes to run-tests and convert pathtest and rdiffdirtest (for both of which, I uncommented a failing test I didn't understand)
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	move some more custom scripts to manual/
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	move some things around; converge on one script for running any kind of test or list of tests
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert patchdirtest to auto; rip out its root-requiring tests and move them to roottest script; fix roottest script to work now with the new rootfiles.tar.gz, whoops
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert finaltest to auto; workaround an ecryptfs bug with long filenames in the test
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	drop state file random_seed from test gnupg home
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert gpgtest to auto; add testing keys to the suite, so testers don't have to make their own; delete gpgtest2, as it didn't do anything
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	drop unused darwin tarball and util file
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert GnuPGInterfacetest and dup_timetest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert file_namingtest, parsedurltest, and restarttest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert manifesttest, selectiontest, and test_tarfile to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert cleanuptest, dup_temptest, and misctest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert statisticstest to auto; make sure tests are run in English and in US/Central timezone
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert statictest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert tempdirtest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert logtest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	convert lazytest to auto
+
+2011-11-04  Michael Terry  <michael.terry@canonical.com>
+
+	clean up run scripts a little bit, rename testfiles.tgz to rootfiles.tgz
+
+2011-11-03  Michael Terry  <michael.terry@canonical.com>
+
+	make diffdirtest auto
+
+2011-11-03  Michael Terry  <michael.terry@canonical.com>
+
+	make badupload auto
+
+2011-11-03  Michael Terry  <michael.terry@canonical.com>
+
+	make collectionstest auto
+
+2011-11-02  Michael Terry  <michael.terry@canonical.com>
+
+	move all manual tets into their own subdirectory
+
+2011-11-07  ken
+
+	-- Applied patch 0616.diff from bug 881070.
+	-- Fixed compile issues in reset_connection.
+	-- Changed 'url' to 'parsed_url' to make consistent with backends.
+
+2011-10-16  ken
+
+	Changes for 0.6.16.
+
+2011-10-16  ken
+
+	Changes for 0.6.16.
+
+2011-10-15  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merge in lp:~duplicity-team/duplicity/po-updates
+
+2011-10-15  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merge in lp:~duplicity-team/duplicity/po-updates
+
+2011-10-12  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-11  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-09-20  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-29  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-28  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-26  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-25  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-24  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-21  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-10  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-09  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-08  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-08-01  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-07-16  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-06-23  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-06-19  Launchpad Translations on behalf of duplicity-team
+
+	Launchpad automatic translations update.
+
+2011-10-15  Kenneth Loafman  <kenneth@loafman.com>
+
+	Remove Eclipse stuff from bzr.
+
+2011-10-10  kenneth@loafman.com
+
+	Update .pot and add all languages to LINGUAS list file.
+
+2011-10-10  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~ed.so/duplicity/UnicodeDecodeError
+
+2011-10-10  edso
+
+	some links for UnicodeDecodeError
+
+2011-10-10  edso
+
+	fix UnicodeDecodeError: 'ascii' codec can't decode byte on command usage
+
+2011-10-08  kenneth@loafman.com
+
+	Remove evil tab characters causing indent errors.
+
+2011-10-08  kenneth@loafman.com
+
+	838162  Duplicity URL Parser is not parsing IPv6 properly
+
+2011-10-08  kenneth@loafman.com
+
+	676109 Amazon S3 backend multipart upload support
+
+2011-10-08  kenneth@loafman.com
+
+	739438 Local backend should always try renaming instead of copying
+
+2011-10-07  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merge in lp:~ed.so/duplicity/manpage
+
+2011-10-07  edso
+
+	updated
+	--verbosity
+	symmetric and signing
+	
+	minor fixes
+
+2011-10-07  kenneth@loafman.com
+
+	Checkpoint
+
+2011-10-05  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~mterry/duplicity/rbNoneNone
+
+2011-10-04  Michael Terry  <michael.terry@canonical.com>
+
+	make sure sig_path is a regular file before opening it
+
+2011-10-05  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~ross-ross-williams/duplicity/gpg-agent-fix
+
+2011-09-06  Ross Williams  <ross@ross-williams.net>
+
+	gpg2 will not get the passphrase from gpg-agent if --passphrase-fd is specified. Added tests to disable passphrase FD if use_agent option is true.
+
+2011-10-05  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~mterry/duplicity/fix-local-backend-validation
+
+2011-09-06  Michael Terry  <michael.terry@canonical.com>
+
+	use cached size of original upload file rather than grabbing it after put() call.  Some backends invalidate the stat information after put (like local backend after a rename)
+
+2011-10-05  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~mterry/duplicity/partial-encryption
+
+2011-08-31  Michael Terry  <michael.terry@canonical.com>
+
+	allow upgrading partial chain encryption status
+
+2011-10-05  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~mterry/duplicity/tarfile
+
+2011-08-23  Michael Terry  <mike@mterry.name>
+
+	make tarfile.py 2.4-compatible
+
+2011-08-23  Michael Terry  <mike@mterry.name>
+
+	use python2.7's tarfile instead of whichever version comes with user's python
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	use a proper fake TarFile object when reading an empty tar
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	handle empty headers better than passing ignore_zeros -- instead handle ReadErrors
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	and update trailing slashes in test too
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	fix how trailing slashes are used to be cross-python-version compatible
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	whoops, forgot an import
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	handle different versions of tarfile
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	first pass at dropping tarfile
+
+2011-08-29  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged lp:~duplicity-team/duplicity/check-volumes
+
+2011-08-28  Michael Terry  <michael.terry@canonical.com>
+
+	make query_info a little easier to use by guaranteeing a well-formated return dictionary
+
+2011-08-28  Michael Terry  <michael.terry@canonical.com>
+
+	add rackspace query support
+
+2011-08-28  Michael Terry  <michael.terry@canonical.com>
+
+	add query support to boto backend
+
+2011-08-28  Michael Terry  <michael.terry@canonical.com>
+
+	make clear the difference between sizes from errors and backends that don't support querying
+
+2011-08-25  Michael Terry  <michael.terry@canonical.com>
+
+	add query_info support to u1 backend
+
+2011-08-25  Michael Terry  <michael.terry@canonical.com>
+
+	first pass at checking volume upload success
+
+2011-08-29  Kenneth Loafman  <kenneth@loafman.com>
+
+	832149: Uploads to Rackspace fail silently
+
+2011-08-28  Michael Terry  <michael.terry@canonical.com>
+
+	cloudfiles: allow listing more than 10k files
+
+2011-08-23  Kenneth Loafman  <kenneth@loafman.com>
+
+	- usability enhancement: sign passphrase prompt has no second
+	verification prompt anymore, symmetric passphrases are still verified
+
+2011-08-23  edso
+
+	drop sign passphrase verification prompt
+
+2011-08-23  edso
+
+	bugfix of rev767 
+	on using sign key duplicity claimed 'PASSPHRASE variable not set'
+
+2011-08-23  Kenneth Loafman  <kenneth@loafman.com>
+
+	Sync with master.
+
+2011-08-20  Michael Terry  <mike@mterry.name>
+
+	remove another non-2.4-ism I introduced
+
+2011-08-19  Kenneth Loafman  <kenneth@loafman.com>
+
+	Changes for 0.6.15.
+
 2011-08-19  Kenneth Loafman  <kenneth@loafman.com>
 
 	fixes to unit tests to support SIGN_PASSPHRASE.
@@ -727,25 +1212,25 @@
 
 	Fix CHANGELOG.
 
-2010-06-29  Toma? Muraus  <kami@k5-storitve.net>
+2010-06-29  Tomaž Muraus  <kami@k5-storitve.net>
 
 	When using listmatch filenames are now unqouted so colons and other special characters don't cause problems.
 	
 	Also all the tests now pass.
 
-2010-06-27  Toma? Muraus  <kami@k5-storitve.net>
+2010-06-27  Tomaž Muraus  <kami@k5-storitve.net>
 
 	Added test for SpiderOak backend (it should probably just fail in most cases since the API is still very unstable).
 
-2010-06-22  Toma? Muraus  <kami@k5-storitve.net>
+2010-06-22  Tomaž Muraus  <kami@k5-storitve.net>
 
 	Add ability to retry failed commands.
 
-2010-06-22  Toma? Muraus  <kami@k5-storitve.net>
+2010-06-22  Tomaž Muraus  <kami@k5-storitve.net>
 
 	Handle exceptions when listing files and display coresponding HTTP status code on HTTPError exception
 
-2010-06-22  Toma? Muraus  <kami@k5-storitve.net>
+2010-06-22  Tomaž Muraus  <kami@k5-storitve.net>
 
 	First version of SpiderOak DIY backend.
 	
@@ -1287,17 +1772,17 @@
 
 2009-10-06  Kenneth Loafman  <kenneth@loafman.com>
 
-	Add entry for patches from St?phane Lesimple for par2.
+	Add entry for patches from Stéphane Lesimple for par2.
 
 2009-10-06  Kenneth Loafman  <kenneth@loafman.com>
 
-	Applied patch from St?phane Lesimple found at:
+	Applied patch from Stéphane Lesimple found at:
 	https://bugs.launchpad.net/duplicity/+bug/426282/comments/5
 	patch skips the par2 files when building up the sets and chains of backups
 
 2009-10-06  Kenneth Loafman  <kenneth@loafman.com>
 
-	Applied patch from St?phane Lesimple found at:
+	Applied patch from Stéphane Lesimple found at:
 	https://bugs.launchpad.net/duplicity/+bug/426282/comments/4
 	patch avoids storing all the par2 files into the local cache
 

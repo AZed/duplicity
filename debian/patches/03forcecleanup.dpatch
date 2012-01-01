@@ -6,8 +6,8 @@
 
 @DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.15~/duplicity duplicity-0.6.15/duplicity
---- duplicity-0.6.15~/duplicity	2011-08-20 04:27:00.000000000 +1000
-+++ duplicity-0.6.15/duplicity	2011-10-01 15:24:07.069725446 +1000
+--- duplicity-0.6.15~/bin/duplicity	2011-08-20 04:27:00.000000000 +1000
++++ duplicity-0.6.15/bin/duplicity	2011-10-01 15:24:07.069725446 +1000
 @@ -822,13 +822,24 @@
                      log.Notice("Deleting set " + set.type + " " + dup_time.timetopretty(set.get_time()))
                      set.delete()
@@ -34,9 +34,9 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  
  def sync_archive(decrypt):
      """
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.15~/duplicity.1 duplicity-0.6.15/duplicity.1
---- duplicity-0.6.15~/duplicity.1	2011-08-20 04:27:00.000000000 +1000
-+++ duplicity-0.6.15/duplicity.1	2011-10-01 15:22:11.397979265 +1000
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.15~/bin/duplicity.1 duplicity-0.6.15/bin/duplicity.1
+--- duplicity-0.6.15~/bin/duplicity.1	2011-08-20 04:27:00.000000000 +1000
++++ duplicity-0.6.15/bin/duplicity.1	2011-10-01 15:22:11.397979265 +1000
 @@ -186,6 +186,14 @@
  .I --force
  will be needed to delete the files rather than just list them.
@@ -62,9 +62,9 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  .TP
  .BI --allow-source-mismatch
  Do not abort on attempts to use the same archive dir or remote backend
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.15~/src/collections.py duplicity-0.6.15/src/collections.py
---- duplicity-0.6.15~/src/collections.py	2011-10-01 15:22:11.348981913 +1000
-+++ duplicity-0.6.15/src/collections.py	2011-10-01 15:22:11.398979211 +1000
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.15~/duplicity/collections.py duplicity-0.6.15/duplicity/collections.py
+--- duplicity-0.6.15~/duplicity/collections.py	2011-10-01 15:22:11.348981913 +1000
++++ duplicity-0.6.15/duplicity/collections.py	2011-10-01 15:22:11.398979211 +1000
 @@ -997,8 +997,6 @@
              if self.matched_chain_pair:
                  matched_sig_chain = self.matched_chain_pair[0]

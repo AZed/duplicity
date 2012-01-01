@@ -1,3 +1,58 @@
+New in v0.6.17 (2011/11/25)
+----------------------------
+Enhancements:
+- Added --rsync-options flag to allow user to pass options to rsync at will
+- Added --s3-use-multiprocessing to select the new s3 multiprocessing backend.
+  Default is to use the single processing backend.  A helper, filechunkio.py,
+  requires Python 2.6+, so this option is not usable in earlier versions.
+
+Bugs closed in this release:
+411145     Misleading error message: "Invalid SSH password"
+871875     File ... was corrupted during upload.
+878220	   UnsupportedBackendScheme: scheme not supported in url: s3+http
+878964     Resuming a backup with a different password should throw an error
+881070	   Bugfix for S3 multipart upload on 0.6.16
+881727	   duplicity 0.6.16 lists all backup sets as incomplete
+885670	   Duplicity fails to add incremental backups to chain...
+
+Merges:
+lp:~mterry/duplicity/check-passphrase-on-restart
+lp:~moss-d/duplicity/rsync-options
+
+
+New in v0.6.16 (2011/10/16)
+----------------------------
+Enhancements:
+- Usability enhancement: sign passphrase prompt has no second
+  verification prompt anymore, symmetric passphrases are
+  still verified
+- Fixed Unicode errors when translations are used.
+- Replaced old tarfile.py with Python 2.7 version, modded
+  to support Python 2.4 syntax.
+
+Bugs closed in this release:
+485219     Fixed fields are not fixed, leading to buffer overflows...
+676109     Amazon S3 backend multipart upload support
+690549     uid and guid setting adversely affects integrity
+739438     Local backend should always try renaming instead of copying
+832149     Uploads to Rackspace fail silently
+835892     duplicity crash: "AssertionError: rb None None"
+838162     Duplicity URL Parser is not parsing IPv6 properly
+838264     Duplicity thinks partial encrypted backups are not encrypted
+870116     Duplicity does not handle UIDs higher than 60001
+
+Merges:
+lp:~ed.so/duplicity/reuse-passphrase-for-signing-fix
+lp:~mterry/duplicity/cloudfiles-10k
+lp:~duplicity-team/duplicity/check-volumes
+lp:~mterry/duplicity/tarfile
+lp:~mterry/duplicity/partial-encryption
+lp:~mterry/duplicity/fix-local-backend-validation
+lp:~ross-ross-williams/duplicity/gpg-agent-fix
+lp:~mterry/duplicity/rbNoneNone
+lp:~ed.so/duplicity/UnicodeDecodeError
+
+
 New in v0.6.15 (2011/08/19)
 ----------------------------
 Enhancements:

@@ -1,3 +1,23 @@
+duplicity (0.6.17-1) unstable; urgency=low
+
+  New sftp/scp backend
+  This version of duplicity comes with a new sftp/scp backend, 
+  which does no longer use sftp/scp client programs and pexpect
+  but instead relies on paramiko, a python ssh+sftp implementation.
+  
+  The options --scp-command and --sftp-command are thus obsolete, ignored
+  and a deprecation warning is shown if they are used.
+  
+  At this time the sftp/scp module supports only one ssh option (given in
+  --ssh-options): -oIdentityfile=some_key_file
+  All other ssh options are silently ignored.
+  
+  The dependencies have been updated: duplicity now recommends 
+  rsync and paramiko (covering the most common use cases) and suggests
+  the required modules for all other supported storage backends.
+  
+ -- Alexander Zangerl <az@debian.org>  Sun, 01 Jan 2012 16:04:13 +1000
+
 duplicity (0.6.08b-1) unstable; urgency=low
   
   With 0.6.06 duplicity stopped removing old data properly,
@@ -20,6 +40,8 @@ duplicity (0.6.08b-1) unstable; urgency=low
   and the remove op found something to remove. 
   
   This forced cleanup is run with --extra-clean active. 
+  
+ -- Alexander Zangerl <az@debian.org>  Mon, 15 Mar 2010 20:52:56 +1000 
 
 duplicity (0.6.04-1) unstable; urgency=low
   
