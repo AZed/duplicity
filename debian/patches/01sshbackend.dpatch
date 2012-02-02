@@ -6,8 +6,8 @@
 
 @DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.17~/bin/duplicity.1 duplicity-0.6.17/bin/duplicity.1
---- duplicity-0.6.17~/bin/duplicity.1	2012-01-01 15:51:00.000000000 +1000
-+++ duplicity-0.6.17/bin/duplicity.1	2012-01-01 15:53:26.278380230 +1000
+--- duplicity-0.6.17~/bin/duplicity.1	2012-01-01 16:09:37.000000000 +1000
++++ duplicity-0.6.17/bin/duplicity.1	2012-02-02 11:47:07.303026358 +1000
 @@ -62,7 +62,7 @@
  .SH DESCRIPTION
  Duplicity incrementally backs up files and directory
@@ -61,13 +61,14 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  .BI "--ssh-options " options
  Allows you to pass options to the ssh/scp/sftp backend.  The
  .I options
- list should be of the form "opt1=parm1 opt2=parm2" where the option string is
+-list should be of the form "opt1=parm1 opt2=parm2" where the option string is
 -quoted and the only spaces allowed are between options. The option string
 -will be passed verbatim to both scp and sftp, whose command line syntax
 -differs slightly: options passed with
 -.BR --ssh-options
 -should therefore be given in the long option format described in
 -.BR ssh_config(5) ,
++list should be of the form "-oopt1=parm1 -oopt2=parm2" where the option string is
 +quoted and the only spaces allowed are between options. Options must 
 +be given in the long option format described in
 +.BR ssh_config(5) .
@@ -152,8 +153,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  Connecting to Ubuntu One requires that you be running duplicity inside of an X
  session so that you can be prompted for your credentials if necessary by the
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.17~/duplicity/backends/sshbackend.py duplicity-0.6.17/duplicity/backends/sshbackend.py
---- duplicity-0.6.17~/duplicity/backends/sshbackend.py	2012-01-01 15:51:00.000000000 +1000
-+++ duplicity-0.6.17/duplicity/backends/sshbackend.py	2012-01-01 15:51:01.052879962 +1000
+--- duplicity-0.6.17~/duplicity/backends/sshbackend.py	2012-01-01 16:09:37.000000000 +1000
++++ duplicity-0.6.17/duplicity/backends/sshbackend.py	2012-02-02 11:44:53.631871171 +1000
 @@ -2,6 +2,9 @@
  #
  # Copyright 2002 Ben Escoto <ben@emerose.org>
@@ -662,8 +663,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +duplicity.backend.register_backend("scp", SftpBackend)
 +duplicity.backend.register_backend("ssh", SftpBackend)
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.17~/duplicity/commandline.py duplicity-0.6.17/duplicity/commandline.py
---- duplicity-0.6.17~/duplicity/commandline.py	2012-01-01 15:51:00.000000000 +1000
-+++ duplicity-0.6.17/duplicity/commandline.py	2012-01-01 15:51:01.052879962 +1000
+--- duplicity-0.6.17~/duplicity/commandline.py	2012-01-01 16:09:37.000000000 +1000
++++ duplicity-0.6.17/duplicity/commandline.py	2012-02-02 11:44:53.632871120 +1000
 @@ -68,6 +68,9 @@
                            "and will be removed in a future release.\n"
                            "Use of default filenames is strongly suggested.") % opt

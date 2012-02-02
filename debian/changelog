@@ -1,3 +1,11 @@
+duplicity (0.6.17-2) unstable; urgency=low
+
+  * applied patch for excessive memory consumption of 
+    tarfile (closes: #657187)
+  * clarified description of --ssh-options in manpage (closes: #657876)
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 02 Feb 2012 11:52:56 +1000
+
 duplicity (0.6.17-1) unstable; urgency=low
 
   * New upstream release
