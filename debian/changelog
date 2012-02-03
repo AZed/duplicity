@@ -1,3 +1,10 @@
+duplicity (0.6.17-3) unstable; urgency=low
+
+  * introduced better error reporting for catching paramiko's pickiness 
+    wrt. known_hosts format issues (closes: #656382)
+
+ -- Alexander Zangerl <az@debian.org>  Fri, 03 Feb 2012 13:51:17 +1000
+
 duplicity (0.6.17-2) unstable; urgency=low
 
   * applied patch for excessive memory consumption of 
