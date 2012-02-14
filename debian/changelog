@@ -1,3 +1,10 @@
+duplicity (0.6.17-4) unstable; urgency=low
+
+  * activated paramiko's logging for the ssh backend and aligned 
+    logging with duplicity's verbosity levels
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 14 Feb 2012 15:28:40 +1000
+
 duplicity (0.6.17-3) unstable; urgency=low
 
   * introduced better error reporting for catching paramiko's pickiness 

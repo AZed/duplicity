@@ -6,8 +6,8 @@
 
 @DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.17~/bin/duplicity.1 duplicity-0.6.17/bin/duplicity.1
---- duplicity-0.6.17~/bin/duplicity.1	2012-02-03 13:44:26.000000000 +1000
-+++ duplicity-0.6.17/bin/duplicity.1	2012-02-03 13:44:26.730016122 +1000
+--- duplicity-0.6.17~/bin/duplicity.1	2012-02-14 15:25:47.000000000 +1000
++++ duplicity-0.6.17/bin/duplicity.1	2012-02-14 15:25:47.869271261 +1000
 @@ -62,7 +62,7 @@
  .SH DESCRIPTION
  Duplicity incrementally backs up files and directory
@@ -153,19 +153,19 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  Connecting to Ubuntu One requires that you be running duplicity inside of an X
  session so that you can be prompted for your credentials if necessary by the
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.17~/duplicity/backends/sshbackend.py duplicity-0.6.17/duplicity/backends/sshbackend.py
---- duplicity-0.6.17~/duplicity/backends/sshbackend.py	2012-02-03 13:44:26.000000000 +1000
-+++ duplicity-0.6.17/duplicity/backends/sshbackend.py	2012-02-03 13:45:40.600228802 +1000
+--- duplicity-0.6.17~/duplicity/backends/sshbackend.py	2012-02-14 15:25:47.000000000 +1000
++++ duplicity-0.6.17/duplicity/backends/sshbackend.py	2012-02-14 15:26:13.340956845 +1000
 @@ -2,6 +2,9 @@
  #
  # Copyright 2002 Ben Escoto <ben@emerose.org>
  # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 +# Copyright 2011 Alexander Zangerl <az@snafu.priv.at> 
 +#
-+# $Id: sshbackend.py,v 1.2 2011/12/31 04:44:12 az Exp $
++# $Id: sshbackend.py,v 1.4 2012/02/14 05:14:03 az Exp $
  #
  # This file is part of duplicity.
  #
-@@ -19,293 +22,257 @@
+@@ -19,293 +22,282 @@
  # along with duplicity; if not, write to the Free Software Foundation,
  # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  
@@ -181,6 +181,7 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +import errno
 +import sys
 +import getpass
++import logging
 +
 +# debian squeeze's paramiko is a bit old, so we silence randompool depreciation warning
 +# note also: passphrased private keys work with squeeze's paramiko only if done with DES, not AES
@@ -261,23 +262,6 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -                self.password = ''
 +                password = None
 +        self.client = paramiko.SSHClient()
-+        # load known_hosts files
-+        # paramiko is very picky wrt format and bails out on any problem...
-+        try:
-+            if os.path.isfile("/etc/ssh/ssh_known_hosts"):
-+                self.client.load_system_host_keys("/etc/ssh/ssh_known_hosts")
-+        except Exception, e:
-+            raise BackendException("could not load /etc/ssh/ssh_known_hosts, maybe corrupt?")
-+        try:
-+            self.client.load_system_host_keys()
-+        except Exception, e:
-+            raise BackendException("could not load ~/.ssh/known_hosts, maybe corrupt?")
-+    
-+        # alternative ssh private key?
-+        keyfilename=None
-+        m=re.search("-oidentityfile=(\S+)",globals.ssh_options,re.I)
-+        if (m!=None):
-+            keyfilename=m.group(1)
  
 -    def run_scp_command(self, commandline):
 -        """ Run an scp command, responding to password prompts """
@@ -349,15 +333,13 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -            log.Warn("Running '%s' failed (attempt #%d)" % (commandline, n))
 -        log.Warn("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries))
 -        raise BackendException("Error running '%s'" % commandline)
-+        portnumber=(parsed_url.port if parsed_url.port else 22)
-+        try:
-+            self.client.connect(hostname=parsed_url.hostname, port=portnumber,
-+                                username=username, password=password,
-+                                allow_agent=True, look_for_keys=True,
-+                                key_filename=keyfilename) 
-+        except Exception, e:
-+            raise BackendException("ssh connection to %s:%d failed: %s" % (parsed_url.hostname,portnumber,e))
-+        self.client.get_transport().set_keepalive((int)(globals.timeout / 2))
++        # paramiko uses logging with the normal python severity levels,
++        # but duplicity uses both custom levels and inverted logic...*sigh*
++        self.client.set_log_channel("sshbackend")
++        ours=paramiko.util.get_logger("sshbackend")
++        dest=logging.StreamHandler(sys.stderr)
++        dest.setFormatter(logging.Formatter('ssh: %(message)s'))
++        ours.addHandler(dest)
  
 -    def run_sftp_command(self, commandline, commands):
 -        """ Run an sftp command, responding to password prompts, passing commands from list """
@@ -428,15 +410,58 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -            log.Warn("Running '%s' failed (attempt #%d)" % (commandline, n))
 -        log.Warn("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries))
 -        raise BackendException("Error running '%s'" % commandline)
++        # ..and the duplicity levels are neither linear, 
++        # nor are the names compatible with python logging, eg. 'NOTICE'...WAAAAAH!
++        plevel=logging.getLogger("duplicity").getEffectiveLevel()
++        if plevel <= 1:
++            wanted=logging.DEBUG
++        elif plevel <= 5:
++            wanted=logging.INFO
++        elif plevel <= 7:
++            wanted=logging.WARNING
++        elif plevel <= 9:
++            wanted=logging.ERROR
++        else:
++            wanted=logging.CRITICAL
++        ours.setLevel(wanted)
++        
++        # load known_hosts files
++        # paramiko is very picky wrt format and bails out on any problem...
++        try:
++            if os.path.isfile("/etc/ssh/ssh_known_hosts"):
++                self.client.load_system_host_keys("/etc/ssh/ssh_known_hosts")
++        except Exception, e:
++            raise BackendException("could not load /etc/ssh/ssh_known_hosts, maybe corrupt?")
++        try:
++            self.client.load_system_host_keys()
++        except Exception, e:
++            raise BackendException("could not load ~/.ssh/known_hosts, maybe corrupt?")
++    
++        # alternative ssh private key?
++        keyfilename=None
++        m=re.search("-oidentityfile=(\S+)",globals.ssh_options,re.I)
++        if (m!=None):
++            keyfilename=m.group(1)
+ 
+-    def put(self, source_path, remote_filename = None):
+-        if globals.use_scp:
+-            self.put_scp(source_path, remote_filename = remote_filename)
++        portnumber=(parsed_url.port if parsed_url.port else 22)
++        try:
++            self.client.connect(hostname=parsed_url.hostname, port=portnumber,
++                                username=username, password=password,
++                                allow_agent=True, look_for_keys=True,
++                                key_filename=keyfilename) 
++        except Exception, e:
++            raise BackendException("ssh connection to %s:%d failed: %s" % (parsed_url.hostname,portnumber,e))
++        self.client.get_transport().set_keepalive((int)(globals.timeout / 2))
++
 +        # scp or sftp?
 +        if (globals.use_scp):
 +            # sanity-check the directory name
 +            if (re.search("'",self.remote_dir)):
 +                raise BackendException("cannot handle directory names with single quotes with --use-scp!")
- 
--    def put(self, source_path, remote_filename = None):
--        if globals.use_scp:
--            self.put_scp(source_path, remote_filename = remote_filename)
++
 +            # make directory if needed
 +            self.runremote("test -d '%s' || mkdir -p '%s'" % (self.remote_dir,self.remote_dir),False,"scp mkdir ")
          else:
@@ -673,8 +698,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +duplicity.backend.register_backend("scp", SftpBackend)
 +duplicity.backend.register_backend("ssh", SftpBackend)
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.17~/duplicity/commandline.py duplicity-0.6.17/duplicity/commandline.py
---- duplicity-0.6.17~/duplicity/commandline.py	2012-02-03 13:44:26.000000000 +1000
-+++ duplicity-0.6.17/duplicity/commandline.py	2012-02-03 13:44:26.730016122 +1000
+--- duplicity-0.6.17~/duplicity/commandline.py	2012-02-14 15:25:47.000000000 +1000
++++ duplicity-0.6.17/duplicity/commandline.py	2012-02-14 15:25:47.869271261 +1000
 @@ -68,6 +68,9 @@
                            "and will be removed in a future release.\n"
                            "Use of default filenames is strongly suggested.") % opt
