@@ -1,3 +1,11 @@
+duplicity (0.6.18-1) unstable; urgency=low
+
+  * New upstream release (closes: #659532)
+  * fixed restart failure: disabled validate_encryption_settings which 
+    is incompatible with public key encrypt-only mode (closes: #659009)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 10 Mar 2012 13:28:09 +1000
+
 duplicity (0.6.17-4) unstable; urgency=low
 
   * activated paramiko's logging for the ssh backend and aligned 

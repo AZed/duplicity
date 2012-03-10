@@ -1,0 +1,22 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 04reverify.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: fix #659009 by disabling validate_encryption_settings, which
+## DP: cannot work with public key encryption
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/bin/duplicity duplicity-0.6.18/bin/duplicity
+--- duplicity-0.6.18~/bin/duplicity	2012-03-11 12:10:22.625703996 +1000
++++ duplicity-0.6.18/bin/duplicity	2012-03-11 12:11:34.810006192 +1000
+@@ -335,7 +335,9 @@
+         mf = globals.restart.last_backup.get_local_manifest()
+         globals.restart.checkManifest(mf)
+         globals.restart.setLastSaved(mf)
+-        validate_encryption_settings(globals.restart.last_backup, mf)
++# az [2012-03-11 Sun 12:11]
++# this conflicts with public key encryption
++#       validate_encryption_settings(globals.restart.last_backup, mf)
+         mf.fh = man_outfp
+         last_block = globals.restart.last_block
+         log.Notice("Restarting after volume %s, file %s, block %s" %

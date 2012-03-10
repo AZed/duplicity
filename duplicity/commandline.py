@@ -68,6 +68,9 @@ def old_fn_deprecation(opt):
                           "and will be removed in a future release.\n"
                           "Use of default filenames is strongly suggested.") % opt
 
+def scp_deprecation(o,s,v,p):
+    print >>sys.stderr, "Warning: Option %s is deprecated and ignored. Use --ssh-options instead." % o
+
 
 def expand_fn(filename):
     return os.path.expanduser(os.path.expandvars(filename))
@@ -321,6 +324,9 @@ def parse_cmdline_options(arglist):
     parser.add_option("--fail-on-volume", type="int",
                       help=optparse.SUPPRESS_HELP)
 
+    # used to provide a prefix on top of the defaul tar file name
+    parser.add_option("--file-prefix", type="string", dest="file_prefix", action="store")
+
     # used in testing only - skips upload for a given volume
     parser.add_option("--skip-volume", type="int",
                       help=optparse.SUPPRESS_HELP)
@@ -398,6 +404,9 @@ def parse_cmdline_options(arglist):
     # If set to false, then do not encrypt files on remote system
     parser.add_option("--no-encryption", action="store_false", dest="encryption")
 
+    # If set to false, then do not compress files on remote system
+    parser.add_option("--no-compression", action="store_false", dest="compression")
+
     # If set, print the statistics after every backup session
     parser.add_option("--no-print-statistics", action="store_false", dest="print_statistics")
 
@@ -466,11 +475,13 @@ def parse_cmdline_options(arglist):
 
     # scp command to use
     # TRANSL: noun
-    parser.add_option("--scp-command", metavar=_("command"))
+    parser.add_option("--scp-command", nargs=1, type="string",
+                      action="callback", callback=scp_deprecation)
 
     # sftp command to use
     # TRANSL: noun
-    parser.add_option("--sftp-command", metavar=_("command"))
+    parser.add_option("--sftp-command", nargs=1, type="string",
+                      action="callback", callback=scp_deprecation)
 
     # If set, use short (< 30 char) filenames for all the remote files.
     parser.add_option("--short-filenames", action="callback",

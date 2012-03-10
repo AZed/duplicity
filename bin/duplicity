@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.17 released November 25, 2011
+# Version 0.6.18 released February 29, 2012
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -313,7 +313,7 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
         """
         vol1_filename = file_naming.get(backup_type, 1,
                                         encrypted=globals.encryption,
-                                        gzipped=not globals.encryption)
+                                        gzipped=globals.compression)
         if vol1_filename != backup_set.volume_name_dict[1]:
             log.FatalError(_("Restarting backup, but current encryption "
                              "settings do not match original settings"),
@@ -369,7 +369,7 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
         vol_num += 1
         dest_filename = file_naming.get(backup_type, vol_num,
                                         encrypted=globals.encryption,
-                                        gzipped=not globals.encryption)
+                                        gzipped=globals.compression)
         tdp = dup_temp.new_tempduppath(file_naming.parse(dest_filename))
 
         # write volume
@@ -467,7 +467,7 @@ def get_sig_fileobj(sig_type):
     perm_sig_filename = file_naming.get(sig_type,
                                         gzipped=True)
     remote_sig_filename = file_naming.get(sig_type, encrypted=globals.encryption,
-                                          gzipped=not globals.encryption)
+                                          gzipped=globals.compression)
 
     fh = dup_temp.get_fileobj_duppath(globals.archive_dir,
                                       part_sig_filename,
@@ -551,11 +551,12 @@ def incremental_backup(sig_chain):
     @rtype: void
     @return: void
     """
-    dup_time.setprevtime(sig_chain.end_time)
-    if dup_time.curtime == dup_time.prevtime:
-        time.sleep(2)
-        dup_time.setcurtime()
-        assert dup_time.curtime != dup_time.prevtime, "time not moving forward at appropriate pace - system clock issues?"
+    if not globals.restart:
+        dup_time.setprevtime(sig_chain.end_time)
+        if dup_time.curtime == dup_time.prevtime:
+            time.sleep(2)
+            dup_time.setcurtime()
+            assert dup_time.curtime != dup_time.prevtime, "time not moving forward at appropriate pace - system clock issues?"
     if globals.dry_run:
         tarblock_iter = diffdir.DirDelta(globals.select,
                                          sig_chain.get_fileobjs())
@@ -1137,7 +1138,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.17 (November 25, 2011)", verbosity)
+    log.Log("duplicity 0.6.18 (February 29, 2012)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1207,6 +1208,19 @@ def main():
     """
     Start/end here
     """
+    # per bug https://bugs.launchpad.net/duplicity/+bug/931175
+    # duplicity crashes when PYTHONOPTIMIZE is set, so check
+    # and refuse to run if it is set.
+    if 'PYTHONOPTIMIZE' in os.environ:
+        log.FatalError(
+"""
+PYTHONOPTIMIZE in the environment causes duplicity to fail to
+recognize its own backups.  Please remove PYTHONOPTIMIZE from
+the environment and rerun the backup.
+
+See https://bugs.launchpad.net/duplicity/+bug/931175
+""", log.ErrorCode.pythonoptimize_set)
+
     # if python is run setuid, it's only partway set,
     # so make sure to run with euid/egid of root
     if os.geteuid() == 0:

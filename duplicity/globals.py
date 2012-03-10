@@ -24,7 +24,10 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.17"
+version = "0.6.18"
+
+# Default file_prefix value
+file_prefix = ""
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -127,6 +130,9 @@ dry_run = False
 
 # If set to false, then do not encrypt files on remote system
 encryption = True
+
+# If set to false, then do not compress files on remote system
+compression = True
 
 # volume size. default 25M
 volsize = 25*1024*1024

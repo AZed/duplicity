@@ -39,7 +39,6 @@ class RootTest(unittest.TestCase):
         # make sure uid/gid match euid/egid
         os.setuid(os.geteuid())
         os.setgid(os.getegid())
-        assert not os.system("tar xzf testfiles.tar.gz > /dev/null 2>&1")
         assert not os.system("tar xzf rootfiles.tar.gz > /dev/null 2>&1")
 
     def tearDown(self):
