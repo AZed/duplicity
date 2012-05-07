@@ -1,3 +1,10 @@
+duplicity (0.6.18-2) unstable; urgency=low
+
+  * improved key-id documentation for --sign-key and 
+    --encrypt-key (closes: #671810).
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 07 May 2012 16:16:43 +1000
+
 duplicity (0.6.18-1) unstable; urgency=low
 
   * New upstream release (closes: #659532)
