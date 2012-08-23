@@ -1,0 +1,22 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 07symlinks.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: fix for 685352: symlinks are followed if --exclude-if-present is used
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/duplicity/selection.py duplicity-0.6.18/duplicity/selection.py
+--- duplicity-0.6.18~/duplicity/selection.py	2012-03-01 05:24:04.000000000 +1000
++++ duplicity-0.6.18/duplicity/selection.py	2012-08-23 11:15:21.886397436 +1000
+@@ -506,6 +506,11 @@
+         assert include == 0 or include == 1
+ 
+         def exclude_sel_func(path):
++            # do not follow symbolic links when checking for file existence!
++            # path.append creates a new path object, which in turn uses setdata
++            # which in turn follows symbolic links...
++            if path.issym():
++                return None
+             if path.append(filename).exists():
+                 return 0
+             else:

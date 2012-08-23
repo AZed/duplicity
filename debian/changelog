@@ -1,3 +1,10 @@
+duplicity (0.6.18-3) unstable; urgency=low
+
+  * repaired duplicity's symlink handling for --exclude-if-present
+    (closes: #685352)
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 23 Aug 2012 11:17:57 +1000
+
 duplicity (0.6.18-2) unstable; urgency=low
 
   * improved key-id documentation for --sign-key and 
