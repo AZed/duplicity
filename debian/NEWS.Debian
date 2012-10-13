@@ -1,3 +1,15 @@
+duplicity (0.6.18-4) unstable; urgency=low
+
+  Reworked Ubuntu One backend
+  This version includes a reworked standalone backend for Ubuntu One, 
+  which no longer requires Gnome, an X11 session or software that's not
+  packaged for Debian. The backend requires the python-oauth and -httplib2
+  packages and duplicity therefore now recommends them.
+  
+  Check the man page for details about Ubuntu One authentication.
+   
+ -- Alexander Zangerl <az@debian.org>  Thu, 18 Oct 2012 13:07:36 +1000
+
 duplicity (0.6.17-1) unstable; urgency=low
 
   New sftp/scp backend

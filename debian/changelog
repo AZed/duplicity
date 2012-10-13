@@ -1,3 +1,11 @@
+duplicity (0.6.18-4) unstable; urgency=low
+
+  * include new standalone/REST backend for Ubuntu One
+  * updated recommends to include oauth and httplib2, which 
+    are required if the Ubuntu One backend is used.
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 13 Oct 2012 15:54:50 +1000
+
 duplicity (0.6.18-3) unstable; urgency=low
 
   * repaired duplicity's symlink handling for --exclude-if-present

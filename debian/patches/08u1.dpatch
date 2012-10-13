@@ -1,0 +1,466 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 08u1.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: RESTful ubuntu one backend without external dependencies
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/bin/duplicity.1 duplicity-0.6.18/bin/duplicity.1
+--- duplicity-0.6.18~/bin/duplicity.1	2012-10-18 13:11:07.000000000 +1000
++++ duplicity-0.6.18/bin/duplicity.1	2012-10-18 13:11:07.544740168 +1000
+@@ -833,7 +833,7 @@
+ .PP
+ .BI "Ubuntu One"
+ .br
+-u1://host/volume_path
++u1://host_is_ignored/volume_path
+ .br
+ u1+http://volume_path
+ .br
+@@ -1201,9 +1201,16 @@
+ will distinguish between different backups.
+ 
+ .SH A NOTE ON UBUNTU ONE
+-Connecting to Ubuntu One requires that you be running duplicity inside of an X
+-session so that you can be prompted for your credentials if necessary by the
+-Ubuntu One session daemon.
++
++To use Ubuntu One you must have an Ubuntu One OAuth access token. Such 
++OAuth tokens have a practically unlimited lifetime; you can have multiple 
++active tokens and you can revoke tokens using the Ubuntu One web interface.
++.PP
++duplicity expects th token in the environment variable FTP_PASSWORD
++(in the format "consumer_key:consumer_secret:token:token_secret"). If no
++token is present, duplicity asks for your Ubuntu One email address and password
++and requests an access token from the Ubuntu SSO service. The newly 
++acquired token is then printed to the console.
+ .PP
+ See https://one.ubuntu.com/ for more information about Ubuntu One.
+ 
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/duplicity/backends/u1backend.py duplicity-0.6.18/duplicity/backends/u1backend.py
+--- duplicity-0.6.18~/duplicity/backends/u1backend.py	2012-10-17 12:38:01.000000000 +1000
++++ duplicity-0.6.18/duplicity/backends/u1backend.py	2012-10-18 13:11:07.544740168 +1000
+@@ -2,6 +2,7 @@
+ #
+ # Copyright 2011 Canonical Ltd
+ # Authors: Michael Terry <michael.terry@canonical.com>
++# 		   Alexander Zangerl <az@debian.org>
+ #
+ # This file is part of duplicity.
+ #
+@@ -19,239 +20,236 @@
+ # along with duplicity.  If not, see <http://www.gnu.org/licenses/>.
+ 
+ import duplicity.backend
+-from duplicity.backend import retry
+-from duplicity.errors import BackendException, TemporaryLoadException
++from duplicity.errors import BackendException
++from duplicity import log
++from duplicity import globals
+ 
+-def ensure_dbus():
+-    # GIO requires a dbus session bus which can start the gvfs daemons
+-    # when required.  So we make sure that such a bus exists and that our
+-    # environment points to it.
+-    import atexit
+-    import os
+-    import subprocess
+-    import signal
+-    if 'DBUS_SESSION_BUS_ADDRESS' not in os.environ:
+-        output = subprocess.Popen(['dbus-launch'], stdout=subprocess.PIPE).communicate()[0]
+-        lines = output.split('\n')
+-        for line in lines:
+-            parts = line.split('=', 1)
+-            if len(parts) == 2:
+-                if parts[0] == 'DBUS_SESSION_BUS_PID': # cleanup at end
+-                    atexit.register(os.kill, int(parts[1]), signal.SIGTERM)
+-                os.environ[parts[0]] = parts[1]
++from httplib2 import Http
++from oauth import oauth
++from urlparse import urlparse, parse_qsl
++from json import loads, dumps
++import urllib
++import getpass
++import os
++import sys
+ 
+-class U1Backend(duplicity.backend.Backend):
+-    """
+-    Backend for Ubuntu One, through the use of the ubuntone module and a REST
+-    API.  See https://one.ubuntu.com/developer/ for REST documentation.
+-    """
+-    def __init__(self, url):
+-        duplicity.backend.Backend.__init__(self, url)
++class OAuthHttpClient(object):
++    """a simple HTTP client with OAuth added on"""
++    def __init__(self):
++        self.signature_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
++        self.consumer = None
++        self.token = None
++        self.client = Http()
+ 
+-        if self.parsed_url.scheme == 'u1+http':
+-            # Use the default Ubuntu One host
+-            self.parsed_url.hostname = "one.ubuntu.com"
+-        else:
+-            assert self.parsed_url.scheme == 'u1'
++    def set_consumer(self, consumer_key, consumer_secret):
++        self.consumer = oauth.OAuthConsumer(consumer_key,
++                                            consumer_secret)
+ 
+-        path = self.parsed_url.path.lstrip('/')
++    def set_token(self, token, token_secret):
++        self.token = oauth.OAuthToken( token, token_secret)
+ 
+-        self.api_base = "https://%s/api/file_storage/v1" % self.parsed_url.hostname
+-        self.volume_uri = "%s/volumes/~/%s" % (self.api_base, path)
+-        self.meta_base = "%s/~/%s/" % (self.api_base, path)
+-        # This next line *should* work, but isn't set up correctly server-side yet
+-        #self.content_base = self.api_base
+-        self.content_base = "https://files.%s" % self.parsed_url.hostname
++    def _get_oauth_request_header(self, url, method):
++        """Get an oauth request header given the token and the url"""
++        query = urlparse(url).query
+ 
+-        ensure_dbus()
++        oauth_request = oauth.OAuthRequest.from_consumer_and_token(
++            http_url=url,
++            http_method=method,
++            oauth_consumer=self.consumer,
++            token=self.token,
++            parameters=dict(parse_qsl(query))
++        )
++        oauth_request.sign_request(oauth.OAuthSignatureMethod_HMAC_SHA1(),
++                                   self.consumer, self.token)
++        return oauth_request.to_header()
+ 
+-	    if not self.login():
+-            from duplicity import log
+-		    log.FatalError(_("Could not obtain Ubuntu One credentials"),
+-                           log.ErrorCode.backend_error)
++    def request(self, url, method="GET", body=None, headers={}, ignore=None):
++        oauth_header = self._get_oauth_request_header(url, method)
++        headers.update(oauth_header)
+ 
+-        # Create volume in case it doesn't exist yet
+-        self.create_volume()
++        for n in range(1, globals.num_retries+1):
++            log.Info("making %s request to %s (attempt %d)" % (method,url,n))
++            try:
++                resp, content = self.client.request(url, method, headers=headers, body=body)
++            except Exception, e:
++                log.Info("request failed, exception %s" % e);
++                if n >= globals.num_retries+1:
++                    log.FatalError("Giving up on request after %d attempts, last exception %s" % (n,e))
++                continue
++              
++            log.Info("completed request with status %s %s" % (resp.status,resp.reason))
++            oops_id = resp.get('x-oops-id', None)
++            if oops_id:
++                log.Debug("Server Error: method %s url %s Oops-ID %s" % (method, url, oops_id))
+ 
+-    def login(self):
+-	    from gobject import MainLoop
+-	    from dbus.mainloop.glib import DBusGMainLoop
+-	    from ubuntuone.platform.credentials import CredentialsManagementTool
++            if resp['content-type'] == 'application/json':
++                content = loads(content)
+ 
+-	    self.login_success = False
++            # were we successful? status either 2xx or code we're told to ignore
++            numcode=int(resp.status)
++            if (numcode>=200 and numcode<300) or (ignore and numcode in ignore):
++                return resp, content
+ 
+-	    DBusGMainLoop(set_as_default=True)
+-	    loop = MainLoop()
++            ecode=log.ErrorCode.backend_error
++            if numcode==404:
++                ecode=log.ErrorCode.backend_not_found
++            elif numcode==507:  # webdav no space
++                ecode=log.ErrorCode.backend_no_space
+ 
+-	    def quit(result):
+-		    loop.quit()
+-		    if result:
+-			    self.login_success = True
++            if n >= globals.num_retries+1:
++                log.FatalError("Giving up on request after %d attempts, last status %d %s" % (n,numcode.resp.reason),ecode)
+ 
+-	    cd = CredentialsManagementTool()
+-	    d = cd.login()
+-	    d.addCallbacks(quit)
+-	    loop.run()
+-	    return self.login_success
+ 
+-    def quote(self, url):
+-        import urllib
+-        return urllib.quote(url, safe="/~")
++    def get_and_set_token(self,email, password, hostname):
++        """Acquire an Ubuntu One access token via OAuth with the Ubuntu SSO service.
++        See https://one.ubuntu.com/developer/account_admin/auth/otherplatforms for details.
++        """
+ 
+-    def parse_error(self, headers, ignore=None):
+-        from duplicity import log
++        # Request new access token from the Ubuntu SSO service
++        self.client.add_credentials(email,password)
++        resp, content = self.client.request('https://login.ubuntu.com/api/1.0/authentications?'
++                                            +'ws.op=authenticate&token_name=Ubuntu%%20One%%20@%%20%s' % hostname)
++        if resp.status!=200:
++            log.FatalError("Token request failed: Incorrect Ubuntu One credentials",log.ErrorCode.backend_permission_denied)
++            self.client.clear_credentials()
++            
++        tokendata=loads(content)
++        self.set_consumer(tokendata['consumer_key'],tokendata['consumer_secret'])
++        self.set_token(tokendata['token'],tokendata['token_secret'])
+ 
+-        status = int(headers[0].get('status'))
+-        if status >= 200 and status < 300:
+-            return None
++        # and finally tell Ubuntu One about the token
++        resp, content = self.request('https://one.ubuntu.com/oauth/sso-finished-so-get-tokens/')
++        if resp.status!=200:
++            log.FatalError("Ubuntu One token was not accepted: %s %s" % (resp.status,resp.reason))
+ 
+-        if ignore and status in ignore:
+-            return None
++        return tokendata
+ 
+-        if status == 400:
+-            code = log.ErrorCode.backend_permission_denied
+-        elif status == 404:
+-            code = log.ErrorCode.backend_not_found
+-        elif status == 507:
+-            code = log.ErrorCode.backend_no_space
+-        else:
+-            code = log.ErrorCode.backend_error
+-        return code
++class U1Backend(duplicity.backend.Backend):
++    """
++    Backend for Ubuntu One, through the use of the REST API.  
++    See https://one.ubuntu.com/developer/ for REST documentation.
++    """
++    def __init__(self, url):
++        duplicity.backend.Backend.__init__(self, url)
+ 
+-    def handle_error(self, raise_error, op, headers, file1=None, file2=None, ignore=None):
+-        from duplicity import log
+-        from duplicity import util
+-        import json
++        # u1://dontcare/volname or u1+http:///volname
++        path = self.parsed_url.path.lstrip('/')
+ 
+-        code = self.parse_error(headers, ignore)
+-        if code is None:
+-            return
++        self.api_base = "https://one.ubuntu.com/api/file_storage/v1"
++        self.content_base = "https://files.one.ubuntu.com"
+ 
+-        status = int(headers[0].get('status'))
++        self.volume_uri = "%s/volumes/~/%s" % (self.api_base, path)
++        self.meta_base = "%s/~/%s/" % (self.api_base, path)
+ 
+-        if file1:
+-            file1 = file1.encode("utf8")
+-        else:
+-            file1 = None
+-        if file2:
+-            file2 = file2.encode("utf8")
+-        else:
+-            file2 = None
+-        extra = ' '.join([util.escape(x) for x in [file1, file2] if x])
+-        extra = ' '.join([op, extra])
+-        msg = _("Got status code %s") % status
+-        if headers[0].get('x-oops-id') is not None:
+-            msg += '\nOops-ID: %s' % headers[0].get('x-oops-id')
+-        if headers[0].get('content-type') == 'application/json':
+-            node = json.loads(headers[1])
+-            if node.get('error'):
+-                msg = node.get('error')
++        self.client=OAuthHttpClient();
+ 
+-        if raise_error:
+-            if status == 503:
+-                raise TemporaryLoadException(msg)
+-            else:
+-                raise BackendException(msg)
++        if 'FTP_PASSWORD' not in os.environ:
++            sys.stderr.write("No Ubuntu One token found in $FTP_PASSWORD, requesting a new one\n")
++            email=raw_input('Enter Ubuntu One account email: ')
++            password=getpass.getpass("Enter Ubuntu One password: ")
++            hostname=os.uname()[1]
++
++            tokendata=self.client.get_and_set_token(email,password,hostname)
++            sys.stderr.write("\nPlease record your new Ubuntu One access token for future use with duplicity:\n"
++                             +"FTP_PASSWORD=%s:%s:%s:%s\n\n" 
++                             % (tokendata['consumer_key'],tokendata['consumer_secret'],
++                                tokendata['token'],tokendata['token_secret']))
+         else:
+-            log.FatalError(msg, code, extra)
++            (consumer,consumer_secret,token,token_secret) = os.environ['FTP_PASSWORD'].split(':')
++            self.client.set_consumer(consumer, consumer_secret)
++            self.client.set_token(token, token_secret)
++        
++        resp, content = self.client.request(self.api_base,ignore=[400,401,403])
++        if resp['status']!='200':
++		    log.FatalError("Access failed: Ubuntu One credentials incorrect",
++                           log.ErrorCode.user_error)
+ 
+-    @retry
+-    def create_volume(self, raise_errors=False):
+-        import ubuntuone.couch.auth as auth
+-        answer = auth.request(self.volume_uri, http_method="PUT")
+-        self.handle_error(raise_errors, 'put', answer, self.volume_uri)
++        # Create volume, but check existence first
++        resp, content = self.client.request(self.volume_uri,ignore=[404])
++        if resp['status']=='404':
++            resp, content = self.client.request(self.volume_uri,"PUT")
+ 
+-    @retry
+-    def put(self, source_path, remote_filename = None, raise_errors=False):
++    def quote(self, url):
++        return urllib.quote(url, safe="/~").replace(" ","%20")
++
++    def put(self, source_path, remote_filename = None):
+         """Copy file to remote"""
+-        import json
+-        import ubuntuone.couch.auth as auth
+-        import mimetypes
+         if not remote_filename:
+             remote_filename = source_path.get_filename()
+         remote_full = self.meta_base + self.quote(remote_filename)
+-        answer = auth.request(remote_full,
+-                              http_method="PUT",
+-                              request_body='{"kind":"file"}')
+-        self.handle_error(raise_errors, 'put', answer, source_path.name, remote_full)
+-        node = json.loads(answer[1])
++        # check if it exists already, returns existing content_path
++        resp, content = self.client.request(remote_full,ignore=[404])
++        if resp['status']=='404':
++            # put with path returns new content_path
++            resp, content = self.client.request(remote_full,
++                                                method="PUT",
++                                                headers = { 'content-type': 'application/json' },
++                                                body=dumps({"kind":"file"}))
++        elif resp['status']!='200':
++            raise BackendException("access to %s failed, code %s" % (remote_filename, resp['status']))
+ 
+-        remote_full = self.content_base + self.quote(node.get('content_path'))
+-        data = bytearray(open(source_path.name, 'rb').read())
+-        size = len(data)
+-        content_type = mimetypes.guess_type(source_path.name)[0]
+-        content_type = content_type or 'application/octet-stream'
+-        headers = {"Content-Length": str(size),
++        assert(content['content_path'] is not None)
++        # content_path allows put of the actual material
++        remote_full = self.content_base + self.quote(content['content_path'])
++        log.Info("uploading file %s to location %s" % (remote_filename, remote_full))
++
++        fh=open(source_path.name,'rb')
++        data = bytearray(fh.read())
++        fh.close()
++
++        content_type = 'application/octet-stream'
++        headers = {"Content-Length": str(len(data)),
+     	           "Content-Type": content_type}
+-        answer = auth.request(remote_full, http_method="PUT",
+-                              headers=headers, request_body=data)
+-        self.handle_error(raise_errors, 'put', answer, source_path.name, remote_full)
++        resp, content = self.client.request(remote_full, 
++                                            method="PUT", 
++                                            body=str(data), 
++                                            headers=headers)
+ 
+-    @retry
+-    def get(self, filename, local_path, raise_errors=False):
++    def get(self, filename, local_path):
+         """Get file and put in local_path (Path object)"""
+-        import json
+-        import ubuntuone.couch.auth as auth
++
++        # get with path returns content_path
+         remote_full = self.meta_base + self.quote(filename)
+-        answer = auth.request(remote_full)
+-        self.handle_error(raise_errors, 'get', answer, remote_full, filename)
+-        node = json.loads(answer[1])
++        resp, content = self.client.request(remote_full)
++        
++        assert(content['content_path'] is not None)
++        # now we have content_path to access the actual material
++        remote_full = self.content_base + self.quote(content['content_path'])
++        log.Info("retrieving file %s from location %s" % (filename, remote_full))
++        resp, content = self.client.request(remote_full)
+ 
+-        remote_full = self.content_base + self.quote(node.get('content_path'))
+-        answer = auth.request(remote_full)
+-        self.handle_error(raise_errors, 'get', answer, remote_full, filename)
+         f = open(local_path.name, 'wb')
+-        f.write(answer[1])
++        f.write(content)
++        f.close()
+         local_path.setdata()
+ 
+-    @retry
+-    def list(self, raise_errors=False):
++    def list(self):
+         """List files in that directory"""
+-        import json
+-        import ubuntuone.couch.auth as auth
+-        import urllib
+         remote_full = self.meta_base + "?include_children=true"
+-        answer = auth.request(remote_full)
+-        self.handle_error(raise_errors, 'list', answer, remote_full)
++        resp, content = self.client.request(remote_full)
++
+         filelist = []
+-        node = json.loads(answer[1])
+-        if node.get('has_children') == True:
+-            for child in node.get('children'):
+-                path = urllib.unquote(child.get('path')).lstrip('/')
++        if 'children' in content:
++            for child in content['children']:
++                path = urllib.unquote(child['path'].lstrip('/'))
+                 filelist += [path]
+         return filelist
+ 
+-    @retry
+-    def delete(self, filename_list, raise_errors=False):
++    def delete(self, filename_list):
+         """Delete all files in filename list"""
+         import types
+-        import ubuntuone.couch.auth as auth
+         assert type(filename_list) is not types.StringType
++
+         for filename in filename_list:
+             remote_full = self.meta_base + self.quote(filename)
+-    	    answer = auth.request(remote_full, http_method="DELETE")
+-            self.handle_error(raise_errors, 'delete', answer, remote_full, ignore=[404])
++            resp, content = self.client.request(remote_full,method="DELETE")
+ 
+-    @retry
+-    def _query_file_info(self, filename, raise_errors=False):
++    def _query_file_info(self, filename):
+         """Query attributes on filename"""
+-        import json
+-        import ubuntuone.couch.auth as auth
+-        from duplicity import log
+         remote_full = self.meta_base + self.quote(filename)
+-        answer = auth.request(remote_full)
+-
+-        code = self.parse_error(answer)
+-        if code is not None:
+-            if code == log.ErrorCode.backend_not_found:
+-                return {'size': -1}
+-            elif raise_errors:
+-                self.handle_error(raise_errors, 'query', answer, remote_full, filename)
+-            else:
+-                return {'size': None}
++        resp, content = self.client.request(remote_full)
+ 
+-        node = json.loads(answer[1])
+-        size = node.get('size')
++        size = content['size']
+         return {'size': size}
+ 
+ duplicity.backend.register_backend("u1", U1Backend)
