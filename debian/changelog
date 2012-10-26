@@ -1,3 +1,152 @@
+duplicity (0.6.18-3~bpo60+1) squeeze-backports; urgency=low
+
+  * backport-build for squeeze
+
+ -- Alexander Zangerl <az@debian.org>  Fri, 26 Oct 2012 15:54:41 +1000
+
+duplicity (0.6.18-3) unstable; urgency=low
+
+  * repaired duplicity's symlink handling for --exclude-if-present
+    (closes: #685352)
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 23 Aug 2012 11:17:57 +1000
+
+duplicity (0.6.18-2) unstable; urgency=low
+
+  * improved key-id documentation for --sign-key and 
+    --encrypt-key (closes: #671810).
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 07 May 2012 16:16:43 +1000
+
+duplicity (0.6.18-1) unstable; urgency=low
+
+  * New upstream release (closes: #659532)
+  * fixed restart failure: disabled validate_encryption_settings which 
+    is incompatible with public key encrypt-only mode (closes: #659009)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 10 Mar 2012 13:28:09 +1000
+
+duplicity (0.6.17-4) unstable; urgency=low
+
+  * activated paramiko's logging for the ssh backend and aligned 
+    logging with duplicity's verbosity levels
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 14 Feb 2012 15:28:40 +1000
+
+duplicity (0.6.17-3) unstable; urgency=low
+
+  * introduced better error reporting for catching paramiko's pickiness 
+    wrt. known_hosts format issues (closes: #656382)
+
+ -- Alexander Zangerl <az@debian.org>  Fri, 03 Feb 2012 13:51:17 +1000
+
+duplicity (0.6.17-2) unstable; urgency=low
+
+  * applied patch for excessive memory consumption of 
+    tarfile (closes: #657187)
+  * clarified description of --ssh-options in manpage (closes: #657876)
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 02 Feb 2012 11:52:56 +1000
+
+duplicity (0.6.17-1) unstable; urgency=low
+
+  * New upstream release
+  * replaced sftp/scp-backend with new version that uses python-paramiko
+    (closes: #646924, #596857, #605624)
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 01 Jan 2012 15:02:59 +1000
+
+duplicity (0.6.15-4) unstable; urgency=low
+
+  * applied patch for timezone confusion (closes: #647578)
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 06 Nov 2011 10:44:56 +1000
+
+duplicity (0.6.15-3) unstable; urgency=low
+
+  * applied upstream patch to provide fallback for SIGN_PASSPHRASE
+    as per manual (closes: #644208)
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 05 Oct 2011 10:14:43 +1000
+
+duplicity (0.6.15-2) unstable; urgency=high
+
+  * rebuilt against sid, not squeeze.
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 02 Oct 2011 11:03:40 +1000
+
+duplicity (0.6.15-1) unstable; urgency=high
+
+  * New upstream release
+  * repaired patch for #572792 which had been misapplied/broken 
+    in 0.6.14 (closes: #643846)
+  
+ -- Alexander Zangerl <az@debian.org>  Sat, 01 Oct 2011 15:26:27 +1000
+
+duplicity (0.6.14-1) unstable; urgency=low
+
+  * New upstream release (closes: #635037, #601584)
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 25 Jul 2011 18:38:04 +1000
+
+duplicity (0.6.13-2) unstable; urgency=low
+
+  * applied fix to allow collectionstatus op without access to key
+    (closes: #625645)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 21 May 2011 17:46:28 +1000
+
+duplicity (0.6.13-1) unstable; urgency=low
+
+  * New upstream release
+  * band-aid for #601584: now the error report is at least more verbose
+
+ -- Alexander Zangerl <az@debian.org>  Thu, 21 Apr 2011 18:28:56 +1000
+
+duplicity (0.6.12-1) unstable; urgency=low
+
+  * New upstream release (closes: #615668, #579966)
+  * switched to dh_python2 (closes: #616797)
+  * now uses mainstream GnuPGInterface module again
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 13 Mar 2011 00:03:18 +1000
+
+duplicity (0.6.09-5) unstable; urgency=low
+
+  * changed homepage field (closes: #599060)
+  * added patch for problems with rsync 3.0.7++ (closes: #595562)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 20 Nov 2010 14:37:54 +1000
+
+duplicity (0.6.09-4) unstable; urgency=low
+
+  * and again i uploaded the Lenny-built package..sigh. (closes: #594562)
+  * lifted standards version, updated suggests a bit
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 07 Sep 2010 16:45:19 +1000
+
+duplicity (0.6.09-3) unstable; urgency=low
+
+  * add patch to prime option parser with proper arguments 
+    (closes: #595567)
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 06 Sep 2010 12:57:46 +1000
+
+duplicity (0.6.09-2) unstable; urgency=high
+
+  * added copyright text for the local, modified, version 
+    of GnuPGInterface (closes: #594532)
+  * upload version built against python 2.6, making the package
+    installable in Squeeze (closes: #594562)
+
+ -- Alexander Zangerl <az@debian.org>  Sat, 28 Aug 2010 14:37:44 +1000
+
+duplicity (0.6.09-1) unstable; urgency=low
+
+  * New upstream release (closes: #581260, #572102, #531786)
+
+ -- Alexander Zangerl <az@debian.org>  Wed, 25 Aug 2010 23:32:30 +1000
+
 duplicity (0.6.08b-1) unstable; urgency=low
 
   * New upstream release

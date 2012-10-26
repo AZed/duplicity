@@ -54,13 +54,10 @@ install: build
 	dh_installdirs
 
 # Add here commands to install the package into debian/duplicity.
-	python setup.py install --prefix=$(PREFIX) --no-compile
+	python setup.py install --prefix=$(PREFIX) --no-compile --install-layout=deb
 
-# remove GnuPGInterface.py as we already have it in
-# python-gnupginterface
-# az Mon Mar 16 15:54:51 2009: currently disabled until #509415 is gone
-#	rm -f $(PREFIX)/lib/python*/*-packages/duplicity/GnuPGInterface.py
-
+# remove local GnuPGInterface.py as we use the packaged version 
+	rm -f $(PREFIX)/lib/python*/*-packages/duplicity/GnuPGInterface.py
 # no more local pexpect
 	rm -f $(PREFIX)/lib/python*/*-packages/duplicity/pexpect.py
 
@@ -73,7 +70,9 @@ binary-indep: build install
 
 # Build architecture-dependent files here.
 binary-arch: build install
-	dh_pycentral
+	# for some odd reason dh_python2 always dies with "must build for 2.5"
+	# unless the version guessing is switched off...
+	dh_python2 --no-guessing-versions
 	dh_testdir
 	dh_testroot
 	dh_installdocs

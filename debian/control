@@ -2,16 +2,16 @@ Source: duplicity
 Section: utils
 Priority: optional
 Maintainer: Alexander Zangerl <az@debian.org>
-Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev, python-central (>= 0.5), dpatch
-Standards-Version: 3.8.3
-XS-Python-Version: all
+Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev (>= 2.6.6-3), dpatch
+Standards-Version: 3.9.1
+X-Python-Version: >= 2.5
 
 Package: duplicity
 Architecture: any
-Homepage: https://launchpad.net/duplicity
-XB-Python-Version: ${python:Versions}
-Depends: ${shlibs:Depends}, ${python:Depends}, gnupg, python-pexpect (>=2.3-1)
-Suggests: python-boto, ncftp
+Homepage: http://duplicity.nongnu.org/
+Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}, python-gnupginterface (>=0.3.2-9.1)
+Recommends: rsync, python-paramiko
+Suggests: python-boto, ncftp, python-pexpect (>=2.3-1), python-cloudfiles, lftp, python-gdata, tahoe-lafs
 Description: encrypted bandwidth-efficient backup
  Duplicity backs directories by producing encrypted tar-format volumes
  and uploading them to a remote or local file server. Because duplicity
