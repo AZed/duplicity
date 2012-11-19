@@ -1,3 +1,17 @@
+duplicity (0.6.18-6) unstable; urgency=low
+
+  * fixed WebDAV backend: MKCOL must be iterated for
+    nested directories (closes: #693521)
+
+ -- Alexander Zangerl <az@debian.org>  Mon, 19 Nov 2012 13:02:02 +1000
+
+duplicity (0.6.18-5) unstable; urgency=low
+
+  * Ubuntu One backend: fixed a small programming error,
+    added 30s delay for retries.
+
+ -- Alexander Zangerl <az@debian.org>  Fri, 26 Oct 2012 15:26:26 +1000
+
 duplicity (0.6.18-4) unstable; urgency=low
 
   * include new standalone/REST backend for Ubuntu One

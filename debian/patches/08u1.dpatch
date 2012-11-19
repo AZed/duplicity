@@ -6,8 +6,8 @@
 
 @DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/bin/duplicity.1 duplicity-0.6.18/bin/duplicity.1
---- duplicity-0.6.18~/bin/duplicity.1	2012-10-18 13:11:07.000000000 +1000
-+++ duplicity-0.6.18/bin/duplicity.1	2012-10-18 13:11:07.544740168 +1000
+--- duplicity-0.6.18~/bin/duplicity.1	2012-10-26 15:29:42.000000000 +1000
++++ duplicity-0.6.18/bin/duplicity.1	2012-10-26 15:29:42.931275131 +1000
 @@ -833,7 +833,7 @@
  .PP
  .BI "Ubuntu One"
@@ -38,8 +38,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  See https://one.ubuntu.com/ for more information about Ubuntu One.
  
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/duplicity/backends/u1backend.py duplicity-0.6.18/duplicity/backends/u1backend.py
---- duplicity-0.6.18~/duplicity/backends/u1backend.py	2012-10-17 12:38:01.000000000 +1000
-+++ duplicity-0.6.18/duplicity/backends/u1backend.py	2012-10-18 13:11:07.544740168 +1000
+--- duplicity-0.6.18~/duplicity/backends/u1backend.py	2012-10-26 15:29:42.000000000 +1000
++++ duplicity-0.6.18/duplicity/backends/u1backend.py	2012-10-26 15:30:21.224304480 +1000
 @@ -2,6 +2,7 @@
  #
  # Copyright 2011 Canonical Ltd
@@ -48,7 +48,7 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  #
  # This file is part of duplicity.
  #
-@@ -19,239 +20,236 @@
+@@ -19,239 +20,241 @@
  # along with duplicity.  If not, see <http://www.gnu.org/licenses/>.
  
  import duplicity.backend
@@ -83,6 +83,7 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +import getpass
 +import os
 +import sys
++import time
  
 -class U1Backend(duplicity.backend.Backend):
 -    """
@@ -150,8 +151,9 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +                resp, content = self.client.request(url, method, headers=headers, body=body)
 +            except Exception, e:
 +                log.Info("request failed, exception %s" % e);
-+                if n >= globals.num_retries+1:
++                if n == globals.num_retries:
 +                    log.FatalError("Giving up on request after %d attempts, last exception %s" % (n,e))
++                time.sleep(30) 
 +                continue
 +              
 +            log.Info("completed request with status %s %s" % (resp.status,resp.reason))
@@ -184,25 +186,31 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -		    loop.quit()
 -		    if result:
 -			    self.login_success = True
-+            if n >= globals.num_retries+1:
-+                log.FatalError("Giving up on request after %d attempts, last status %d %s" % (n,numcode.resp.reason),ecode)
++            if n < globals.num_retries:
++                time.sleep(30)
  
 -	    cd = CredentialsManagementTool()
 -	    d = cd.login()
 -	    d.addCallbacks(quit)
 -	    loop.run()
 -	    return self.login_success
++        log.FatalError("Giving up on request after %d attempts, last status %d %s" % (n,numcode,resp.reason),
++                       ecode)
  
 -    def quote(self, url):
 -        import urllib
 -        return urllib.quote(url, safe="/~")
+ 
+-    def parse_error(self, headers, ignore=None):
+-        from duplicity import log
 +    def get_and_set_token(self,email, password, hostname):
 +        """Acquire an Ubuntu One access token via OAuth with the Ubuntu SSO service.
 +        See https://one.ubuntu.com/developer/account_admin/auth/otherplatforms for details.
 +        """
  
--    def parse_error(self, headers, ignore=None):
--        from duplicity import log
+-        status = int(headers[0].get('status'))
+-        if status >= 200 and status < 300:
+-            return None
 +        # Request new access token from the Ubuntu SSO service
 +        self.client.add_credentials(email,password)
 +        resp, content = self.client.request('https://login.ubuntu.com/api/1.0/authentications?'
@@ -215,17 +223,12 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +        self.set_consumer(tokendata['consumer_key'],tokendata['consumer_secret'])
 +        self.set_token(tokendata['token'],tokendata['token_secret'])
  
--        status = int(headers[0].get('status'))
--        if status >= 200 and status < 300:
+-        if ignore and status in ignore:
 -            return None
 +        # and finally tell Ubuntu One about the token
 +        resp, content = self.request('https://one.ubuntu.com/oauth/sso-finished-so-get-tokens/')
 +        if resp.status!=200:
 +            log.FatalError("Ubuntu One token was not accepted: %s %s" % (resp.status,resp.reason))
- 
--        if ignore and status in ignore:
--            return None
-+        return tokendata
  
 -        if status == 400:
 -            code = log.ErrorCode.backend_permission_denied
@@ -236,6 +239,12 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -        else:
 -            code = log.ErrorCode.backend_error
 -        return code
++        return tokendata
+ 
+-    def handle_error(self, raise_error, op, headers, file1=None, file2=None, ignore=None):
+-        from duplicity import log
+-        from duplicity import util
+-        import json
 +class U1Backend(duplicity.backend.Backend):
 +    """
 +    Backend for Ubuntu One, through the use of the REST API.  
@@ -244,22 +253,15 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +    def __init__(self, url):
 +        duplicity.backend.Backend.__init__(self, url)
  
--    def handle_error(self, raise_error, op, headers, file1=None, file2=None, ignore=None):
--        from duplicity import log
--        from duplicity import util
--        import json
-+        # u1://dontcare/volname or u1+http:///volname
-+        path = self.parsed_url.path.lstrip('/')
- 
 -        code = self.parse_error(headers, ignore)
 -        if code is None:
 -            return
-+        self.api_base = "https://one.ubuntu.com/api/file_storage/v1"
-+        self.content_base = "https://files.one.ubuntu.com"
++        # u1://dontcare/volname or u1+http:///volname
++        path = self.parsed_url.path.lstrip('/')
  
 -        status = int(headers[0].get('status'))
-+        self.volume_uri = "%s/volumes/~/%s" % (self.api_base, path)
-+        self.meta_base = "%s/~/%s/" % (self.api_base, path)
++        self.api_base = "https://one.ubuntu.com/api/file_storage/v1"
++        self.content_base = "https://files.one.ubuntu.com"
  
 -        if file1:
 -            file1 = file1.encode("utf8")
@@ -278,13 +280,16 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -            node = json.loads(headers[1])
 -            if node.get('error'):
 -                msg = node.get('error')
-+        self.client=OAuthHttpClient();
++        self.volume_uri = "%s/volumes/~/%s" % (self.api_base, path)
++        self.meta_base = "%s/~/%s/" % (self.api_base, path)
  
 -        if raise_error:
 -            if status == 503:
 -                raise TemporaryLoadException(msg)
 -            else:
 -                raise BackendException(msg)
++        self.client=OAuthHttpClient();
++
 +        if 'FTP_PASSWORD' not in os.environ:
 +            sys.stderr.write("No Ubuntu One token found in $FTP_PASSWORD, requesting a new one\n")
 +            email=raw_input('Enter Ubuntu One account email: ')
