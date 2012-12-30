@@ -137,6 +137,8 @@ class WarningCode:
     cannot_stat = 9
     cannot_read = 10
     no_sig_for_time = 11
+    cannot_process = 12
+    process_skipped = 13
 
 def Warn(s, code=WarningCode.generic, extra=None):
     """Shortcut used for warning messages (verbosity 2)"""
@@ -199,6 +201,8 @@ class ErrorCode:
     backend_not_found = 52
     backend_no_space = 53
 
+    # Reserve 126 because it is used as an error code for pkexec
+    # Reserve 127 because it is used as an error code for pkexec
     # Reserve 255 because it is used as an error code for gksu
 
 def FatalError(s, code=ErrorCode.generic, extra=None):

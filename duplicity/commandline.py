@@ -68,10 +68,6 @@ def old_fn_deprecation(opt):
                           "and will be removed in a future release.\n"
                           "Use of default filenames is strongly suggested.") % opt
 
-def scp_deprecation(o,s,v,p):
-    print >>sys.stderr, "Warning: Option %s is deprecated and ignored. Use --ssh-options instead." % o
-
-
 def expand_fn(filename):
     return os.path.expanduser(os.path.expandvars(filename))
 
@@ -185,11 +181,11 @@ See:
 class OPHelpFix(optparse.OptionParser):
     def _get_encoding(self, file):
         """
-        try to get the encoding or switch to UTF-8
+        try to get the encoding or use UTF-8
         which is default encoding in python3 and most recent unixes
         """
-        encoding = getattr(file, "encoding", "UTF-8")
-        return encoding
+        encoding = getattr(file, "encoding", None)
+        return encoding if encoding else 'utf-8'
 
     def print_help(self, file=None):
         """
@@ -211,7 +207,7 @@ def parse_cmdline_options(arglist):
             import duplicity.backends.giobackend
             backend.force_backend(duplicity.backends.giobackend.GIOBackend)
         except ImportError:
-            log.FatalError(_("Unable to load gio module"), log.ErrorCode.gio_not_available)
+            log.FatalError(_("Unable to load gio backend: %s") % str(sys.exc_info()[1]), log.ErrorCode.gio_not_available)
 
     def set_log_fd(fd):
         if fd < 1:
@@ -473,15 +469,11 @@ def parse_cmdline_options(arglist):
     if sys.version_info[:2] >= (2,6):
         parser.add_option("--s3-use-multiprocessing", action="store_true")
 
-    # scp command to use
-    # TRANSL: noun
-    parser.add_option("--scp-command", nargs=1, type="string",
-                      action="callback", callback=scp_deprecation)
+    # scp command to use (ssh pexpect backend)
+    parser.add_option("--scp-command", metavar=_("command"))
 
-    # sftp command to use
-    # TRANSL: noun
-    parser.add_option("--sftp-command", nargs=1, type="string",
-                      action="callback", callback=scp_deprecation)
+    # sftp command to use (ssh pexpect backend)
+    parser.add_option("--sftp-command", metavar=_("command"))
 
     # If set, use short (< 30 char) filenames for all the remote files.
     parser.add_option("--short-filenames", action="callback",
@@ -497,6 +489,9 @@ def parse_cmdline_options(arglist):
 
     # default to batch mode using public-key encryption
     parser.add_option("--ssh-askpass", action="store_true")
+
+    # allow the user to switch ssh backend
+    parser.add_option("--ssh-backend", metavar=_("paramiko|pexpect"))
 
     # user added ssh options
     parser.add_option("--ssh-options", action="extend", metavar=_("options"))

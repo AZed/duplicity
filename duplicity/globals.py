@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.18"
+version = "0.6.20"
 
 # Default file_prefix value
 file_prefix = ""
@@ -198,12 +198,15 @@ old_filenames = False
 # Wheter to specify --use-agent in GnuPG options
 use_agent = False
 
-# ssh commands to use
-scp_command = "scp"
-sftp_command = "sftp"
+# ssh commands to use, used by ssh_pexpect (defaults to sftp, scp)
+scp_command = None
+sftp_command = None
 
 # default to batch mode using public-key encryption
 ssh_askpass = False
+
+# default ssh backend is paramiko
+ssh_backend = "paramiko"
 
 # user added ssh options
 ssh_options = ""

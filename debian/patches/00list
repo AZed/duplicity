@@ -1,9 +1,5 @@
 01webdavmkcol
 01sshbackend
-02cachedesync
-03forcecleanup
-04reverify
-05upstreamgpgintf
-06keyid
-07symlinks
-08u1
+01cachedesync
+01reverify
+

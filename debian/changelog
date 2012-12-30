@@ -1,3 +1,10 @@
+duplicity (0.6.20-1) unstable; urgency=low
+
+  * New upstream release (closes: #696177, #659004)
+    dependencies adjusted, removed GnuPGInterface
+
+ -- Alexander Zangerl <az@debian.org>  Sun, 30 Dec 2012 16:59:18 +1000
+
 duplicity (0.6.18-6) unstable; urgency=low
 
   * fixed WebDAV backend: MKCOL must be iterated for

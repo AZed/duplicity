@@ -2,36 +2,24 @@
 ## 01sshbackend.dpatch by  <az@debian.org>
 ##
 ## All lines beginning with `## DP:' are a description of the patch.
-## DP: replace sshbackend with rewritten one
+## DP: fix logging in paramiko backend
 
 @DPATCH@
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/duplicity/backends/sshbackend.py duplicity-0.6.18/duplicity/backends/sshbackend.py
---- duplicity-0.6.18~/duplicity/backends/sshbackend.py	2012-03-01 05:24:04.000000000 +1000
-+++ duplicity-0.6.18/duplicity/backends/sshbackend.py	2012-03-11 11:56:10.284325675 +1000
-@@ -2,9 +2,9 @@
- #
- # Copyright 2002 Ben Escoto <ben@emerose.org>
- # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
--# Copyright 2011 Alexander Zangerl <az@snafu.priv.at>
-+# Copyright 2011 Alexander Zangerl <az@snafu.priv.at> 
- #
--# $Id: sshbackend.py,v 1.2 2011/12/31 04:44:12 az Exp $
-+# $Id: sshbackend.py,v 1.5 2012/03/11 01:55:46 az Exp $
- #
- # This file is part of duplicity.
- #
-@@ -28,6 +28,7 @@
- import errno
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/duplicity/backends/_ssh_paramiko.py duplicity-0.6.20/duplicity/backends/_ssh_paramiko.py
+--- duplicity-0.6.20~/duplicity/backends/_ssh_paramiko.py	2012-10-28 22:23:52.000000000 +1000
++++ duplicity-0.6.20/duplicity/backends/_ssh_paramiko.py	2012-12-30 17:19:29.526043360 +1000
+@@ -30,6 +30,7 @@
  import sys
+ import time
  import getpass
 +import logging
+ from binascii import hexlify
  
- # debian squeeze's paramiko is a bit old, so we silence randompool depreciation warning
- # note also: passphrased private keys work with squeeze's paramiko only if done with DES, not AES
-@@ -84,6 +85,30 @@
-             else:
-                 password = None
+ import duplicity.backend
+@@ -104,6 +105,30 @@
+ 
          self.client = paramiko.SSHClient()
+         self.client.set_missing_host_key_policy(AgreedAddPolicy())
 +
 +        # paramiko uses logging with the normal python severity levels,
 +        # but duplicity uses both custom levels and inverted logic...*sigh*
@@ -55,7 +43,7 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 +        else:
 +            wanted=logging.CRITICAL
 +        ours.setLevel(wanted)
-+        
++
          # load known_hosts files
          # paramiko is very picky wrt format and bails out on any problem...
          try:

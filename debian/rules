@@ -15,6 +15,10 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	INSTALL_PROGRAM += -s
 endif
 
+CFLAGS += $(shell  dpkg-buildflags --get CFLAGS)
+export CFLAGS
+export CPPFLAGS:=$(shell dpkg-buildflags --get CPPFLAGS)
+export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 
 # we use dpatch
 include /usr/share/dpatch/dpatch.make
@@ -26,6 +30,8 @@ configure-stamp:
 # Add here commands to configure the package.
 	touch configure-stamp
 
+build-arch: build
+build-indep: build
 
 build: build-stamp
 

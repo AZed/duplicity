@@ -3,13 +3,13 @@ Section: utils
 Priority: optional
 Maintainer: Alexander Zangerl <az@debian.org>
 Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev (>= 2.6.6-3), dpatch
-Standards-Version: 3.9.1
+Standards-Version: 3.9.4
 X-Python-Version: >= 2.5
 
 Package: duplicity
 Architecture: any
 Homepage: http://duplicity.nongnu.org/
-Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}, python-gnupginterface (>=0.3.2-9.1)
+Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}
 Recommends: rsync, python-paramiko, python-httplib2, python-oauth
 Suggests: python-boto, ncftp, python-pexpect (>=2.3-1), python-cloudfiles, lftp, python-gdata, tahoe-lafs
 Description: encrypted bandwidth-efficient backup

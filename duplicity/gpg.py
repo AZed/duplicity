@@ -21,13 +21,16 @@
 
 """
 duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface
+which is now patched with some code for iterative threaded execution
+see duplicity's README for details
 """
 
 import os, types, tempfile, re, gzip
 
 from duplicity import misc
 from duplicity import globals
-from duplicity import GnuPGInterface
+from duplicity import gpginterface
+from duplicity import tempdir
 
 try:
     from hashlib import sha1
@@ -93,13 +96,13 @@ class GPGFile:
         """
         self.status_fp = None # used to find signature
         self.closed = None # set to true after file closed
-        self.logger_fp = tempfile.TemporaryFile()
-        self.stderr_fp = tempfile.TemporaryFile()
+        self.logger_fp = tempfile.TemporaryFile( dir=tempdir.default().dir() )
+        self.stderr_fp = tempfile.TemporaryFile( dir=tempdir.default().dir() )
         self.name = encrypt_path
         self.byte_count = 0
 
         # Start GPG process - copied from GnuPGInterface docstring.
-        gnupg = GnuPGInterface.GnuPG()
+        gnupg = gpginterface.GnuPG()
         gnupg.options.meta_interactive = 0
         gnupg.options.extra_args.append('--no-secmem-warning')
         if globals.use_agent:
@@ -149,7 +152,7 @@ class GPGFile:
             if profile.recipients and profile.encrypt_secring:
                 cmdlist.append('--secret-keyring')
                 cmdlist.append(profile.encrypt_secring)
-            self.status_fp = tempfile.TemporaryFile()
+            self.status_fp = tempfile.TemporaryFile( dir=tempdir.default().dir() )
             # Skip the passphrase if using the agent
             if globals.use_agent:
                 gnupg_fhs = ['stdout',]
@@ -386,7 +389,7 @@ def get_hash(hash, path, hex = 1):
     hash should be "MD5" or "SHA1".  The output will be in hexadecimal
     form if hex is true, and in text (base64) otherwise.
     """
-    assert path.isreg()
+    #assert path.isreg()
     fp = path.open("rb")
     if hash == "SHA1":
         hash_obj = sha1()

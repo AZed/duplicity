@@ -5,22 +5,24 @@
 ## DP: fix for #693521: nested mkcols
 
 @DPATCH@
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/duplicity/backends/webdavbackend.py duplicity-0.6.18/duplicity/backends/webdavbackend.py
---- duplicity-0.6.18~/duplicity/backends/webdavbackend.py	2012-11-19 14:18:20.000000000 +1000
-+++ duplicity-0.6.18/duplicity/backends/webdavbackend.py	2012-11-19 14:18:32.914602536 +1000
-@@ -167,9 +167,8 @@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/duplicity/backends/webdavbackend.py duplicity-0.6.20/duplicity/backends/webdavbackend.py
+--- duplicity-0.6.20~/duplicity/backends/webdavbackend.py	2012-12-30 17:10:20.000000000 +1000
++++ duplicity-0.6.20/duplicity/backends/webdavbackend.py	2012-12-30 17:12:43.471036474 +1000
+@@ -169,11 +169,8 @@
              del self.headers['Depth']
              # if the target collection does not exist, create it.
              if response.status == 404:
+-                response.close()
 -                log.Info("Directory '%s' being created." % self.directory)
--                res = self.request("MKCOL", self.directory)
--                log.Info("WebDAV MKCOL status: %s %s" % (res.status, res.reason))
+-                response = self.request("MKCOL", self.directory)
+-                log.Info("WebDAV MKCOL status: %s %s" % (response.status, response.reason))
+-                response.close()
 +                response.close() # otherwise next request fails with ResponseNotReady
 +                self.makedir()
                  continue
              if response.status == 207:
                  document = response.read()
-@@ -188,6 +187,32 @@
+@@ -193,6 +190,32 @@
                  result.append(filename)
          return result
  
