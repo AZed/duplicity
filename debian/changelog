@@ -1,3 +1,12 @@
+duplicity (0.6.20-2) unstable; urgency=low
+
+  * fix unicode issues when logging: str.decode doesn't work 
+    under certain locales (eg. en_US.iso88591)
+    if the input is already unicode and unfortunately errors=ignore 
+    is ignored... (closes: #682837)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 15 Jan 2013 16:58:30 +1000
+
 duplicity (0.6.20-1) unstable; urgency=low
 
   * New upstream release (closes: #696177, #659004)

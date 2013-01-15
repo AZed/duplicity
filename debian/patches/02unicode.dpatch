@@ -1,0 +1,47 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 02unicode.dpatch by  <az@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: fix unicode decode-does-encode-and-fail problems with iso8859 locales
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/duplicity/backends/u1backend.py duplicity-0.6.20/duplicity/backends/u1backend.py
+--- duplicity-0.6.20~/duplicity/backends/u1backend.py	2013-01-15 17:12:35.000000000 +1000
++++ duplicity-0.6.20/duplicity/backends/u1backend.py	2013-01-15 17:57:53.713621056 +1000
+@@ -19,6 +19,7 @@
+ # You should have received a copy of the GNU General Public License
+ # along with duplicity.  If not, see <http://www.gnu.org/licenses/>.
+ 
++import gettext
+ import duplicity.backend
+ from duplicity.errors import BackendException
+ from duplicity import log
+@@ -135,6 +136,7 @@
+     See https://one.ubuntu.com/developer/ for REST documentation.
+     """
+     def __init__(self, url):
++        gettext.install('duplicity', codeset='utf8')  # workaround LP: #1050061
+         duplicity.backend.Backend.__init__(self, url)
+ 
+         # u1://dontcare/volname or u1+http:///volname
+@@ -237,7 +239,7 @@
+         if 'children' in content:
+             for child in content['children']:
+                 path = urllib.unquote(child['path'].lstrip('/'))
+-                filelist += [path]
++                filelist += [path.encode('utf-8')]
+         return filelist
+ 
+     def delete(self, filename_list):
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/duplicity/log.py duplicity-0.6.20/duplicity/log.py
+--- duplicity-0.6.20~/duplicity/log.py	2012-10-28 22:23:52.000000000 +1000
++++ duplicity-0.6.20/duplicity/log.py	2013-01-15 17:59:15.797399870 +1000
+@@ -71,7 +71,7 @@
+         initial_level = _logger.getEffectiveLevel()
+         _logger.setLevel(DupToLoggerLevel(MAX))
+ 
+-    _logger.log(DupToLoggerLevel(verb_level), s.decode("utf8", "ignore"))
++    _logger.log(DupToLoggerLevel(verb_level), s if (isinstance(s,unicode)) else s.decode("utf8", "ignore"))
+     _logger.controlLine = None
+ 
+     if force_print:
