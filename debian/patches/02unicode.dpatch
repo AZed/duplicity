@@ -5,9 +5,23 @@
 ## DP: fix unicode decode-does-encode-and-fail problems with iso8859 locales
 
 @DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/bin/duplicity duplicity-0.6.20/bin/duplicity
+--- duplicity-0.6.20~/bin/duplicity	2013-03-05 12:41:32.888322015 +1000
++++ duplicity-0.6.20/bin/duplicity	2013-03-05 12:41:46.092648082 +1000
+@@ -30,6 +30,10 @@
+ import getpass, gzip, os, sys, time, types
+ import traceback, platform, statvfs, resource, re
+ 
++# override locale to avoid bug #682837, until
++# the logger finally deals with locales cleanly
++os.environ['LC_ALL']="POSIX"
++
+ pwd = os.path.abspath(os.path.dirname(sys.argv[0]))
+ if os.path.exists(os.path.join(pwd, "../duplicity")):
+     sys.path.insert(0, os.path.abspath(os.path.join(pwd, "../.")))
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/duplicity/backends/u1backend.py duplicity-0.6.20/duplicity/backends/u1backend.py
---- duplicity-0.6.20~/duplicity/backends/u1backend.py	2013-01-15 17:12:35.000000000 +1000
-+++ duplicity-0.6.20/duplicity/backends/u1backend.py	2013-01-15 17:57:53.713621056 +1000
+--- duplicity-0.6.20~/duplicity/backends/u1backend.py	2013-01-15 18:02:07.000000000 +1000
++++ duplicity-0.6.20/duplicity/backends/u1backend.py	2013-03-05 12:41:32.943319207 +1000
 @@ -19,6 +19,7 @@
  # You should have received a copy of the GNU General Public License
  # along with duplicity.  If not, see <http://www.gnu.org/licenses/>.
@@ -34,8 +48,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  
      def delete(self, filename_list):
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.20~/duplicity/log.py duplicity-0.6.20/duplicity/log.py
---- duplicity-0.6.20~/duplicity/log.py	2012-10-28 22:23:52.000000000 +1000
-+++ duplicity-0.6.20/duplicity/log.py	2013-01-15 17:59:15.797399870 +1000
+--- duplicity-0.6.20~/duplicity/log.py	2013-01-15 18:02:07.000000000 +1000
++++ duplicity-0.6.20/duplicity/log.py	2013-03-05 12:41:32.943319207 +1000
 @@ -71,7 +71,7 @@
          initial_level = _logger.getEffectiveLevel()
          _logger.setLevel(DupToLoggerLevel(MAX))

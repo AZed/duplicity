@@ -1,3 +1,11 @@
+duplicity (0.6.20-3) unstable; urgency=low
+
+  * implement workaround for unicode issues with the logger;
+    duplicity now uses POSIX regardless of the system locale
+    (closes: #682837)
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 05 Mar 2013 12:44:24 +1000
+
 duplicity (0.6.20-2) unstable; urgency=low
 
   * fix unicode issues when logging: str.decode doesn't work 

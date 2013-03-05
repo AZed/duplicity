@@ -1,3 +1,12 @@
+duplicity (0.6.20-3) unstable; urgency=low
+
+  Duplicity and locales
+  This version of duplicity completely ignores your locale settings
+  and uses POSIX instead, because under some locales (e.g. fr_FR.utf8)
+  the logger causes duplicity to crash (see bug #682837).
+
+ -- Alexander Zangerl <az@debian.org>  Tue, 05 Mar 2013 12:43:16 +1000
+
 duplicity (0.6.18-4) unstable; urgency=low
 
   Reworked Ubuntu One backend
