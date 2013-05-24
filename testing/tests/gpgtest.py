@@ -87,6 +87,17 @@ class GPGTest(unittest.TestCase):
                                   recipients = [helper.encrypt_key1])
         self.gpg_cycle("aoeu" * 10000, profile2)
 
+    def test_gpg_hidden_asym(self):
+        """Test GPG asymmetric encryption with hidden key id"""
+        profile = gpg.GPGProfile(passphrase = helper.sign_passphrase,
+                                 hidden_recipients = [helper.encrypt_key1,
+                                               helper.encrypt_key2])
+        self.gpg_cycle("aoensutha aonetuh saoe", profile)
+
+        profile2 = gpg.GPGProfile(passphrase = helper.sign_passphrase,
+                                  hidden_recipients = [helper.encrypt_key1])
+        self.gpg_cycle("aoeu" * 10000, profile2)
+
     def test_gpg_signing(self):
         """Test to make sure GPG reports the proper signature key"""
         self.deltmp()
@@ -95,6 +106,26 @@ class GPGTest(unittest.TestCase):
         signing_profile = gpg.GPGProfile(passphrase = helper.sign_passphrase,
                                          sign_key = helper.sign_key,
                                          recipients = [helper.encrypt_key1])
+
+        epath = path.Path("testfiles/output/encrypted_file")
+        encrypted_signed_file = gpg.GPGFile(1, epath, signing_profile)
+        encrypted_signed_file.write(plaintext)
+        encrypted_signed_file.close()
+
+        decrypted_file = gpg.GPGFile(0, epath, signing_profile)
+        assert decrypted_file.read() == plaintext
+        decrypted_file.close()
+        sig = decrypted_file.get_signature()
+        assert sig == helper.sign_key, sig
+
+    def test_gpg_signing_and_hidden_encryption(self):
+        """Test to make sure GPG reports the proper signature key even with hidden encryption key id"""
+        self.deltmp()
+        plaintext = "hello" * 50000
+
+        signing_profile = gpg.GPGProfile(passphrase = helper.sign_passphrase,
+                                         sign_key = helper.sign_key,
+                                         hidden_recipients = [helper.encrypt_key1])
 
         epath = path.Path("testfiles/output/encrypted_file")
         encrypted_signed_file = gpg.GPGFile(1, epath, signing_profile)
@@ -134,7 +165,7 @@ class GPGTest(unittest.TestCase):
             #print os.stat("testfiles/output/gzwrite.gz").st_size-size
             assert size - 64 * 1024 <= os.stat("testfiles/output/gzwrite.gz").st_size <= size + 64 * 1024
         gwfh.set_at_end()
-        gpg.GzipWriteFile(gwfh, "testfiles/output/gzwrite.gpg", size = size)
+        gpg.GzipWriteFile(gwfh, "testfiles/output/gzwrite.gz", size = size)
         #print os.stat("testfiles/output/gzwrite.gz").st_size
 
 
@@ -157,12 +188,17 @@ class GPGWriteFile_Helper:
         s2 = size - s1
         return "a"*s1 + self.from_random_fp.read(s2)
 
-    def next(self, size):
+    def next(self):
         if self.at_end: raise StopIteration
-        if random.randrange(2): real_size = size
-        else: real_size = random.randrange(0, size)
-        block_data = self.get_buffer(real_size)
+        block_data = self.get_buffer(self.get_read_size())
         return GPGWriteHelper2(block_data)
+
+    def get_read_size(self):
+        size = 64 * 1024
+        if random.randrange(2):
+            return size
+        else:
+            return random.randrange(0, size)
 
     def get_footer(self):
         return "e" * random.randrange(0, 15000)

@@ -185,7 +185,7 @@ class OPHelpFix(optparse.OptionParser):
         which is default encoding in python3 and most recent unixes
         """
         encoding = getattr(file, "encoding", None)
-        return encoding if encoding else 'utf-8'
+        return encoding or 'utf-8'
 
     def print_help(self, file=None):
         """
@@ -350,6 +350,12 @@ def parse_cmdline_options(arglist):
 
     parser.add_option("--gpg-options", action="extend", metavar=_("options"))
 
+    # TRANSL: Used in usage help to represent an ID for a hidden GnuPG key. Example:
+    # --hidden-encrypt-key <gpg_key_id>
+    parser.add_option("--hidden-encrypt-key", type="string", metavar=_("gpg-key-id"),
+                      dest="", action="callback",
+                      callback=lambda o, s, v, p: globals.gpg_profile.hidden_recipients.append(v)) #@UndefinedVariable
+
     # ignore (some) errors during operations; supposed to make it more
     # likely that you are able to restore data under problematic
     # circumstances. the default should absolutely always be False unless
@@ -495,6 +501,11 @@ def parse_cmdline_options(arglist):
 
     # user added ssh options
     parser.add_option("--ssh-options", action="extend", metavar=_("options"))
+
+    # user added ssl options (webdav backend)
+    parser.add_option("--ssl-cacert-file", metavar=_("pem formatted bundle of certificate authorities"))
+
+    parser.add_option("--ssl-no-check-certificate", action="store_true")
 
     # Working directory for the tempfile module. Defaults to /tmp on most systems.
     parser.add_option("--tempdir", dest="temproot", type="file", metavar=_("path"))

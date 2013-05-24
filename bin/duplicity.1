@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "October 28, 2012" "Version 0.6.20" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "January 23, 2013" "Version 0.6.21" "User Manuals" \"  -*- nroff -*-
 .\" disable justification (adjust text to left margin only)
 .\" command line examples stay readable through that
 .ad l
@@ -64,54 +64,60 @@ for scp/sftp/ssh access (also see
 .B ssh pexpect backend
 .B sftp/scp client binaries
 OpenSSH - http://www.openssh.com/
+.TP
+.B "Ubuntu One"
+.B httplib2
+(python  HTTP client library)
+- http://code.google.com/p/httplib2/
+.br
+.B oauthlib
+(python OAuth request-signing logic)
+- http://pypi.python.org/pypi/oauthlib
+.TP
+.B "webdav backend"
+.B certificate authority database file
+for ssl certificate verification of HTTPS connections
+- http://curl.haxx.se/docs/caextract.html
+.br
+(also see 
+.BR "A NOTE ON SSL CERTIFICATE VERIFICATION" ).
 
 .SH SYNOPSIS
 .B duplicity [full|incremental]
 .I [options]
-.I source_directory target_url
+source_directory target_url
 
 .B duplicity verify
-.I [options]
-.I [--file-to-restore <relpath>]
-.I source_url target_directory
+.I [options] [--file-to-restore <relpath>]
+source_url target_directory
 
 .B duplicity collection-status
 .I [options]
-.I target_url
+target_url
 
 .B duplicity list-current-files
-.I [options]
-.I [--time time]
-.I target_url
+.I [options] [--time time]
+target_url
 
 .B duplicity [restore]
-.I [options]
-.I [--file-to-restore <relpath>]
-.I [--time time]
-.I source_url target_directory
+.I [options] [--file-to-restore <relpath>] [--time time]
+source_url target_directory
 
-.B duplicity remove-older-than
-.I time
-.I [options]
-.I [--force]
-.I target_url
+.B duplicity remove-older-than <time>
+.I [options] [--force]
+target_url
 
-.B duplicity remove-all-but-n-full
-.I count
-.I [options]
-.I [--force]
-.I target_url
+.B duplicity remove-all-but-n-full  <count>
+.I [options] [--force]
+target_url
 
-.B duplicity remove-all-inc-of-but-n-full
-.I count
-.I [options]
-.I [--force]
-.I target_url
+.B duplicity remove-all-inc-of-but-n-full <count>
+.I [options] [--force]
+target_url
 
 .B duplicity cleanup
-.I [options]
-.I [--force]
-.I target_url
+.I [options] [--force] [--extra-clean]
+target_url
 
 .SH DESCRIPTION
 Duplicity incrementally backs up files and directory
@@ -291,7 +297,7 @@ will be needed to delete the files rather than just list them.
 .TP
 .BI --allow-source-mismatch
 Do not abort on attempts to use the same archive dir or remote backend
-to back up different directories.  duplicity will tell you if you need
+to back up different directories. duplicity will tell you if you need
 this switch.
 
 .TP
@@ -489,6 +495,17 @@ Use regular (PORT) data connections.
 Use the GIO backend and interpret any URLs as GIO would.
 
 .TP
+.BI "--hidden-encrypt-key " key-id
+Same as
+.BR --encrypt-key ,
+but it hides user's key id from encrypted file. It uses the gpg's
+.B --hidden-recipient
+command to obfuscate the owner of the backup. On restore, gpg will 
+automatically try all available secret keys in order to decrypt the 
+backup. See gpg(1) for more details.
+
+
+.TP
 .B --ignore-errors
 Try to ignore certain errors if they happen. This option is only
 intended to allow the restoration of a backup in the face of certain
@@ -632,12 +649,9 @@ Treats the path
 .I orig
 in the backup as if it were the path
 .I new.
-Can be passed multiple times.  An example:
-.PP
-.RS
+Can be passed multiple times. An example:
+
 duplicity restore --rename Documents/metal Music/metal sftp://uid@other.host/some_dir /home/me
-.PP
-.RE
 
 .TP
 .BI "--rsync-options " options
@@ -646,12 +660,9 @@ Allows you to pass options to the rsync backend.  The
 list should be of the form "opt1=parm1 opt2=parm2" where the option string is
 quoted and the only spaces allowed are between options. The option string
 will be passed verbatim to rsync, after any internally generated option
-designating the remote port to use.  Here is a possibly useful example:
-.PP
-.RS
+designating the remote port to use. Here is a possibly useful example:
+
 duplicity --rsync-options="--partial-dir=.rsync-partial" /home/me rsync://uid@other.host/some_dir
-.PP
-.RE
 
 .TP
 .BI "--s3-european-buckets"
@@ -759,16 +770,31 @@ will be passed verbatim to both scp and sftp, whose command line syntax
 differs slightly hence the options should therefore be given in the long option format described in
 .BR ssh_config(5) ,
 like in this example:
-.RS
-.PP
+
 duplicity --ssh-options="-oProtocol=2 -oIdentityFile=/my/backup/id" /home/me scp://uid@other.host/some_dir
-.TP
+
 .B NOTE:
 .I ssh paramiko backend
 currently supports only the
 .B -oIdentityFile
 setting.
 .RE
+
+.TP
+.BI "--ssl-cacert-file " file
+.B (only webdav backend)
+Provide a cacert file for ssl certificate verification.
+.br
+See also
+.BR "A NOTE ON SSL CERTIFICATE VERIFICATION" .
+
+.TP
+.B --ssl-no-check-certificate
+.B (only webdav backend)
+Disable ssl certificate verification.
+.br
+See also
+.BR "A NOTE ON SSL CERTIFICATE VERIFICATION" .
 
 .TP
 .BI "--tempdir " directory
@@ -869,9 +895,13 @@ This passphrase is passed to GnuPG. If this is not set, the user will be
 prompted for the passphrase.
 .TP
 .B SIGN_PASSPHRASE
-The passphrase to be used for
-.B --sign-key
-, if SIGN_PASSPHRASE is not set but PASSPHRASE is set, the latter will be used.
+The passphrase to be used for 
+.BR --sign-key .
+If ommitted 
+.B and
+sign key is also one of the keys to encrypt against 
+.B PASSPHRASE 
+will be reused instead.
 Otherwise, if passphrase is needed but not set the user will be prompted for it.
 
 .SH URL FORMAT
@@ -887,7 +917,7 @@ it could be revealed to anyone with permissions to do process listings,
 it is permitted however.
 Consider setting the environment variable 
 .B FTP_PASSWORD 
-instead, which is used by most, but not all backends, regardless of it's name.
+instead, which is used by most, if not all backends, regardless of it's name.
 .PP
 In protocols that support it, the path may be preceded by a single
 slash, '/path', to represent a relative path to the target home directory,
@@ -1000,18 +1030,29 @@ directory and backs up all the files specified by the file selection
 system.  The file selection system comprises a number of file
 selection conditions, which are set using one of the following command
 line options:
-.BR --exclude ,
-.BR --exclude-device-files ,
-.BR --exclude-filelist ,
-.BR --exclude-filelist-stdin ,
-.BR --exclude-globbing-filelist ,
-.BR --exclude-regexp ,
-.BR --include ,
-.BR --include-filelist ,
-.BR --include-filelist-stdin ,
-.BR --include-globbing-filelist ,
-and
-.BR --include-regexp .
+.RS
+--exclude
+.br
+--exclude-device-files
+.br
+--exclude-filelist
+.br
+--exclude-filelist-stdin
+.br
+--exclude-globbing-filelist
+.br
+--exclude-regexp
+.br
+--include
+.br
+--include-filelist
+.br
+--include-filelist-stdin
+.br
+--include-globbing-filelist
+.br
+--include-regexp
+.RE
 Each file selection condition either matches or doesn't match a given
 file.  A given file is excluded by the file selection system exactly
 when the first matching file selection condition specifies that the
@@ -1048,15 +1089,15 @@ The
 .BR include-globbing-filelist ,
 and
 .B exclude-globbing-filelist
-options accept
+options accept some
 .IR "extended shell globbing patterns" .
-These patterns can contain the special patterns
+These patterns can contain
 .BR * ,
 .BR ** ,
 .BR ? ,
 and
-.BR [...] .
-As in a normal shell,
+.B [...]
+(character ranges). As in a normal shell,
 .B *
 can be expanded to any string of characters not containing "/",
 .B ?
@@ -1076,66 +1117,52 @@ into a shell, so the shell does not interpret the globbing patterns
 before duplicity sees them.
 
 The
-.BI "--exclude " pattern
-option matches a file iff:
-
-.TP
-.B 1.
+.B --exclude
+pattern option matches a file if:
+.IP 1.
 .I pattern
 can be expanded into the file's filename, or
-
-.TP
-.B 2.
+.IP 2.
 the file is inside a directory matched by the option.
 .PP
-.RE
-Conversely,
-.BI "--include " pattern
-matches a file iff:
-
-.TP
-.B 1.
+Conversely, the 
+.B "--include " 
+pattern matches a file if:
+.IP 1.
 .I pattern
-can be expanded into the file's filename,
-
-.TP
-.B 2.
+can be expanded into the file's filename, or
+.IP 2.
 the file is inside a directory matched by the option, or
-
-.TP
-.B 3.
+.IP 3.
 the file is a directory which contains a file matched by the option.
 .PP
-.RE
 For example,
-.PP
-.RS
+
 .B --exclude
 /usr/local
-.PP
-.RE
-matches /usr/local, /usr/local/lib, and /usr/local/lib/netscape.  It
+
+matches e.g. /usr/local, /usr/local/lib, and /usr/local/lib/netscape.  It
 is the same as --exclude /usr/local --exclude '/usr/local/**'.
-.PP
-.RS
+
+Or
+.br
 .B --include
 /usr/local
-.PP
-.RE
+
 specifies that /usr, /usr/local, /usr/local/lib, and
-/usr/local/lib/netscape (but not /usr/doc) all be backed up.  Thus you
+/usr/local/lib/netscape (but not /usr/doc) all be backed up. Thus you
 don't have to worry about including parent directories to make sure
-that included subdirectories have somewhere to go.  Finally,
-.PP
-.RS
+that included subdirectories have somewhere to go. 
+
+Finally,
+.br
 .B --include
 ignorecase:'/usr/[a-z0-9]foo/*/**.py'
-.PP
-.RE
+
 would match a file like /usR/5fOO/hello/there/world.py.  If it did
 match anything, it would also match /usr.  If there is no existing
 file that the given pattern can be expanded into, the option will not
-match /usr.
+match /usr alone.
 
 The
 .BR --include-filelist ,
@@ -1151,9 +1178,7 @@ are separated by newlines or nulls, depending on whether the
 interpreted similarly to the way
 .I extended shell patterns
 are, with a few exceptions:
-
-.TP
-.B 1.
+.IP 1.
 Globbing patterns like
 .BR * ,
 .BR ** ,
@@ -1161,40 +1186,33 @@ Globbing patterns like
 and
 .B [...]
 are not expanded.
-
-.TP
-.B 2.
+.IP 2.
 Include patterns do not match files in a directory that is included.
 So /usr/local in an include file will not match /usr/local/doc.
-
-.TP
-.B 3.
+.IP 3.
 Lines starting with "+ " are interpreted as include directives, even
 if found in a filelist referenced by
 .BR --exclude-filelist .
 Similarly, lines starting with "- " exclude files even if they are
 found within an include filelist.
-
-.RE
+.PP
 For example, if file "list.txt" contains the lines:
 
 .RS
 /usr/local
-.RE
-.RS
+.br
 - /usr/local/doc
-.RE
-.RS
+.br
 /usr/local/bin
-.RE
-.RS
+.br
 + /var
-.RE
-.RS
+.br
 - /var
-
 .RE
-then "--include-filelist list.txt" would include /usr, /usr/local, and
+
+then 
+.B "--include-filelist list.txt"
+would include /usr, /usr/local, and
 /usr/local/bin.  It would exclude /usr/local/doc,
 /usr/local/doc/python, etc.  It neither excludes nor includes
 /usr/local/man, leaving the fate of this directory to the next
@@ -1215,26 +1233,25 @@ options are interpreted (although "+ " and "- " prefixing is still
 allowed).  For instance, if the file "globbing-list.txt" contains the
 lines:
 
-.RE
 .RS
 dir/foo
-.RE
-.RS
+.br
 + dir/bar
-.RE
-.RS
+.br
 - **
-
 .RE
-Then "--include-globbing-filelist globbing-list.txt" would be exactly
-the same as specifying "--include dir/foo --include dir/bar --exclude **"
+
+Then 
+.B "--include-globbing-filelist globbing-list.txt" 
+would be exactly the same as specifying 
+.B "--include dir/foo --include dir/bar --exclude **"
 on the command line.
 
 Finally, the
 .B --include-regexp
 and
 .B --exclude-regexp
-allow files to be included and excluded if their filenames match a
+options allow files to be included and excluded if their filenames match a
 python regular expression.  Regular expression syntax is too
 complicated to explain here, but is covered in Python's library
 reference.  Unlike the
@@ -1382,19 +1399,38 @@ Scp also does not support any kind of file listing, so sftp or ssh access will a
 in addition for this backend mode to work properly. Sftp does not have these limitations but needs
 an sftp service running on the backend server, which is sometimes not an option.
 
-.SH A NOTE ON UBUNTU ONE
-
-To use Ubuntu One you must have an Ubuntu One OAuth access token. Such 
-OAuth tokens have a practically unlimited lifetime; you can have multiple 
-active tokens and you can revoke tokens using the Ubuntu One web interface.
+.SH A NOTE ON SSL CERTIFICATE VERIFICATION
+Certificate verification as implemented right now [01.2013] only in the webdav backend needs a file
+based database of certification authority certificates (cacert file). It has to be a
+.B PEM
+formatted text file as currently provided by the 
+.B CURL
+project. See
 .PP
-duplicity expects th token in the environment variable FTP_PASSWORD
-(in the format "consumer_key:consumer_secret:token:token_secret"). If no
-token is present, duplicity asks for your Ubuntu One email address and password
-and requests an access token from the Ubuntu SSO service. The newly 
-acquired token is then printed to the console.
+.RS
+http://curl.haxx.se/docs/caextract.html
 .PP
-See https://one.ubuntu.com/ for more information about Ubuntu One.
+.RE
+After creating/retrieving a valid cacert file you should copy it to either
+.PP
+.RS
+~/.duplicity/cacert.pem
+.br
+~/duplicity_cacert.pem
+.br
+/etc/duplicity/cacert.pem
+.PP
+.RE
+Duplicity searches it there in the same order and will fail if it can't find it.
+You can however specify the option
+.BI --ssl-cacert-file " <file>"
+to point duplicity to a copy in a different location.
+.PP
+Finally there is the
+.B --ssl-no-check-certificate
+option to disable certificate verification alltogether, in case some ssl library 
+is missing or verification is not wanted. Use it with care, as even with self signed 
+servers manually providing the private ca certificate is definitely the safer option. 
 
 .SH A NOTE ON SYMMETRIC ENCRYPTION AND SIGNING
 Signing and symmetrically encrypt at the same time with the gpg binary on the
@@ -1414,6 +1450,21 @@ passphrase.
 3. The used
 .BI PASSPHRASE
 for symmetric encryption and the passphrase of the signing key are identical.
+
+.SH A NOTE ON UBUNTU ONE
+
+To use Ubuntu One you must have an Ubuntu One OAuth access token. Such 
+OAuth tokens have a practically unlimited lifetime; you can have multiple 
+active tokens and you can revoke tokens using the Ubuntu One web interface.
+.PP
+Duplicity expects the token in the environment variable 
+.B FTP_PASSWORD
+(in the format "consumer_key:consumer_secret:token:token_secret"). If no
+token is present, duplicity asks for your Ubuntu One email address and password
+and requests an access token from the Ubuntu SSO service. The newly 
+acquired token is then printed to the console.
+.PP
+See https://one.ubuntu.com/ for more information about Ubuntu One.
 
 .SH KNOWN ISSUES / BUGS
 Hard links currently unsupported (they will be treated as non-linked
@@ -1483,9 +1534,21 @@ The local signatures will not be encrypted and stored in the archive dir (see
 ).
 
 .SH AUTHOR
-Original Author - Ben Escoto <bescoto@stanford.edu>
-
-Current Maintainer - Kenneth Loafman <kenneth@loafman.com>
+.TP
+.BR "Original Author" " - Ben Escoto <bescoto@stanford.edu>"
+.TP
+.BR "Current Maintainer" " - Kenneth Loafman <kenneth@loafman.com>"
+.br
+.TP
+.B "Continuous Contributors"
+Edgar Soldin, Mike Terry
+.PP
+Most backends were contributed individually.
+Information about their authorship may be found in the according file's header.
+.br
+Also we'd like to thank everybody posting issue to the mailing list or on 
+launchpad, sending in patches or contributing otherwise. Duplicity wouldn't
+be as stable and useful if it weren't for you.
 
 .SH SEE ALSO
 .BR rdiffdir (1),

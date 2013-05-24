@@ -10,7 +10,7 @@ Package: duplicity
 Architecture: any
 Homepage: http://duplicity.nongnu.org/
 Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}
-Recommends: rsync, python-paramiko, python-httplib2, python-oauth
+Recommends: rsync, python-paramiko, python-urllib3, python-oauthlib
 Suggests: python-boto, ncftp, python-pexpect (>=2.3-1), python-cloudfiles, lftp, python-gdata, tahoe-lafs
 Description: encrypted bandwidth-efficient backup
  Duplicity backs directories by producing encrypted tar-format volumes

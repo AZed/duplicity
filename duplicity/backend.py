@@ -42,7 +42,7 @@ from duplicity import urlparse_2_5 as urlparser
 
 from duplicity.util import exception_traceback
 
-from duplicity.errors import BackendException
+from duplicity.errors import BackendException, FatalBackendError
 from duplicity.errors import TemporaryLoadException
 from duplicity.errors import ConflictingScheme
 from duplicity.errors import InvalidBackendURL
@@ -328,6 +328,40 @@ def retry(fn):
         return fn(*args, **kwargs)
     return iterate
 
+# same as above, a bit dumber and always dies fatally if last trial fails
+# hence no need for the raise_errors var ;), we really catch everything here
+# as we don't know what the underlying code comes up with and we really *do*
+# want to retry globals.num_retries times under all circumstances
+def retry_fatal(fn):
+    def _retry_fatal(self, *args):
+        try:
+            n = 0
+            for n in range(1, globals.num_retries):
+                try:
+                    self.retry_count = n
+                    return fn(self, *args)
+                except FatalBackendError, e:
+                    # die on fatal errors
+                    raise e
+                except Exception, e:
+                    # retry on anything else
+                    log.Warn("Attempt %s failed. %s: %s"
+                             % (n, e.__class__.__name__, str(e)))
+                    log.Debug("Backtrace of previous error: %s"
+                              % exception_traceback())
+                    time.sleep(10) # wait a bit before trying again
+        # final trial, die on exception
+            self.retry_count = n+1
+            return fn(self, *args)
+        except Exception, e:
+            log.FatalError("Giving up after %s attempts. %s: %s"
+                         % (self.retry_count, e.__class__.__name__, str(e)),
+                          log.ErrorCode.backend_error)
+            log.Debug("Backtrace of previous error: %s"
+                        % exception_traceback())
+        self.retry_count = 0
+
+    return _retry_fatal
 
 class Backend:
     """
@@ -346,6 +380,7 @@ class Backend:
 
       - move
     """
+    
     def __init__(self, parsed_url):
         self.parsed_url = parsed_url
 

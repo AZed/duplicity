@@ -24,11 +24,13 @@ from duplicity.errors import BackendException
 from duplicity import log
 from duplicity import globals
 
-from httplib2 import Http
-from oauth import oauth
 from urlparse import urlparse, parse_qsl
 from json import loads, dumps
-import urllib
+# python3 splitted urllib
+try:
+    import urllib
+except ImportError:
+    import urllib.request as urllib
 import getpass
 import os
 import sys
@@ -37,35 +39,39 @@ import time
 class OAuthHttpClient(object):
     """a simple HTTP client with OAuth added on"""
     def __init__(self):
-        self.signature_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
-        self.consumer = None
+        # lazily import non standard python libs
+        global oauth1, Http
+        from oauthlib import oauth1
+        from httplib2 import Http
+
+        self.consumer_key = None
+        self.consumer_secret = None
         self.token = None
+        self.token_secret = None
         self.client = Http()
 
     def set_consumer(self, consumer_key, consumer_secret):
-        self.consumer = oauth.OAuthConsumer(consumer_key,
-                                            consumer_secret)
+        self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
 
     def set_token(self, token, token_secret):
-        self.token = oauth.OAuthToken( token, token_secret)
+        self.token = token
+        self.token_secret = token_secret
 
     def _get_oauth_request_header(self, url, method):
         """Get an oauth request header given the token and the url"""
-        query = urlparse(url).query
-
-        oauth_request = oauth.OAuthRequest.from_consumer_and_token(
-            http_url=url,
-            http_method=method,
-            oauth_consumer=self.consumer,
-            token=self.token,
-            parameters=dict(parse_qsl(query))
-        )
-        oauth_request.sign_request(oauth.OAuthSignatureMethod_HMAC_SHA1(),
-                                   self.consumer, self.token)
-        return oauth_request.to_header()
+        client = oauth1.Client(
+            unicode(self.consumer_key),
+            client_secret=unicode(self.consumer_secret),
+            resource_owner_key=unicode(self.token),
+            resource_owner_secret=unicode(self.token_secret))
+        url, headers, body = client.sign(
+            unicode(url),
+            http_method=unicode(method))
+        return [url, headers]
 
     def request(self, url, method="GET", body=None, headers={}, ignore=None):
-        oauth_header = self._get_oauth_request_header(url, method)
+        url, oauth_header = self._get_oauth_request_header(url, method)
         headers.update(oauth_header)
 
         for n in range(1, globals.num_retries+1):
@@ -74,6 +80,8 @@ class OAuthHttpClient(object):
                 resp, content = self.client.request(url, method, headers=headers, body=body)
             except Exception, e:
                 log.Info("request failed, exception %s" % e);
+                log.Debug("Backtrace of previous error: %s"
+                          % duplicity.util.exception_traceback())
                 if n == globals.num_retries:
                     log.FatalError("Giving up on request after %d attempts, last exception %s" % (n,e))
                 time.sleep(30)
@@ -154,15 +162,16 @@ class U1Backend(duplicity.backend.Backend):
             password=getpass.getpass("Enter Ubuntu One password: ")
             hostname=os.uname()[1]
 
-            tokendata=self.client.get_and_set_token(email,password,hostname)
+            tokendata = self.client.get_and_set_token(email, password, hostname)
+            tokenstring = "%s:%s:%s:%s" % (tokendata['consumer_key'], tokendata['consumer_secret'],
+                                tokendata['token'], tokendata['token_secret'])
             sys.stderr.write("\nPlease record your new Ubuntu One access token for future use with duplicity:\n"
-                             +"FTP_PASSWORD=%s:%s:%s:%s\n\n"
-                             % (tokendata['consumer_key'],tokendata['consumer_secret'],
-                                tokendata['token'],tokendata['token_secret']))
-        else:
-            (consumer,consumer_secret,token,token_secret) = os.environ['FTP_PASSWORD'].split(':')
-            self.client.set_consumer(consumer, consumer_secret)
-            self.client.set_token(token, token_secret)
+                             + "FTP_PASSWORD=%s\n\n" % tokenstring)
+            os.environ['FTP_PASSWORD'] = tokenstring
+
+        (consumer,consumer_secret,token,token_secret) = os.environ['FTP_PASSWORD'].split(':')
+        self.client.set_consumer(consumer, consumer_secret)
+        self.client.set_token(token, token_secret)
 
         resp, content = self.client.request(self.api_base,ignore=[400,401,403])
         if resp['status']!='200':
@@ -199,16 +208,14 @@ class U1Backend(duplicity.backend.Backend):
         log.Info("uploading file %s to location %s" % (remote_filename, remote_full))
 
         fh=open(source_path.name,'rb')
-        data = bytearray(fh.read())
-        fh.close()
 
         content_type = 'application/octet-stream'
-        headers = {"Content-Length": str(len(data)),
-                   "Content-Type": content_type}
+        headers = {"Content-Type": content_type}
         resp, content = self.client.request(remote_full,
                                             method="PUT",
-                                            body=str(data),
+                                            body=fh,
                                             headers=headers)
+        fh.close()
 
     def get(self, filename, local_path):
         """Get file and put in local_path (Path object)"""
@@ -237,7 +244,7 @@ class U1Backend(duplicity.backend.Backend):
         if 'children' in content:
             for child in content['children']:
                 path = urllib.unquote(child['path'].lstrip('/'))
-                filelist += [path]
+                filelist += [path.encode('utf-8')]
         return filelist
 
     def delete(self, filename_list):
