@@ -19,7 +19,7 @@
 """duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
 
 import select, os, sys, thread, sha, md5, types, cStringIO, tempfile, re
-import GnuPGInterface, misc
+import GnuPGInterface, misc, log
 
 blocksize = 256 * 1024
 
@@ -68,7 +68,10 @@ class GPGFile:
 		"""
 		self.status_fp = None # used to find signature
 		self.closed = None # set to true after file closed
-
+		if log.verbosity >= 4: # If verbosity low, suppress gpg log messages
+			self.logger_fp = sys.stderr
+		else: self.logger_fp = tempfile.TemporaryFile()
+		
 		# Start GPG process - copied from GnuPGInterface docstring.
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
@@ -83,13 +86,15 @@ class GPGFile:
 				if profile.sign_key: cmdlist.append("--sign")
 			else: cmdlist = ['--symmetric']
 			p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
-						   attach_fhs={'stdout': encrypt_path.open("wb")})
+						   attach_fhs={'stdout': encrypt_path.open("wb"),
+									   'logger': self.logger_fp})
 			self.gpg_input = p1.handles['stdin']
 		else:
 			self.status_fp = tempfile.TemporaryFile()
 			p1 = gnupg.run(['--decrypt'], create_fhs=['stdout'],
 						   attach_fhs={'stdin': encrypt_path.open("rb"),
-									   'status': self.status_fp})
+									   'status': self.status_fp,
+									   'logger': self.logger_fp})
 			self.gpg_output = p1.handles['stdout']
 		self.gpg_process = p1
 		self.encrypt = encrypt
@@ -108,6 +113,7 @@ class GPGFile:
 			self.gpg_output.close()
 			if self.status_fp: self.set_signature()
 			self.gpg_process.wait()
+		if self.logger_fp is not sys.stderr: self.logger_fp.close()
 		self.closed = 1
 
 	def set_signature(self):
@@ -133,7 +139,7 @@ class GPGFile:
 
 
 def GPGWriteFile(block_iter, filename, profile,
-				 size = 50 * 1024 * 1024, max_footer_size = 16 * 1024):
+				 size = 5 * 1024 * 1024, max_footer_size = 16 * 1024):
 	"""Write GPG compressed file of given size
 
 	This function writes a gpg compressed file by reading from the
@@ -141,13 +147,19 @@ def GPGWriteFile(block_iter, filename, profile,
 	close to the size limit, it "tops off" the incoming data with
 	incompressible data, to try to hit the limit exactly.
 
-	block_iter should have methods .next(), which returns the next
-	block of data, and .peek(), which returns the next block without
-	deleting it.  Also .get_footer() returns a string to write at the
-	end of the input file.  The footer should have max length
-	max_footer_size.
+	block_iter should have methods .next(size), which returns the next
+	block of data, which should be at most size bytes long.  Also
+	.get_footer() returns a string to write at the end of the input
+	file.  The footer should have max length max_footer_size.
+
+	Because gpg uses compression, we don't assume that putting
+	bytes_in bytes into gpg will result in bytes_out = bytes_in out.
+	However, do assume that bytes_out <= bytes_in approximately.
+
+	Returns true if succeeded in writing until end of block_iter.
 
 	"""
+	logger_fp_list = [sys.stderr]
 	def start_gpg(filename, passphrase):
 		"""Start GPG process, return (process, to_gpg_fileobj)"""
 		gnupg = GnuPGInterface.GnuPG()
@@ -155,14 +167,17 @@ def GPGWriteFile(block_iter, filename, profile,
 		gnupg.options.extra_args.append('--no-secmem-warning')
 		gnupg.passphrase = passphrase
 		if profile.sign_key: gnupg.options.default_key = profile.sign_key
-
+		if log.verbosity < 4: # suppress gpg log messages if low verbosity
+			logger_fp_list[0] = tempfile.TemporaryFile()
+		
 		if profile.recipients:
 			gnupg.options.recipients = profile.recipients
 			cmdlist = ['--encrypt']
 			if profile.sign_key: cmdlist.append("--sign")
 		else: cmdlist = ['--symmetric']
 		p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
-					   attach_fhs={'stdout': open(filename, "wb")})
+					   attach_fhs={'stdout': open(filename, "wb"),
+								   'logger': logger_fp_list[0]})
 		return (p1, p1.handles['stdin'])
 
 	def top_off(bytes, to_gpg_fp):
@@ -183,18 +198,28 @@ def GPGWriteFile(block_iter, filename, profile,
 		"""Close gpg process and clean up"""
 		to_gpg_fp.close()
 		gpg_process.wait()
+		if logger_fp_list[0] is not sys.stderr: logger_fp_list[0].close()
 
-	target_size = size - 18 * 1024 # fudge factor, compensate for gpg buffering
-	check_size = target_size - max_footer_size
+	minimum_block_size = 128 * 1024 # don't bother requesting blocks smaller
+	target_size = size - 21 * 1024 # fudge factor, compensate for gpg buffering
+	data_size = target_size - max_footer_size
 	gpg_process, to_gpg_fp = start_gpg(filename, profile.passphrase)
-	while (block_iter.peek() and
-		   get_current_size() + len(block_iter.peek().data) <= check_size):
-		to_gpg_fp.write(block_iter.next().data)
+	at_end_of_blockiter = 0
+	while 1:
+		bytes_to_go = data_size - get_current_size()
+		if bytes_to_go < minimum_block_size: break
+		try: data = block_iter.next(bytes_to_go).data
+		except StopIteration:
+			at_end_of_blockiter = 1
+			break
+		to_gpg_fp.write(data)
+		
 	to_gpg_fp.write(block_iter.get_footer())
-	if block_iter.peek():
+	if not at_end_of_blockiter: # don't pad last volume
 		cursize = get_current_size()
 		if cursize < target_size: top_off(target_size - cursize, to_gpg_fp)
 	close_process(gpg_process, to_gpg_fp)
+	return at_end_of_blockiter
 
 
 def get_hash(hash, path, hex = 1):

@@ -21,7 +21,7 @@
 import socket
 
 # The current version of duplicity
-version = "0.3.0"
+version = "0.3.1"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -34,10 +34,6 @@ local_path = None
 # contains the signatures and manifests of the relevent backup
 # collection.
 archive_dir = None
-
-# If set, use this value as the current time in seconds instead of
-# reading from the clock.
-current_time = None
 
 # Restores will try to bring back the state as of the following time.
 # If it is None, default to current time.
@@ -80,3 +76,12 @@ print_statistics = 1
 
 # If set, use short (< 30 char) filenames for all the remote files.
 short_filenames = 0
+
+# Used to confirm certain destructive operations like deleting old
+# files.
+force = None
+
+# If set, signifies time in seconds before which backup files should
+# be deleted.
+remove_time = None
+

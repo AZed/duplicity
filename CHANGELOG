@@ -1,3 +1,36 @@
+New in v0.3.1 (2002/11/17)
+--------------------------
+
+Now by default the most recent files get restored, not the oldest.
+You can get the old weird behavior by specifying --restore-time 1 (or
+any other very early time).
+
+Fixed a couple bugs where duplicity would crash if it found the remote
+directory corrupted in various ways (for instance, if it contained a
+file that looked like a duplicity file but had an invalid time
+string).
+
+Added --cleanup option, for deleting the files that may accumulate if
+a duplicity session is aborted after it has uploaded some files.
+
+Added --remove-older-than option, for safely deleting backup sets
+older than the given time.
+
+Suppress GPG log messages like "gpg: CAST5 encrypted data" if
+verbosity is set to 3 or less.
+
+short-filenames get even shorter---now use base 36 (0-9 and a-z) for
+times and volume numbers.  This change is not backwards compatible but
+probably I'm the only one affected.  If not, let me know and I can
+probably write a little script.
+
+Improved the way files are packed into the volumes so less space is
+wasted per volume.
+
+Decreased default volume size to 5MB (from 50MB) in preparation for
+the new restore system planned for 0.4.0.
+
+
 New in v0.3.0 (2002/11/10)
 --------------------------
 

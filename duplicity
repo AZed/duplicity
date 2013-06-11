@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.3.0 released September 29, 2002
+# Version 0.3.1 released September 29, 2002
 #
 # Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -37,6 +37,7 @@ def get_passphrase():
 		log.Log("PASSPHRASE variable not set, asking user.", 5)
 		return getpass.getpass("GnuPG passphrase: ")
 
+
 def write_multivol(backup_type, tarblock_iter, backend):
 	"""Encrypt volumes of tarblock_iter and write to backend
 
@@ -47,19 +48,19 @@ def write_multivol(backup_type, tarblock_iter, backend):
 
 	"""
 	mf = manifest.Manifest().set_dirinfo()
-	vol_num = 1; bytes_written = 0
-	while tarblock_iter.peek():
+	vol_num = 1; bytes_written = 0; at_end = 0
+	while not at_end:
 		# Create volume
-		start_index = tarblock_iter.peek().index
+		tarblock_iter.remember_next_index() # keep track of start index
 		dest_filename = file_naming.get(backup_type, vol_num, encrypted = 1)
 		tdp = dup_temp.new_tempduppath(file_naming.parse(dest_filename))
-		gpg.GPGWriteFile(tarblock_iter, tdp.name, globals.gpg_profile)
+		at_end = gpg.GPGWriteFile(tarblock_iter, tdp.name, globals.gpg_profile)
 		end_index = tarblock_iter.get_previous_index()
 		tdp.setdata()
 
 		# Add volume information to manifest
 		vi = manifest.VolumeInfo()
-		vi.set_info(vol_num, start_index, end_index)
+		vi.set_info(vol_num, tarblock_iter.recall_index(), end_index)
 		vi.set_hash("SHA1", gpg.get_hash("SHA1", tdp))
 		mf.add_volume_info(vi)
 
@@ -141,6 +142,7 @@ def incremental_backup(sig_chain):
 	new_sig_outfp.close()
 	print_statistics(diffdir.stats, bytes_written)
 
+
 def list_current(col_stats):
 	"""List the files current in the archive (examining signature only)"""
 	sig_chain = check_sig_chain(col_stats)
@@ -149,12 +151,13 @@ def list_current(col_stats):
 	path_iter = diffdir.get_combined_path_iter(sig_chain.get_fileobjs())
 	for path in path_iter: print path.get_relative_path()
 
+
 def restore(col_stats):
 	"""Restore archive in globals.backend to globals.local_path"""
 	if globals.restore_dir: index = tuple(globals.restore_dir.split("/"))
 	else: index = ()
 	target = globals.local_path
-	time = globals.restore_time or globals.current_time # default to now
+	time = globals.restore_time or dup_time.curtime
 	backup_chain = col_stats.get_backup_chain_at_time(time)
 	assert backup_chain, col_stats.all_backup_chains
 	backup_setlist = backup_chain.get_sets_at_time(time)
@@ -215,6 +218,62 @@ def restore_add_sig_check(fileobj):
 						   (actual_sig, globals.gpg_profile.sign_key))
 	fileobj.addhook(check_signature)
 
+
+def cleanup(col_stats):
+	"""Delete the extraneous files in the current backend"""
+	extraneous = col_stats.get_extraneous()
+	if not extraneous:
+		log.Warn("No extraneous files found, nothing deleted in cleanup.")
+		return
+
+	filestr = "\n".join(extraneous)
+	if globals.force:
+		if len(extraneous) > 1:
+			log.Log("Deleting these files from backend:\n"+filestr, 3)
+		else: log.Log("Deleting this file from backend:\n"+filestr, 3)
+		col_stats.backend.delete(extraneous)
+	else:
+		if len(extraneous) > 1:
+			log.Warn("Found the following files to delete:")
+		else: log.Warn("Found the following file to delete:")
+		log.Warn(filestr + "\nRun duplicity again with the --force "
+				 "option to actually delete.")
+
+
+def remove_old(col_stats):
+	"""Remove backup files older than globals.remove_time from backend"""
+	assert globals.remove_time is not None
+	def set_times_str(setlist):
+		"""Return string listing times of sets in setlist"""
+		return "\n".join(map(lambda s: dup_time.timetopretty(s.get_time()),
+							 setlist))
+
+	req_list = col_stats.get_older_than_required(globals.remove_time)
+	if req_list:
+		log.Warn("There are backup set(s) at time(s):\n%s\nWhich can't be "
+				 "deleted because newer sets depend on them." %
+				 set_times_str(req_list))
+
+	setlist = col_stats.get_older_than(globals.remove_time)
+	if not setlist:
+		log.Warn("No old backup sets found, nothing deleted.")
+		return
+	if globals.force:
+		if len(setlist) > 1:
+			log.Log("Deleting backup sets at times:\n" +
+					set_times_str(setlist), 3)
+		else: log.Log("Deleting backup set at times:\n" +
+					  set_times_str(setlist), 3)
+		setlist.reverse() # save oldest for last
+		for set in setlist: set.delete()
+	else:
+		if len(setlist) > 1:
+			log.Warn("Found old backup sets at the following times:")
+		else: log.Warn("Found old backup set at the following time:")
+		log.Warn(set_times_str(setlist) + 
+				 "\nRerun command with --force option to actually delete.")
+
+
 def check_last_manifest(col_stats):
 	"""Check consistency and hostname/directory of last manifest"""
 	if not col_stats.all_backup_chains: return
@@ -223,8 +282,8 @@ def check_last_manifest(col_stats):
 
 def main():
 	"""Start/end here"""
+	dup_time.setcurtime()
 	action = commandline.ProcessCommandLine(sys.argv[1:])
-	dup_time.setcurtime(globals.current_time)
 	col_stats = collections.CollectionsStatus(globals.backend,
 											  globals.archive_dir).set_values()
 	log.Log("Collection Status\n-----------------\n" + str(col_stats), 8)
@@ -233,6 +292,9 @@ def main():
 	globals.gpg_profile.passphrase = get_passphrase()
 	if action == "restore": restore(col_stats)
 	elif action == "list-current": list_current(col_stats)
+	elif action == "collection-status": print str(col_stats)
+	elif action == "cleanup": cleanup(col_stats)
+	elif action == "remove-old": remove_old(col_stats)
 	else:
 		assert action == "inc" or action == "full", action
 		check_last_manifest(col_stats)
