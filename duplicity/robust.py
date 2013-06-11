@@ -1,6 +1,6 @@
-import librsync, errno, log
+import librsync, errno, log, path
 
-def check_common_error(error_handler, function, args = []):
+def check_common_error(error_handler, function, args = ()):
 	"""Apply function to args, if error, run error_handler on exception
 
 	This only catches certain exceptions which seem innocent
@@ -12,7 +12,7 @@ def check_common_error(error_handler, function, args = []):
 	#		RPathException, Rdiff.RdiffException,
 	#		librsync.librsyncError, C.UnknownFileTypeError), exc:
 	#	TracebackArchive.add()
-	except (EnvironmentError, librsync.librsyncError), exc:
+	except (EnvironmentError, librsync.librsyncError, path.PathException), exc:
 		if (not isinstance(exc, EnvironmentError) or
 			(errno.errorcode[exc[0]] in
 			 ['EPERM', 'ENOENT', 'EACCES', 'EBUSY', 'EEXIST',
@@ -27,8 +27,10 @@ def check_common_error(error_handler, function, args = []):
 def listpath(path):
 	"""Like path.listdir() but return [] if error, and sort results"""
 	def error_handler(exc):
-		log.Log("Error listing directory %s" % rp.path, 2)
+		log.Log("Error listing directory %s" % path.name, 2)
 		return []
 	dir_listing = check_common_error(error_handler, path.listdir)
 	dir_listing.sort()
 	return dir_listing
+
+

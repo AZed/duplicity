@@ -12,7 +12,6 @@
 
 from __future__ import generators
 import os, stat, types, sys
-import robust, log
 from static import *
 
 
@@ -286,7 +285,8 @@ class IterTreeReducer:
 		last_branch = self.branches[-1]
 		if last_branch.start_successful:
 			if last_branch.can_fast_process(*args):
-				last_branch.fast_process(*args)
+				robust.check_common_error(last_branch.on_error,
+										  last_branch.fast_process, args)
 			else:
 				branch = self.add_branch()
 				self.process_w_branch(index, branch, args)
@@ -313,8 +313,13 @@ class ITRBranch:
 		"""Runs the end_process on self, checking for errors"""
 		if self.finished or not self.start_successful:
 			self.caught_exception = 1
-		if self.caught_exception: self.log_prev_error(self.base_index)
-		else: robust.check_common_error(self.on_error, self.end_process)
+
+		#if self.caught_exception: self.log_prev_error(self.base_index)
+		#else: robust.check_common_error(self.on_error, self.end_process)
+		# Since all end_process does is copy over attributes, might as
+		# well run it even if we did get errors earlier.
+		robust.check_common_error(self.on_error, self.end_process)
+
 		self.finished = 1
 
 	def start_process(self, *args):
@@ -349,8 +354,9 @@ class ITRBranch:
 
 	def log_prev_error(self, index):
 		"""Call function if no pending exception"""
-		log.Log("Skipping %s because of previous error" %
-				(os.path.join(*index),), 2)
+		if not index: index_str = "."
+		else: index_str = os.path.join(*index)
+		log.Log("Skipping %s because of previous error" % index_str, 2)
 
 
-
+import robust, log

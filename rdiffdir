@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # rdiffdir -- Extend rdiff functionality to directories
-# Version 0.0.0 released June 30, 2002
+# Version 0.0.1 released June 30, 2002
 #
 # Copyright (C) 2001, 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -17,12 +17,16 @@
 # send mail to me or the mailing list if you find bugs or have any
 # suggestions.
 
-import sys, getopt, gzip
+import sys, getopt, gzip, os
 import duplicity.diffdir, duplicity.log
 import duplicity.globals, duplicity.selection, duplicity.path
 
 # If set, compress diff and delta files using gzip
 gzip_compress = None
+
+# If set, when computing delta, also compute signature and write to
+# specified file.
+sig_fileobj = None
 
 # Add selection argument tuples to this
 select_opts = []
@@ -31,13 +35,14 @@ copy_blocksize = 32 * 1024
 
 def parse_cmdline_options(arglist):
 	"""Parse argument list"""
-	global gzip_compress, select_opts
-	try: optlist, args = getopt.getopt(arglist, "vVz",
+	global gzip_compress, select_opts, sig_fileobj
+	try: optlist, args = getopt.getopt(arglist, "v:Vz",
 		 ["gzip-compress", "exclude=", "exclude-device-files",
 		  "exclude-filelist=", "exclude-filelist-stdin",
 		  "exclude-other-filesystems", "exclude-regexp=", "include=",
 		  "include-filelist=", "include-filelist-stdin",
-		  "include-regexp=", "null-separator", "verbosity="])
+		  "include-regexp=", "null-separator", "verbosity=",
+		  "write-sig-to="])
 	except getopt.error, e:
 		command_line_error("Bad command line option: %s" % (str(e),))
 
@@ -61,6 +66,8 @@ def parse_cmdline_options(arglist):
 			sys.exit(0)
 		elif opt == "-v" or opt == "--verbosity":
 			duplicity.log.setverbosity(int(arg))
+		elif opt == "--write-sig-to" or opt == "--write-signature-to":
+			sig_fileobj = get_fileobj(arg, "wb")
 		else: command_line_error("Unknown option %s" % opt)
 
 	return args
@@ -71,20 +78,27 @@ def command_line_error(message):
 	sys.stderr.write("See the rdiffdir manual page for instructions\n")
 	sys.exit(1)
 
+def check_does_not_exist(filename):
+	"""Exit with error message if filename already exists"""
+	try: os.lstat(filename)
+	except OSError: pass
+	else: duplicity.log.FatalError("File %s already exists, will not "
+								   "overwrite." % filename)
+
 def get_action(args):
 	"""Figure out the main action from the arguments"""
-	def require_arg_range(min, max):
-		if len(args)-1 < min: command_line_error("Too few arguments")
-		elif len(args)-1 > max: command_line_error("Too many arguments")
+	def require_args(num):
+		if len(args)-1 < num: command_line_error("Too few arguments")
+		elif len(args)-1 > num: command_line_error("Too many arguments")
 
-	if not args: command_line_error("Not enough arguments")
+	if not args: command_line_error("No arguments found")
 	command = args[0]
 	if command == "sig" or command == "signature":
-		require_arg_range(1, 2)
+		require_args(2)
 		command = "sig"
 
-	if command == "delta": require_arg_range(1, 3)
-	elif command == "patch": require_arg_range(1, 2)
+	if command == "delta": require_args(3)
+	elif command == "patch": require_args(2)
 	return command, args[1:]
 
 def get_selection(filename):
@@ -102,41 +116,57 @@ def copyfileobj(infp, outfp):
 	infp.close()
 	outfp.close()
 
-def optional_compress(fileobj):
-	"""If compression, return compressed fileobj; fileobj otherwise"""
-	if gzip_compress: return gzip.GzipFile(None, fileobj.mode, 9, fileobj)
-	else: return fileobj
+def get_fileobj(filename, mode):
+	"""Get file object or stdin/stdout from filename"""
+	if mode == "r" or mode == "rb":
+		if filename == "-": fp = sys.stdin
+		else: fp = open(filename, mode)
+	elif mode == "w" or mode == "wb":
+		if filename == "-": fp = sys.stdout
+		else:
+			check_does_not_exist(filename)
+			fp = open(filename, mode)
+	else: assert 0, "Unknown mode " + str(mode)
+
+	if gzip_compress: return gzip.GzipFile(None, fp.mode, 9, fp)
+	else: return fp
+
+def write_sig(dirname, outfp):
+	"""Write signature of dirname into file object outfp"""
+	path_iter = get_selection(dirname)
+	copyfileobj(duplicity.diffdir.DirSig(path_iter), outfp)
+
+def write_delta(dirname, sig_infp, outfp):
+	"""Write delta to fileobj outfp, reading from dirname and sig_infp"""
+	new_sel = get_selection(dirname)
+	copyfileobj(duplicity.diffdir.DirDelta(new_sel, sig_infp), outfp)
+
+def write_delta_and_sig(filename, sig_infp, delta_outfp, sig_outfp):
+	"""Write delta and also signature of filename"""
+	copyfileobj(duplicity.diffdir.DirDelta_WriteSig(get_selection(filename),
+													sig_infp, sig_outfp),
+				delta_outfp)
+
+def patch(dirname, deltafp):
+	"""Patch dirname, reading delta tar from deltafp"""
+	comp_infp = optional_compress(deltafp)
+	duplicity.diffdir.DirPatch(duplicity.path.Path(dirname), deltafp)
 
 def main():
 	"""Start here"""
 	args = parse_cmdline_options(sys.argv[1:])
-	action, remaining_args = get_action(args)
+	action, file_args = get_action(args)
 	if action == "sig":
-		if len(remaining_args) == 2: outfp = open(remaining_args[1], "wb")
-		else: outfp = sys.stdout
-		comp_outfp = optional_compress(outfp)
-		basis_sel = get_selection(remaining_args[0])
-		copyfileobj(duplicity.diffdir.DirSig(basis_sel), comp_outfp)
+		write_sig(file_args[0], get_fileobj(file_args[1], "wb"))
 	elif action == "delta":
-		if len(remaining_args) == 3: outfp = open(remaining_args[2], "wb")
-		else: outfp = sys.stdout
-		if len(remaining_args) >= 2:
-			infp = open(remaining_args[0], "rb")
-			newfile_index = 1
-		else:
-			infp = sys.stdin
-			newfile_index = 0
-		comp_infp = optional_compress(infp)
-		comp_outfp = optional_compress(outfp)
-		new_sel = get_selection(remaining_args[newfile_index])
-		copyfileobj(duplicity.diffdir.DirDelta(new_sel, comp_infp), comp_outfp)
+		sig_infp = get_fileobj(file_args[0], "rb")
+		delta_outfp = get_fileobj(file_args[2], "wb")
+		if sig_fileobj: write_delta_and_sig(file_args[1], sig_infp,
+											delta_outfp, sig_fileobj)
+		else: write_delta(file_args[1], sig_infp, delta_outfp)
 	else:
 		assert action == "patch"
-		if len(remaining_args) == 2: infp = open(remaining_args[1], "rb")
-		else: infp = sys.stdin
-		comp_infp = optional_compress(infp)
-		basis_path = duplicity.path.Path(remaining_args[0])
-		duplicity.diffdir.DirPatch(basis_path, comp_infp)
+		patch(file_args[0], get_fileobj(file_args[1], "wb"))
 
 
 if __name__ == "__main__": main()

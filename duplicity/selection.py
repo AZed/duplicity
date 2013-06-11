@@ -115,6 +115,10 @@ class Select:
 					if s == 1: yield (new_path, 0)
 					elif s == 2 and new_path.isdir(): yield (new_path, 1)
 
+		if not path.type: # base doesn't exist
+			log.Log("Warning: base %s doesn't exist, continuing" %
+					path.name, 2)
+			return
 		log.Log("Selecting %s" % path.name, 7)
 		yield path
 		diryield_stack = [diryield(path)]

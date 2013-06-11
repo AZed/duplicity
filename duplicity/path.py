@@ -44,7 +44,10 @@ class ROPath:
 		elif stat.S_ISDIR(st_mode): self.type = "dir"
 		elif stat.S_ISLNK(st_mode): self.type = "sym"
 		elif stat.S_ISFIFO(st_mode): self.type = "fifo"
-		elif stat.S_ISSOCK(st_mode): self.type = "sock"
+		elif stat.S_ISSOCK(st_mode):
+			raise PathException(self.get_relative_path() +
+								"is a socket, unsupported by tar")
+			self.type = "sock"
 		elif stat.S_ISCHR(st_mode): self.type = "chr"
 		elif stat.S_ISBLK(st_mode): self.type = "blk"
 		else: raise PathException("Unknown type")
@@ -82,9 +85,15 @@ class ROPath:
 		"""Return device number path resides on"""
 		return self.stat.st_dev
 
+	def get_relative_path(self):
+		"""Return relative path, created from index"""
+		if self.index: return "/".join(self.index)
+		else: return "."
+
 	def open(self, mode):
 		"""Return fileobj associated with self"""
-		assert mode == "rb" and self.fileobj and not self.opened
+		assert mode == "rb" and self.fileobj and not self.opened, \
+			   "%s %s %s" % (mode, self.fileobj, self.opened)
 		self.opened = 1
 		return self.fileobj
 
@@ -192,12 +201,11 @@ class ROPath:
 			return 0
 		if self.type != other.type: return 0
 
-		if self.isreg():
+		if self.isreg() or self.isdir() or self.isfifo():
 			# Don't compare sizes, because we would be comparing
 			# signature size to size of file.
-			return (self.perms_equal(other) and
-					self.stat.st_mtime == other.stat.st_mtime)
-		elif self.isdir() or self.isfifo(): return self.perms_equal(other)
+			return (self.stat.st_mtime == other.stat.st_mtime and
+					self.perms_equal(other))
 		elif self.issym(): # here only symtext matters
 			return self.symtext == other.symtext
 		elif self.isdev():
@@ -223,7 +231,7 @@ class ROPath:
 		elif self.isdev():
 			if self.type == "chr": devtype = "c"
 			else: devtype = "b"
-			other.makedev("c", *self.devnums)
+			other.makedev(devtype, *self.devnums)
 		self.copy_attribs(other)
 
 	def copy_attribs(self, other):
@@ -260,6 +268,7 @@ class Path(ROPath):
 			err_string = errno.errorcode[e[0]]
 			if err_string == "ENOENT" or err_string == "ENOTDIR":
 				self.stat, self.type = None, None # file doesn't exist
+				self.mode = None
 			else: raise
 		else:
 			self.set_from_stat()

@@ -1621,6 +1621,7 @@ class TarFromIterator(TarFile):
 
     def _finish_fileobj(self):
         """Update some variables when done writing fileobj"""
+        return # Skip saving tarinfo information to save memory
         self.members.append(self.cur_tarinfo)
         self.membernames.append(self.cur_tarinfo.name)
         self.chunks.append(self.offset)

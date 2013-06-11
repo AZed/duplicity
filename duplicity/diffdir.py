@@ -12,6 +12,12 @@ volume_size = 1024 * 1024
 
 class DiffDirException(Exception): pass
 
+
+####################################################################
+#
+# DirSig section - make multifile signatures
+#
+
 def DirSig(path_iter):
 	"""Return tarfileobj containing signatures of paths in given path_iter"""
 	def make_pair_iter(path_iter):
@@ -28,6 +34,11 @@ def DirSig(path_iter):
 			else: yield (ti, None)
 	return tarfile.TarFromIterator(make_pair_iter(path_iter))
 
+
+####################################################################
+#
+# DirDelta section - make multifile deltas
+#
 
 def DirDelta(path_iter, dirsig_fileobj):
 	"""Produce tarfileobj diff given tarfile dirsig_fileobj and pathiter"""
@@ -92,6 +103,28 @@ def get_multivol_diff(delta_ropath, fileobj, buf, vol_num):
 	ti.size = len(buf)
 	return (ti, cStringIO.StringIO(buf))
 
+def delta_iter_error_handler(exc, new_path, sig_path):
+	"""Called by get_delta_iter, report error in getting delta"""
+	if new_path: index_string = new_path.get_relative_path()
+	else: index_string = sig_path.get_relative_path()
+	log.Log("Error %s getting delta for %s" % (str(exc), index_string), 2)
+
+def get_delta_path(new_path, sig_path):
+	"""Get one delta_path, or None if error"""
+	delta_path = new_path.get_rorpath()
+	if not new_path.isreg():
+		delta_path.difftype = "snapshot"
+	elif not sig_path or not sig_path.isreg():
+		delta_path.difftype = "snapshot"
+		delta_path.setfileobj(new_path.open("rb"))
+	else: # both new and sig exist and are regular files
+		delta_path.difftype = "diff"
+		sigfp, newfp = sig_path.open("rb"), new_path.open("rb")
+		delta_path.setfileobj(librsync.DeltaFile(sigfp, newfp))
+	new_path.copy_attribs(delta_path)
+	delta_path.stat.st_size = new_path.stat.st_size		
+	return delta_path
+
 def get_delta_iter(new_iter, sig_iter):
 	"""Generate delta iter from new Path iter and sig Path iter.
 
@@ -104,22 +137,14 @@ def get_delta_iter(new_iter, sig_iter):
 	for new_path, sig_path in collated:
 		log.Log("Comparing %s and %s" % (new_path and new_path.index,
 										 sig_path and sig_path.index), 6)
-		if not new_path: yield ROPath(sig_path.index) # indicates deleted
+		if not new_path or not new_path.type:
+			yield ROPath(sig_path.index) # indicates deleted
 		elif sig_path and new_path == sig_path: pass # no change, skip
 		else:
-			delta_path = new_path.get_rorpath()
-			if not new_path.isreg():
-				delta_path.difftype = "snapshot"
-			elif not sig_path or not sig_path.isreg():
-				delta_path.difftype = "snapshot"
-				delta_path.setfileobj(new_path.open("rb"))
-			else: # both new and sig exist and are regular files
-				delta_path.difftype = "diff"
-				sigfp, newfp = sig_path.open("rb"), new_path.open("rb")
-				delta_path.setfileobj(librsync.DeltaFile(sigfp, newfp))
-			new_path.copy_attribs(delta_path)
-			delta_path.stat.st_size = new_path.stat.st_size
-			yield delta_path
+			delta_path = robust.check_common_error(delta_iter_error_handler,
+												   get_delta_path,
+												   (new_path, sig_path))
+			if delta_path: yield delta_path # otherwise error
 
 def tar2path_iter(tarobj):
 	"""Given tar file object open for reading, yield contained paths"""
@@ -131,7 +156,7 @@ def tar2path_iter(tarobj):
 			if not index[-1]: index = index[:-1] # deal with trailing /
 		ropath = ROPath(index)
 		ropath.init_from_tarinfo(tarinfo)
-		ropath.setfileobj(tf.extractfile(tarinfo))
+		if ropath.isreg(): ropath.setfileobj(tf.extractfile(tarinfo))
 		yield ropath
 	tarobj.close()
 
@@ -171,6 +196,106 @@ def collate_iters(riter1, riter2):
 			yield (None, relem2)
 			relem2 = None
 
+
+def DirDelta_WriteSig(path_iter, oldsig_infp, newsig_outfp):
+	"""Like DirDelta but also write signature into sig_fileobj"""
+	sig_path_iter = tar2path_iter(oldsig_infp)
+	delta_iter = get_delta_iter_w_sig(path_iter, sig_path_iter, newsig_outfp)
+	return tarfile.TarFromIterator(delta_iter2tar_iter(delta_iter))
+
+def get_delta_iter_w_sig(path_iter, sig_path_iter, sig_fileobj):
+	"""Like get_delta_iter but also write signatures to sig_fileobj"""
+	collated = collate_iters(path_iter, sig_path_iter)
+	sigTarFile = tarfile.TarFile("arbitrary", "w", sig_fileobj)
+	for new_path, sig_path in collated:
+		log.Log("Comparing %s and %s" % (new_path and new_path.index,
+										 sig_path and sig_path.index), 6)
+		if not new_path or not new_path.type: # file deleted
+			yield ROPath(sig_path.index)
+		elif sig_path and new_path == sig_path:
+			# Same, just write old sig information, no delta output
+			ti = sig_path.get_tarinfo()
+			if sig_path.fileobj:
+				sigfp = sig_path.open("rb")
+				sigbuf = sigfp.read()
+				sigfp.close()
+				ti.size = len(sigbuf)
+				sigTarFile.addfile(ti, cStringIO.StringIO(sigbuf))
+			else: sigTarFile.addfile(ti)
+		else:
+			# Must calculate new signature and create delta
+			ti = new_path.get_tarinfo()
+			if not new_path.isreg():
+				sigTarFile.addfile(ti)
+				delta_path = robust.check_common_error(
+					delta_iter_error_handler, get_delta_path,
+					(new_path, sig_path))
+			else: # must calculate sig as we read delta
+				delta_path = robust.check_common_error(
+					delta_iter_error_handler, get_delta_path_w_sig,
+					(new_path, sig_path, sigTarFile))
+			if delta_path: yield delta_path
+	sigTarFile.close()
+
+def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
+	"""Return new delta_path which, when read, writes sig to sig_fileobj"""
+	assert new_path and new_path.isreg()
+	ti = new_path.get_tarinfo()
+	delta_path = new_path.get_rorpath()
+
+	def callback(sig_string):
+		"""Callback activated when FileWithSignature read to end"""
+		ti.size = len(sig_string)
+		sigTarFile.addfile(ti, cStringIO.StringIO(sig_string))
+
+	if not sig_path or not sig_path.isreg():
+		delta_path.difftype = "snapshot"
+		delta_path.setfileobj(FileWithSignature(new_path.open("rb"),
+												callback))
+	else: # both are regular files
+		delta_path.difftype = "diff"
+		old_sigfp = sig_path.open("rb")
+		newfp = FileWithSignature(new_path.open("rb"), callback)
+		delta_path.setfileobj(librsync.DeltaFile(old_sigfp, newfp))
+	new_path.copy_attribs(delta_path)
+	delta_path.stat.st_size = new_path.stat.st_size
+	return delta_path
+
+
+class FileWithSignature:
+	"""File-like object which also computes signature as it is read"""
+	blocksize = 32 * 1024
+	def __init__(self, infile, callback):
+		"""FileTee initializer
+
+		The object will act like infile, but whenever it is read it
+		add infile's data to a SigGenerator object.  When the file has
+		been read to the end the callback will be called with the
+		calculated signature.
+
+		"""
+		self.infile, self.callback = infile, callback
+		self.sig_gen = librsync.SigGenerator()
+		self.activated_callback = None
+
+	def read(self, length = -1):
+		buf = self.infile.read(length)
+		self.sig_gen.update(buf)
+		return buf
+
+	def close(self):
+		# Make sure all of infile read
+		if not self.activated_callback:
+			while self.read(self.blocksize): pass
+			self.activated_callback = 1
+			self.callback(self.sig_gen.getsig())
+		return self.infile.close()
+	
+
+####################################################################
+#
+# DirPatch section - use deltas to patch directories
+#
 
 def DirPatch(base_path, difftarobj):
 	"""Patch given Path object using delta tar fileobj difftarobj"""
@@ -234,7 +359,9 @@ def get_index_from_tarinfo(tarinfo):
 			break
 	else: raise DiffDirException("Unrecognized diff entry %s" %
 								 (tarinfo.name,))
-	return (tuple(name.split("/")), difftype, multivol)
+	if name == ".": index = ()
+	else: index = tuple(name.split("/"))
+	return (index, difftype, multivol)
 
 
 class Multivol_Filelike:
@@ -336,7 +463,8 @@ class PathPatcher(ITRBranch):
 			else:  # just copy snapshot over
 				diff_ropath.copy(self.base_path.new_index(index))
 		elif diff_ropath.difftype == "deleted":
-			basis_path.delete()
+			if basis_path.isdir(): basis_path.deltree()
+			else: basis_path.delete()
 		elif not basis_path.isreg():
 			if basis_path.isdir(): basis_path.deltree()
 			else: basis_path.delete()
