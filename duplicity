@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.5.19 released August 06, 2009
+# Version 0.5.20 released August 28, 2009
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -97,7 +97,7 @@ def get_passphrase(n, action):
 
     # these commands don't look inside the collection
     elif action in ["collection-status",
-                    "remove-older-then",
+                    "remove-old",
                     "remove-all-but-n-full",
                     ]:
         return ""
@@ -749,7 +749,7 @@ def main():
     # log Python, duplicity, and system versions
     log.Info("Args: %s" % (' '.join(sys.argv),))
     log.Info("%s %s" % (sys.executable or sys.platform, sys.version))
-    log.Info("duplicity 0.5.19 (August 06, 2009)")
+    log.Info("duplicity 0.5.20 (August 28, 2009)")
     log.Info(' '.join(platform.uname()))
 
     check_resources(action)

@@ -1,3 +1,13 @@
+New in v0.5.20 (2009/08/28)
+---------------------------
+Bugs fixed this release:
+408059  Failure due to _logger.log failure for content with special
+        characters: TypeError decoding Unicode not supported
+412667  "duplicity remove-older-than" asks for passphrase even though
+        not required
+418170  [PATCH] file names longer then 512 symbols are not supported
+
+
 New in v0.5.19 (2009/08/06)
 ---------------------------
 Fixed problem where Cygwin was returning -1 for the
