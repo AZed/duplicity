@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "May 04, 2009" "Version 0.5.17" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "May 20, 2009" "Version 0.5.18" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -588,19 +588,17 @@ filesystem path.
 Formats of each of the URL schemes follow:
 .PP
 .RS
-ssh://user[:password]@other.host[:port]/some_dir
+cf+http://container_name
 .PP
-scp://user[:password]@other.host[:port]/some_dir
+file:///some_dir
 .PP
 ftp://user[:password]@other.host[:port]/some_dir
+.PP
+hsi://user[:password]@other.host/some_dir
 .PP
 imap://user[:password]@host.com[/from_address_prefix]
 .PP
 imaps://user[:password]@host.com[/from_address_prefix]
-.PP
-hsi://user[:password]@other.host/some_dir
-.PP
-file:///some_dir
 .PP
 rsync://user[:password]@other.host[:port]::/module/some_dir
 .PP
@@ -612,9 +610,16 @@ s3://host/bucket_name[/prefix]
 .PP
 s3+http://bucket_name[/prefix]
 .PP
+scp://user[:password]@other.host[:port]/some_dir
+.PP
+ssh://user[:password]@other.host[:port]/some_dir
+.PP
+tahoe://alias/directory
+.PP
 webdav://user[:password]@other.host/some_dir
 .PP
 webdavs://user[:password]@other.host/some_dir
+
 .RE
 
 .SH TIME FORMATS
