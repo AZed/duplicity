@@ -233,9 +233,9 @@ def parse_cmdline_options(arglist):
     parser.add_option("--config-dir", type="file", metavar=_("path"),
                       help=optparse.SUPPRESS_HELP)
 
-    parser.add_option("--current-time", action="callback", type="int",
-                      dest="", help=optparse.SUPPRESS_HELP,
-                      callback=lambda o, s, v, p: dup_time.setcurtime(v))
+    # for testing -- set current time
+    parser.add_option("--current-time", type="int",
+                      dest="current_time", help=optparse.SUPPRESS_HELP)
 
     # Don't actually do anything, but still report what would be done
     parser.add_option("--dry-run", action="store_true")
@@ -374,6 +374,10 @@ def parse_cmdline_options(arglist):
                       callback=lambda o, s, v, p: (setattr(p.values, o.dest, True),
                                                    old_fn_deprecation(s)))
 
+    # option to trigger Pydev debugger
+    parser.add_option("--pydevd", action="store_true")
+
+    # option to rename files during restore
     parser.add_option("--rename", type="file", action="callback", nargs=2,
                       callback=add_rename)
 

@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.12 released March 08, 2011
+# Version 0.6.13 released April 02, 2011
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -185,18 +185,18 @@ def restart_position_iterator(tarblock_iter):
         # Just spin our wheels
         while tarblock_iter.next():
             if (tarblock_iter.previous_index == last_index):
-                if (tarblock_iter.previous_block == last_block):
+                if (tarblock_iter.previous_block > last_block):
                     break
             if tarblock_iter.previous_index > last_index:
-                log.Warn(_("Unable to locate last file %s and block %d in backup set.\n"
-                           "Attempting restart on the next file %s.") %
-                           ("/".join(last_index), last_block, "/".join(tarblock_iter.previous_index)),
+                log.Warn(_("File %s complete in backup set.\n"
+                           "Continuing restart on file %s.") %
+                           ("/".join(last_index), "/".join(tarblock_iter.previous_index)),
                            log.ErrorCode.restart_file_not_found)
                 break
     except StopIteration:
-        log.Warn(_("Unable to locate last file %s and block %d in backup set.\n"
-                   "There are no more files to be backed up.") %
-                   ("/".join(last_index), last_block),
+        log.Warn(_("File %s missing in backup set.\n"
+                   "Continuing restart on file %s.") %
+                   ("/".join(last_index), "/".join(tarblock_iter.previous_index)),
                    log.ErrorCode.restart_file_not_found)
     return 0
 
@@ -865,7 +865,7 @@ def sync_archive():
         log.Notice(_("Deleting local %s (not authoritative at backend).") % del_name)
         try:
             os.unlink(del_name)
-        except Exception as e:
+        except Exception, e:
             log.Warn(_("Unable to delete %s: %s") % (del_name, str(e)))
 
     def copy_to_local(fn):
@@ -1034,7 +1034,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.12 (March 08, 2011)", verbosity)
+    log.Log("duplicity 0.6.13 (April 02, 2011)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1082,7 +1082,6 @@ class Restart:
                              (self.start_vol + 1, mf_len, self.start_vol + 1))
                 for vol in range(self.start_vol + 1, mf_len + 1):
                     mf.del_volume_info(vol)
-                self.setLastSaved(mf)
             else:
                 # this is an 'impossible' state, remove last partial and restart
                 log.Notice(_("RESTART: Impossible backup state: manifest has %d vols, remote has %d vols.\n"
@@ -1092,28 +1091,16 @@ class Restart:
                 self.last_backup.delete()
                 os.execve(sys.argv[0], sys.argv[1:], os.environ)
 
-
     def setLastSaved(self, mf):
         vi = mf.volume_info_dict[self.start_vol]
         self.last_index = vi.end_index
-        self.last_block = vi.end_block
+        self.last_block = vi.end_block or 0
 
 
 def main():
     """
     Start/end here
     """
-    # The following is for starting remote debugging in Eclipse with Pydev.
-    # Adjust the path to your location and version of Eclipse and Pydev.  Comment out
-    # to run normally, or this process will hang at pydevd.settrace() waiting for the
-    # remote debugger to start.
-#    pysrc = "/opt/Aptana Studio 2.0/plugins/org.python.pydev.debug_1.6.5.2011020317/pysrc/"
-#    if os.path.isdir(pysrc):
-#        sys.path.append(pysrc)
-#        import pydevd #@UnresolvedImport
-#        pydevd.settrace()
-    # end remote debugger startup
-
     # if python is run setuid, it's only partway set,
     # so make sure to run with euid/egid of root
     if os.geteuid() == 0:
@@ -1128,7 +1115,21 @@ def main():
     action = commandline.ProcessCommandLine(sys.argv[1:])
 
     # set the current time strings again now that we have time separator
-    dup_time.setcurtime()
+    if globals.current_time:
+        dup_time.setcurtime(globals.current_time)
+    else:
+        dup_time.setcurtime()
+
+    # The following is for starting remote debugging in Eclipse with Pydev.
+    # Adjust the path to your location and version of Eclipse and Pydev.
+    if globals.pydevd:
+        pysrc = "/opt/Aptana Studio 2.0/plugins/org.python.pydev.debug_1.6.5.2011020317/pysrc/"
+        if os.path.isdir(pysrc):
+            sys.path.append(pysrc)
+            import pydevd #@UnresolvedImport
+            pydevd.settrace()
+        else:
+            log.FatalError("Unable to locate pydevd.", log.ErrorCode.user_error)
 
     # get the passphrase if we need to based on action/options
     globals.gpg_profile.passphrase = get_passphrase(1, action)
@@ -1256,6 +1257,11 @@ if __name__ == "__main__":
     except SystemExit, e:
         # No traceback, just get out
         sys.exit(e)
+
+    except KeyboardInterrupt, e:
+        # No traceback, just get out
+        log.Info(_("INT intercepted...exiting."))
+        sys.exit(4)
 
     except gpg.GPGError, e:
         # For gpg errors, don't show an ugly stack trace by
