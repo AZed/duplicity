@@ -36,10 +36,15 @@ class RsyncBackend(duplicity.backend.Backend):
     def __init__(self, parsed_url):
         """rsyncBackend initializer"""
         duplicity.backend.Backend.__init__(self, parsed_url)
-        user, host = parsed_url.netloc.split('@')
-        if parsed_url.password:
-            user = user.split(':')[0]
-        mynetloc = '%s@%s' % (user, host)
+        if parsed_url.netloc.find('@') < 0:
+            user = ""
+            host = parsed_url.netloc
+            mynetloc = host
+        else:
+            user, host = parsed_url.netloc.split('@')
+            if parsed_url.password:
+                user = user.split(':')[0]
+            mynetloc = '%s@%s' % (user, host)
         # module url: rsync://user@host::/modname/path
         # rsync via ssh/rsh: rsync://user@host//some_absolute_path
         #      -or-          rsync://user@host/some_relative_path
@@ -57,7 +62,8 @@ class RsyncBackend(duplicity.backend.Backend):
 
     def put(self, source_path, remote_filename = None):
         """Use rsync to copy source_dir/filename to remote computer"""
-        if not remote_filename: remote_filename = source_path.get_filename()
+        if not remote_filename:
+            remote_filename = source_path.get_filename()
         remote_path = os.path.join(self.url_string, remote_filename)
         commandline = "rsync %s %s" % (source_path.name, remote_path)
         self.run_command(commandline)
