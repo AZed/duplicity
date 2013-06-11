@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.19"
+version = "0.6.20"
 
 # Default file_prefix value
 file_prefix = ""

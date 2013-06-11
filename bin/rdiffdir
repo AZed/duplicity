@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # rdiffdir -- Extend rdiff functionality to directories
-# Version 0.6.19 released May 22, 2012
+# Version 0.6.20 released October 28, 2012
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -28,7 +28,7 @@
 import sys, getopt, gzip, os
 
 import gettext
-gettext.install('duplicity')
+gettext.install('duplicity', codeset='utf8')
 
 from duplicity import diffdir
 from duplicity import patchdir
