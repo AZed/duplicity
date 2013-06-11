@@ -37,13 +37,13 @@
 """Read from and write to tar format archives.
 """
 
-__version__ = "$Revision: 1.52 $"
-# $Source: /home/cvsroot/laas/tarfile/tarfile.py,v $
+__version__ = "$Revision: 1.1 $"
+# $Source: /cvsroot/duplicity/duplicity/duplicity/tarfile.py,v $
 
 version     = "0.4.9"
 __author__  = "Lars Gustäbel (lars@gustaebel.de)"
-__date__    = "$Date: 2002/07/25 15:13:04 $"
-__cvsid__   = "$Id: tarfile.py,v 1.52 2002/07/25 15:13:04 lars Exp $"
+__date__    = "$Date: 2002/10/29 01:51:36 $"
+__cvsid__   = "$Id: tarfile.py,v 1.1 2002/10/29 01:51:36 bescoto Exp $"
 __credits__ = "Gustavo Niemeyer for his support, " \
               "Detlef Lannert for some early contributions"
 

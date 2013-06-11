@@ -226,7 +226,7 @@ import fcntl
 
 __author__   = "Frank J. Tobin, ftobin@neverending.org"
 __version__  = "0.3.2"
-__revision__ = "$Id: GnuPGInterface.py,v 1.22 2002/01/11 20:22:04 ftobin Exp $"
+__revision__ = "$Id: GnuPGInterface.py,v 1.1 2002/10/29 01:51:36 bescoto Exp $"
 
 # "standard" filehandles attached to processes
 _stds = [ 'stdin', 'stdout', 'stderr' ]

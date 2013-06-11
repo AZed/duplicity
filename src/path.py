@@ -2,11 +2,19 @@
 #
 # This file is part of duplicity.
 #
-# duplicity is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by
-# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
-# 02139, USA; either version 2 of the License, or (at your option) any
-# later version; incorporated herein by reference.
+# Duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.
+#
+# Duplicity is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with duplicity; if not, write to the Free Software Foundation,
+# Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 """Wrapper class around a file like "/usr/bin/env"
 
@@ -154,11 +162,9 @@ class ROPath:
 
 		# Set user and group id
 		try: self.stat.st_uid = pwd.getpwnam(tarinfo.uname)[2]
-		except KeyError:
-			self.stat.st_uid = os.getuid() # default to current user
+		except KeyError: self.stat.st_uid = tarinfo.uid
 		try: self.stat.st_gid = grp.getgrnam(tarinfo.gname)[2]
-		except KeyError:
-			self.stat.st_gid = os.getgid() # default to current group
+		except KeyError: self.stat.st_gid = tarinfo.gid
 
 		self.stat.st_mtime = tarinfo.mtime
 		self.stat.st_size = tarinfo.size
@@ -204,7 +210,11 @@ class ROPath:
 
 			ti.mode = self.mode
 			ti.uid, ti.gid = self.stat.st_uid, self.stat.st_gid
-			ti.mtime = self.stat.st_mtime
+			if self.stat.st_mtime < 0:
+				log.Warn("Warning: %s has negative mtime, treating as 0."
+						 % (self.get_relative_path(),))
+				ti.mtime = 0
+			else: ti.mtime = self.stat.st_mtime
 
 			try: ti.uname = pwd.getpwuid(ti.uid)[0]
 			except KeyError: pass
@@ -232,8 +242,10 @@ class ROPath:
 		if self.isreg() or self.isdir() or self.isfifo():
 			# Don't compare sizes, because we would be comparing
 			# signature size to size of file.
-			return (self.stat.st_mtime == other.stat.st_mtime and
-					self.perms_equal(other))
+			if not self.perms_equal(other): return 0
+			if self.stat.st_mtime == other.stat.st_mtime: return 1
+			# Below, treat negative mtimes as equal to 0
+			return self.stat.st_mtime <= 0 and other.stat.st_mtime <= 0
 		elif self.issym(): # here only symtext matters
 			return self.symtext == other.symtext
 		elif self.isdev():

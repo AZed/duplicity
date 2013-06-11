@@ -1,3 +1,17 @@
+New in v0.2.1 (2002/10/31)
+--------------------------
+
+Security Fix:  Fixed bug where an rdiffdir patch containing a path
+with a '..' component could overwrite files in parent directory.
+
+Fixed bug where files without a username (only uid) would be marked as
+changed every session.  Thanks to Peter Ehrenberg for bug report.
+
+Now files with negative mtimes are treated as if they have mtime 0.
+This prevents them from being marked as changed unnecessarily.  Thanks
+to Peter Ehrenberg for report.
+
+
 New in v0.2.0 (2002/09/29)
 --------------------------
 
