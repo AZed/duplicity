@@ -21,11 +21,12 @@
 # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 from duplicity import globals
+import sys
 
 if globals.s3_use_multiprocessing:
     if sys.version_info[:2] < (2,6):
-        print "Sorry, S3 multiprocessing requires version 2.6 or later of python"
+        print "Sorry, S3 multiprocessing requires version 2.5 or later of python"
         sys.exit(1)
-    import _boto_multi.py
+    import _boto_multi
 else:
-    import _boto_single.py
+    import _boto_single

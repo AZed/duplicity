@@ -216,13 +216,13 @@ class RestartTest(unittest.TestCase):
         self.deltmp()
         # we know we're going to fail these, they are forced
         try:
-            self.backup("full", "/etc", options = ["--vol 1", "--fail 3"])
+            self.backup("full", "/bin", options = ["--vol 1", "--fail 3"])
         except CmdError:
             pass
         assert not os.system("rm testfiles/output/duplicity-full*vol[23].difftar*")
         # this one should pass OK
-        self.backup("full", "/etc", options = ["--vol 1"])
-        self.verify("/etc")
+        self.backup("full", "/bin", options = ["--vol 1"])
+        self.verify("/bin")
 
     def test_last_file_missing_in_middle(self):
         """
@@ -269,6 +269,26 @@ class RestartTest(unittest.TestCase):
         #TODO: we can't verify but we need to to check for other errors that might show up
         # there should be 2 differences found, one missing file, one mtime change
         #self.verify("testfiles/largefiles")
+
+    def test_restart_incremental(self):
+        """
+        Test restarting an incremental backup
+        """
+        # Make first normal full backup
+        self.backup("full", "testfiles/dir1")
+        # create 3 2M files
+        assert not os.system("mkdir testfiles/largefiles")
+        for n in (1,2,3):
+            assert not os.system("dd if=/dev/urandom of=testfiles/largefiles/file%d bs=1024 count=2048 > /dev/null 2>&1" % n)
+        # Force a failure partway through
+        try:
+            self.backup("inc", "testfiles/largefiles", options = ["--vols 1", "--fail 2"])
+            assert False # shouldn't get this far
+        except CmdError, e:
+            pass
+        # Now finish that incremental
+        self.backup("inc", "testfiles/largefiles")
+        self.verify("testfiles/largefiles")
 
 if __name__ == "__main__":
     unittest.main()

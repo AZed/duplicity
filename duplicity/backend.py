@@ -77,9 +77,11 @@ def import_backends():
             try:
                 __import__(imp)
                 res = "Succeeded"
+                level = log.INFO
             except Exception:
                 res = "Failed: " + str(sys.exc_info()[1])
-            log.Info("Import of %s %s" % (imp, res))
+                level = log.WARNING
+            log.Log("Import of %s %s" % (imp, res), level)
         else:
             continue
 
@@ -313,7 +315,9 @@ def retry(fn):
                 log.Debug("Backtrace of previous error: %s"
                           % exception_traceback())
                 if isinstance(e, TemporaryLoadException):
-                    time.sleep(30) # wait a bit before trying again
+                    time.sleep(30) # wait longer before trying again
+                else:
+                    time.sleep(10) # wait a bit before trying again
         # Now try one last time, but fatal-log instead of raising errors
         kwargs = {"raise_errors" : False}
         return fn(*args, **kwargs)
