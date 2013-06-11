@@ -1,0 +1,60 @@
+.TH RDIFFDIR 1 "July 2002" "Version 0.0.0" "User Manuals"
+.SH NAME
+rdiffdir \- compute and apply signatures and diffs to directories
+.SH SYNOPSIS
+.B rdiffdir
+.BI [ options ]
+.B sig[nature]
+.I basis_dir
+.BI [ signature_file ]
+
+.B rdiffdir
+.BI [ options ]
+.B delta
+.BI [ signature_file ]
+.I new_dir
+.BI [ delta_file ]
+
+.B rdiffdir
+.BI [ options ]
+.B patch
+.I basis_dir
+.BI [ delta_file ]
+
+.SH DESCRIPTION
+.B rdiffdir
+is supposed to be like rdiff, but can operate on directories.  See
+.BR rdiff (1)
+for more information.  The syntax is similar.  This is not very well
+tested yet and is not yet ready for end-users.
+
+.SH OPTIONS
+.TP
+.B -z, --gzip-compress
+Enable gzip compression and decompression of signature and delta
+files.
+
+In
+.B signature
+and
+.B delta
+modes, rdiffdir accepts
+.BR rdiff-backup -like
+selection options including --exclude, --exclude-filelist-stdin, etc.
+See the
+.BR rdiff-backup (1)
+manual page for more information.
+
+.SH BUGS
+Probably many bugs.  In particular, hard links are not kept track of.
+
+.SH AUTHOR
+Ben Escoto <bescoto@stanford.edu>
+
+.SH SEE ALSO
+.BR duplicity (1),
+.BR python (1),
+.BR rdiff (1),
+.BR rdiff-backup (1).
+
+

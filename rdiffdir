@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+# rdiffdir -- Extend rdiff functionality to directories
+# Version 0.0.0 released June 30, 2002
+#
+# Copyright (C) 2001, 2002 Ben Escoto <bescoto@stanford.edu>
+#
+# This program is licensed under the GNU General Public License (GPL).
+# you can redistribute it and/or modify it under the terms of the GNU
+# General Public License as published by the Free Software Foundation,
+# Inc., 675 Mass Ave, Cambridge MA 02139, USA; either version 2 of the
+# License, or (at your option) any later version.  Distributions of
+# rdiff-backup should include a copy of the GPL in a file called
+# COPYING.  The GPL is also available online at
+# http://www.gnu.org/copyleft/gpl.html.
+#
+# See http://rdiff-backup.stanford.edu/ for more information.  Please
+# send mail to me or the mailing list if you find bugs or have any
+# suggestions.
+
+import sys, getopt, gzip
+import duplicity.diffdir, duplicity.log
+import duplicity.globals, duplicity.selection, duplicity.path
+
+# If set, compress diff and delta files using gzip
+gzip_compress = None
+
+# Add selection argument tuples to this
+select_opts = []
+
+copy_blocksize = 32 * 1024
+
+def parse_cmdline_options(arglist):
+	"""Parse argument list"""
+	global gzip_compress, select_opts
+	try: optlist, args = getopt.getopt(arglist, "vVz",
+		 ["gzip-compress", "exclude=", "exclude-device-files",
+		  "exclude-filelist=", "exclude-filelist-stdin",
+		  "exclude-other-filesystems", "exclude-regexp=", "include=",
+		  "include-filelist=", "include-filelist-stdin",
+		  "include-regexp=", "null-separator", "verbosity="])
+	except getopt.error, e:
+		command_line_error("Bad command line option: %s" % (str(e),))
+
+	for opt, arg in optlist:
+		if opt == "--gzip_compress" or opt == "-z": gzip_compress = 1
+		elif (opt == "--exclude" or opt == "--exclude-regexp" or
+			  opt == "--include" or opt == "--include-regexp"):
+			select_opts.append((opt, arg))
+		elif (opt == "--exclude-device-files" or
+			  opt == "--exclude-other-filesystems"):
+			select_opts.append((opt, None))
+		elif opt == "--exclude-filelist" or opt == "--include-filelist":
+			select_opts.append((opt, (arg, open(arg, "rb"))))
+		elif (opt == "--exclude-filelist-stdin" or
+			  opt == "--include-filelist-stdin"):
+			select_opts.append((opt, ("stdin", sys.stdin)))
+		elif opt == "--null-separator":
+			duplicity.globals.null_separator = 1
+		elif opt == "-V":
+			print "rdiffdir version", str(duplicity.globals.version)
+			sys.exit(0)
+		elif opt == "-v" or opt == "--verbosity":
+			duplicity.log.setverbosity(int(arg))
+		else: command_line_error("Unknown option %s" % opt)
+
+	return args
+
+def command_line_error(message):
+	"""Indicate a command line error and exit"""
+	sys.stderr.write("Error: %s\n" % (message,))
+	sys.stderr.write("See the rdiffdir manual page for instructions\n")
+	sys.exit(1)
+
+def get_action(args):
+	"""Figure out the main action from the arguments"""
+	def require_arg_range(min, max):
+		if len(args)-1 < min: command_line_error("Too few arguments")
+		elif len(args)-1 > max: command_line_error("Too many arguments")
+
+	if not args: command_line_error("Not enough arguments")
+	command = args[0]
+	if command == "sig" or command == "signature":
+		require_arg_range(1, 2)
+		command = "sig"
+
+	if command == "delta": require_arg_range(1, 3)
+	elif command == "patch": require_arg_range(1, 2)
+	return command, args[1:]
+
+def get_selection(filename):
+	"""Return selection iter starting at path with arguments applied"""
+	sel = duplicity.selection.Select(duplicity.path.Path(filename))
+	sel.ParseArgs(select_opts)
+	return sel.set_iter()
+
+def copyfileobj(infp, outfp):
+	"""Copy contents of infp to outfp, closing when done"""
+	while 1:
+		buf = infp.read(copy_blocksize)
+		if not buf: break
+		outfp.write(buf)
+	infp.close()
+	outfp.close()
+
+def optional_compress(fileobj):
+	"""If compression, return compressed fileobj; fileobj otherwise"""
+	if gzip_compress: return gzip.GzipFile(None, fileobj.mode, 9, fileobj)
+	else: return fileobj
+
+def main():
+	"""Start here"""
+	args = parse_cmdline_options(sys.argv[1:])
+	action, remaining_args = get_action(args)
+	if action == "sig":
+		if len(remaining_args) == 2: outfp = open(remaining_args[1], "wb")
+		else: outfp = sys.stdout
+		comp_outfp = optional_compress(outfp)
+		basis_sel = get_selection(remaining_args[0])
+		copyfileobj(duplicity.diffdir.DirSig(basis_sel), comp_outfp)
+	elif action == "delta":
+		if len(remaining_args) == 3: outfp = open(remaining_args[2], "wb")
+		else: outfp = sys.stdout
+		if len(remaining_args) >= 2:
+			infp = open(remaining_args[0], "rb")
+			newfile_index = 1
+		else:
+			infp = sys.stdin
+			newfile_index = 0
+		comp_infp = optional_compress(infp)
+		comp_outfp = optional_compress(outfp)
+		new_sel = get_selection(remaining_args[newfile_index])
+		copyfileobj(duplicity.diffdir.DirDelta(new_sel, comp_infp), comp_outfp)
+	else:
+		assert action == "patch"
+		if len(remaining_args) == 2: infp = open(remaining_args[1], "rb")
+		else: infp = sys.stdin
+		comp_infp = optional_compress(infp)
+		basis_path = duplicity.path.Path(remaining_args[0])
+		duplicity.diffdir.DirPatch(basis_path, comp_infp)
+
+
+if __name__ == "__main__": main()
