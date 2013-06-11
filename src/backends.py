@@ -23,98 +23,65 @@ import log, path, dup_temp, file_naming, atexit
 import base64, getpass, xml.dom.minidom, httplib, urllib
 import socket, globals, re, string
 
+import duplicity.tempdir as tempdir
+import inspect
+import urlparse
+
+if inspect.getmembers(urlparse, inspect.isclass):
+	# Use the system urlparse library.
+	import urlparse as urlparser
+else:
+	# Use the bundled urlparse library.
+	import urlparse_2_5 as urlparser
+
 socket.setdefaulttimeout(globals.timeout)
 
 class BackendException(Exception): pass
 class ParsingException(Exception): pass
 
 
+def straight_url(parsed_url):
+	"""Return a URL from a urlparse object without a username or password."""
+
+	# Get a copy of the network location without the username or password.
+	straight_netloc = parsed_url.netloc.split('@')[-1]
+
+	# Replace the full network location with the stripped copy.
+	return parsed_url.geturl().replace(parsed_url.netloc, straight_netloc, 1)
+
+
 def get_backend(url_string):
-	"""Return Backend object from url string, or None if not a url string
+	"""Return Backend object from url string, or None if not a url string"""
+	"""If a protocol is unsupported a fatal error will be raised."""
 
-	url strings are like
-	scp://foobar:password@hostname.net:124/usr/local.  If a protocol
-	is unsupported a fatal error will be raised.
+	# These URL schemes have a backend with a notion of an RFC "network location".
+	# The 'file' and 's3+http' schemes should not be in this list.
+	urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs' ]
 
-	"""
+	# Do not transform or otherwise parse the URL path component.
+	urlparser.uses_query = []
+	urlparser.uses_fragment = []
+
+	pu = urlparser.urlparse(url_string)
+
+	# This happens for implicit local paths.
+	if not pu.scheme:
+		return None
+
+	# Our backends do not handle implicit hosts.
+	if pu.scheme in urlparser.uses_netloc and not pu.hostname:
+		raise ParsingException('Bad %s:// URL syntax: %s' % (pu.scheme, url_string))
+
+	# Our backends do not handle implicit relative paths.
+	if not pu.scheme in urlparser.uses_netloc and not pu.path.startswith('//'):
+		raise ParsingException('Bad %s:// URL syntax: %s' % (pu.scheme, url_string))
+
 	global protocol_class_dict
-	try: pu = ParsedUrl(url_string)
-	except ParsingException: return None
-
-	try: backend_class = protocol_class_dict[pu.protocol]
-	except KeyError: log.FatalError("Unknown protocol '%s'" % (pu.protocol,))
+	try:
+		backend_class = protocol_class_dict[pu.scheme]
+	except KeyError:
+		log.FatalError("Unknown scheme '%s'" % (pu.scheme,))
 	return backend_class(pu)
-
-
-class ParsedUrl:
-	"""Contains information gleaned from a generic url"""
-	protocol = None # set to string like "ftp" indicating protocol
-	suffix = None # Set to everything after protocol://
-
-	server = None # First part of suffix (part before '/')
-	path = None # Second part of suffix (part after '/')
-
-	host = None # Set to host, if can be extracted
-	user = None # Set to user, as in ftp://user@host/whatever
-	port = None # Set to port, like scp://host:port/foo
-
-	def __init__(self, url_string):
-		"""Create ParsedUrl object, process url_string"""
-		self.url_string = url_string
-		self.set_protocol_suffix()
-		self.set_server_path()
-		self.set_host_user_port()
-
-	def straight_url(self):
-		"""Return the URL with the username stripped"""
-		# Emulation of the ternary operator:
-		strpath = (self.path != None and self.path or "")
-		strport = (self.port != None and (":%d"%self.port) or "")
-		url = '%s://%s%s/%s' % (self.protocol, self.host, strport, strpath)
-		return url
-
-	def bad_url(self, message = None):
-		"""Report a bad url, using message if given"""
-		if message:
-			err_string = "Bad URL string '%s': %s" % (self.url_string, message)
-		else: err_string = "Bad URL string '%s'" % (self.url_string,)
-		raise ParsingException(err_string)
-
-	def set_protocol_suffix(self):
-		"""Parse self.url_string, setting self.protocol and self.suffix"""
-		colon_position = self.url_string.find(":")
-		if colon_position < 1: self.bad_url("No colon (:) found")
-		self.protocol = self.url_string[:colon_position]
-		if self.url_string[colon_position+1:colon_position+3] != '//':
-			self.bad_url("first colon not followed by '//'")
-		self.suffix = self.url_string[colon_position+3:]
-
-	def set_server_path(self):
-		"""Set self.server and self.path from self.suffix"""
-		comps = self.suffix.split('/')
-		assert len(comps) > 0
-		self.server = comps[0]
-		if len(comps) > 1:
-			self.path = '/'.join(comps[1:])
-
-	def set_host_user_port(self):
-		"""Set self.host, self.user, and self.port from self.server"""
-		if not self.server: return
-
-		# Extract port
-		port_comps = self.server.split(":")
-		if len(port_comps) >= 2:
-			try: self.port = int(port_comps[-1])
-			except ValueError: user_host = self.server
-			else: user_host = ":".join(port_comps[:-1])
-		else: user_host = self.server
-
-		# Set user and host
-		user_comps = user_host.split("@")
-		if len(user_comps) >= 2:
-			self.user = "@".join(user_comps[0:-1])
-			self.host = user_comps[-1]
-		else: self.host = user_host
 
 
 class Backend:
@@ -151,19 +118,23 @@ class Backend:
 		pass
 
 	def get_password(self):
-		"""Get password using environment if possible"""
+		"""Get a password from the target url or from the environment."""
+
+		if self.parsed_url.password:
+			return self.parsed_url.password
+
 		try:
 			password = os.environ['FTP_PASSWORD']
 		except KeyError:
-			password = getpass.getpass("Password for '%s': " % self.parsed_url.server)
+			password = getpass.getpass("Password for '%s': " % self.parsed_url.hostname)
 			os.environ['FTP_PASSWORD'] = password
 		return password
 
 	def munge_password(self, commandline):
-		try:
-			password = os.environ['FTP_PASSWORD']
-			return re.sub(re.escape(password), "???", commandline)
-		except:
+		"""Remove password from commandline"""
+		if self.parsed_url.password:
+			return re.sub(self.parsed_url.password, '<passwd>', commandline)
+		else:
 			return commandline
 
 	def run_command(self, commandline):
@@ -203,8 +174,13 @@ class Backend:
 			log.Log("Reading results of '%s'" % private, 5)
 			fout = os.popen(commandline)
 			results = fout.read()
-			if not fout.close():
+			result_status = fout.close()
+			if not result_status:
 				return results
+			elif result_status == 1280 and self.parsed_url.scheme == 'ftp':
+				# This squelches the "file not found" result fromm ncftpls when
+				# the ftp backend looks for a collection that does not exist.
+				return ''
 			log.Log("Running '%s' failed (attempt #%d)" % (private, n), 1)
 			time.sleep(30)
 		log.Log("Giving up trying to execute '%s' after %d attempts" % (private, globals.num_retries), 1)
@@ -281,7 +257,10 @@ class LocalBackend(Backend):
 	"""
 	def __init__(self, parsed_url):
 		Backend.__init__(self, parsed_url)
-		self.remote_pathdir = path.Path(parsed_url.suffix)
+		# The URL form "file:MyFile" is not a valid duplicity target.
+		if not parsed_url.path.startswith( '//' ):
+			raise BackendException( "Bad file:// path syntax." )
+		self.remote_pathdir = path.Path(parsed_url.path[2:])
 
 	def put(self, source_path, remote_filename = None, rename = None):
 		"""If rename is set, try that first, copying if doesn't work"""
@@ -347,10 +326,11 @@ class sshBackend(Backend):
 						   "python-pexpect from your distro's repository.")
 		
 		# host string of form user@hostname:port
-		self.host_string = parsed_url.server.split(':')[0]
+		self.host_string = parsed_url.netloc
 		# make sure remote_dir is always valid
 		if parsed_url.path:
-			self.remote_dir = parsed_url.path
+			# remove leading '/'
+			self.remote_dir = re.sub(r'^/', r'', parsed_url.path, 1)
 		else:
 			self.remote_dir = '.'
 		self.remote_prefix = self.remote_dir + '/'
@@ -461,6 +441,7 @@ class sshBackend(Backend):
 				if match == 2:
 					if cmdloc < len(commands):
 						command = commands[cmdloc]
+						log.Log("sftp command: '%s'" % (command,), 5)
 						child.sendline(command)
 						cmdloc += 1
 					else:
@@ -549,7 +530,11 @@ class ftpBackend(Backend):
 			log.FatalError("NcFTP too old:  Duplicity requires NcFTP version 3.1.9 or later")
 		log.Log("NcFTP version is %s" % version, 4)
 
-		self.url_string = parsed_url.straight_url()
+		self.parsed_url = parsed_url
+
+		self.url_string = straight_url(self.parsed_url)
+
+		# Use an explicit directory name.
 		if self.url_string[-1] != '/':
 			self.url_string += '/'
 
@@ -560,41 +545,37 @@ class ftpBackend(Backend):
 		else:
 			self.conn_opt = '-F'
 
- 		self.tempfile, self.tempname = tempfile.mkstemp("", "duplicity.")
- 		atexit.register(os.unlink, self.tempname)
-		os.write(self.tempfile, "host %s\n" % parsed_url.host)
- 		os.write(self.tempfile, "user %s\n" % parsed_url.user)
+ 		self.tempfile, self.tempname = tempdir.default().mkstemp()
+		os.write(self.tempfile, "host %s\n" % self.parsed_url.hostname)
+ 		os.write(self.tempfile, "user %s\n" % self.parsed_url.username)
  		os.write(self.tempfile, "pass %s\n" % self.password)
  		os.close(self.tempfile)
 		self.flags = "-f %s %s -t %s" % \
-					 (self.tempname, self.conn_opt, globals.timeout)
+			(self.tempname, self.conn_opt, globals.timeout)
 		if parsed_url.port != None and parsed_url.port != 21:
 			self.flags += " -P '%s'" % (parsed_url.port)
 
 	def put(self, source_path, remote_filename = None):
 		"""Transfer source_path to remote_filename"""
-		pu = ParsedUrl(self.url_string)
-		remote_path = os.path.join(pu.path, remote_filename).rstrip()
-		commandline = "ncftpput %s -V -C '%s'  '%s'" % \
+		remote_path = os.path.join(urllib.unquote(self.parsed_url.path), remote_filename).rstrip()
+		commandline = "ncftpput %s -m -V -C '%s' '%s'" % \
 					  (self.flags, source_path.name, remote_path)
 		self.run_command_persist(commandline)
 
 	def get(self, remote_filename, local_path):
 		"""Get remote filename, saving it to local_path"""
-		pu = ParsedUrl(self.url_string)
-		remote_path = os.path.join(pu.path, remote_filename).rstrip()
+		remote_path = os.path.join(urllib.unquote(self.parsed_url.path), remote_filename).rstrip()
 		commandline = "ncftpget %s -V -C '%s' '%s' '%s'" % \
-					  (self.flags, pu.host, remote_path, local_path.name)
+					  (self.flags, self.parsed_url.hostname, remote_path, local_path.name)
 		self.run_command_persist(commandline)
 		local_path.setdata()
 
 	def list(self):
 		"""List files in directory"""
-		pu = ParsedUrl(self.url_string)
 		# we create the directory first so we have target dir
 		# try for a long listing to avoid connection reset
-		commandline = "ncftpls %s -l -W 'MKD %s' '%s'" % \
-					  (self.flags, pu.path, self.url_string)
+		commandline = "ncftpls %s -l '%s'" % \
+					  (self.flags, self.url_string)
 		l = self.popen_persist(commandline).split('\n')
 		l = filter(lambda x: x, l)
 		if not l:
@@ -607,10 +588,9 @@ class ftpBackend(Backend):
 
 	def delete(self, filename_list):
 		"""Delete files in filename_list"""
-		pu = ParsedUrl(self.url_string)
 		for filename in filename_list:
-			commandline = "ncftpls %s -X 'DELE %s' '%s'" % \
-						  (self.flags, filename, "%s/%s" % (self.url_string, filename))
+			commandline = "ncftpls %s -X 'DELE %s' '%s/%s'" % \
+						  (self.flags, filename, self.url_string, filename)
 			self.popen_persist(commandline)
 
 
@@ -623,7 +603,7 @@ class rsyncBackend(Backend):
 	def __init__(self, parsed_url):
 		"""rsyncBackend initializer"""
 		Backend.__init__(self, parsed_url)
-		self.url_string = "%s:%s" % (parsed_url.server, parsed_url.path)
+		self.url_string = "%s:%s" % (parsed_url.hostname, parsed_url.path)
 		if self.url_string[-1] != '/':
 			self.url_string += '/'
 
@@ -667,16 +647,15 @@ class rsyncBackend(Backend):
 			raise BackendException("Files %s not found" % str (delete_list))
 
 		dir = tempfile.mkdtemp()
-		exclude_fd, exclude_name = tempfile.mkstemp()
-		exclude = os.fdopen(exclude_fd)
+		exclude, exclude_name = tempdir.default().mkstemp_file()
 		to_delete = [exclude_name]
 		for file in dont_delete_list:
 			path = os.path.join (dir, file)
 			to_delete.append (path)
 			f = open (path, 'w')
-			f.close ()
-			print >>exclude, file
-		exclude.close ()
+			print >>f, file
+			f.close()
+		exclude.close()
 		commandline = ("rsync --recursive --delete --exclude-from=%s %s/ %s" %
 					   (exclude_name, dir, self.url_string))
 		self.run_command(commandline)
@@ -710,26 +689,39 @@ class BotoBackend(Backend):
 		if not os.environ.has_key('AWS_SECRET_ACCESS_KEY'):
 			raise BackendException("The AWS_SECRET_ACCESS_KEY environment variable is not set.")
 
+ 		if parsed_url.scheme == 's3+http':
+			# Use the default Amazon S3 host.
+ 			self.conn = S3Connection()
+ 		else:
+			assert parsed_url.scheme == 's3'
+			self.conn = S3Connection(host=parsed_url.hostname)
 
-		"""
-		This folds the null prefix and all null parts, which means that:
-		  s3+http://MyBucket/ and s3+http://MyBucket are equivalent.
-		  s3+http://MyBucket//My///My/Prefix/ and s3+http://MyBucket/My/Prefix are equivalent.
-		"""
-		self.url_parts = filter(lambda x: x != '', parsed_url.suffix.split('/'))
-		self.bucket_name = self.url_parts.pop(0)
-		self.key_class = Key
-		self.conn = S3Connection()
-		self.bucket = self.conn.create_bucket(self.bucket_name)
+		# This folds the null prefix and all null parts, which means that:
+		#  //MyBucket/ and //MyBucket are equivalent.
+		#  //MyBucket//My///My/Prefix/ and //MyBucket/My/Prefix are equivalent.
+		self.url_parts = filter(lambda x: x != '', parsed_url.path.split('/'))
 
 		if self.url_parts:
-			self.key_prefix = '%s/' % '/'.join(self.url_parts)
-			self.straight_url = parsed_url.straight_url()
+				self.bucket_name = self.url_parts.pop(0)
 		else:
-			self.key_prefix = ''
-			self.straight_url = parsed_url.straight_url().rstrip('/')
+				# Duplicity hangs if boto gets a null bucket name.
+				# HC: Caught a socket error, trying to recover
+				raise BackendException('Boto requires a bucket name.')
+
+		self.bucket = self.conn.lookup(self.bucket_name)
+		self.key_class = Key
+
+		if self.url_parts:
+				self.key_prefix = '%s/' % '/'.join(self.url_parts)
+		else:
+				self.key_prefix = ''
+
+		self.straight_url = straight_url(parsed_url)
+
 
 	def put(self, source_path, remote_filename=None):
+		if not self.bucket:
+			self.bucket = self.conn.create_bucket(self.bucket_name)
 		if not remote_filename:
 			remote_filename = source_path.get_filename()
 		key = self.key_class(self.bucket)
@@ -764,16 +756,17 @@ class BotoBackend(Backend):
 
 	def list(self):
 		filename_list = []
-		for k in self.bucket.list(prefix = self.key_prefix + 'duplicity-'):
-			filename = k.key.lstrip(self.key_prefix)
-			filename_list.append(filename)
-			log.Log("Listed %s/%s" % (self.straight_url, filename), 9)
+		if self.bucket:
+			for k in self.bucket.list(prefix = self.key_prefix + 'duplicity-'):
+				filename = k.key.lstrip(self.key_prefix)
+				filename_list.append(filename)
+				log.Log("Listed %s/%s" % (self.straight_url, filename), 9)
 		return filename_list
 
 	def delete(self, filename_list):
 		for filename in filename_list:
 			self.bucket.delete_key(self.key_prefix + filename)
-			log.Log("Deleted %s/%s" % (self.straight_url, filename, filename), 9)
+			log.Log("Deleted %s/%s" % (self.straight_url, filename), 9)
 
 
 class webdavBackend(Backend):
@@ -794,28 +787,28 @@ class webdavBackend(Backend):
 		Backend.__init__(self, parsed_url)
 		self.headers = {}
 		self.parsed_url = parsed_url
+
 		
 		if parsed_url.path:
-			self.directory = '/' + parsed_url.path.rstrip('/') + '/'
+			foldpath = re.compile('/+')
+			self.directory = foldpath.sub('/', parsed_url.path + '/' )
 		else:
 			self.directory = '/'
 		
-		if self.directory == '//':
-			self.directory = '/'
-		log.Log("Using WebDAV host %s" % (parsed_url.host,), 5)
+		log.Log("Using WebDAV host %s" % (parsed_url.hostname,), 5)
 		log.Log("Using WebDAV directory %s" % (self.directory,), 5)
 		log.Log("Using WebDAV protocol %s" % (globals.webdav_proto,), 5)
 		
 		password = self.get_password()
 
- 		if parsed_url.protocol == 'webdav':
- 			self.conn = httplib.HTTPConnection(parsed_url.host)
- 		elif parsed_url.protocol == 'webdavs':
- 			self.conn = httplib.HTTPSConnection(parsed_url.host)
+ 		if parsed_url.scheme == 'webdav':
+ 			self.conn = httplib.HTTPConnection(parsed_url.hostname)
+ 		elif parsed_url.scheme == 'webdavs':
+ 			self.conn = httplib.HTTPSConnection(parsed_url.hostname)
  		else:
- 			raise BackendException("Unknown URI scheme: %s" % (parsed_url.protocol))
+ 			raise BackendException("Unknown URI scheme: %s" % (parsed_url.scheme))
 
-		self.headers['Authorization'] = 'Basic ' + base64.encodestring(parsed_url.user+':'+ password).strip()
+		self.headers['Authorization'] = 'Basic ' + base64.encodestring(parsed_url.username+':'+ password).strip()
 		
 		# check password by connection to the server
 		self.conn.request("OPTIONS", self.directory, None, self.headers)
@@ -915,7 +908,7 @@ hsi_command = "hsi"
 class hsiBackend(Backend):
 	def __init__(self, parsed_url):
 		Backend.__init__(self, parsed_url)
-		self.host_string = parsed_url.server
+		self.host_string = parsed_url.hostname
 		self.remote_dir = parsed_url.path
 		if self.remote_dir: self.remote_prefix = self.remote_dir + "/"
 		else: self.remote_prefix = ""
@@ -950,7 +943,6 @@ class hsiBackend(Backend):
 			commandline = '%s "rm %s%s"' % (hsi_command, self.remote_prefix, fn)
 			self.run_command(commandline)
 
-
 # Dictionary relating protocol strings to backend_object classes.
 protocol_class_dict = {"file": LocalBackend,
 					   "ftp": ftpBackend,
@@ -958,6 +950,8 @@ protocol_class_dict = {"file": LocalBackend,
 					   "rsync": rsyncBackend,
 					   "scp": sshBackend,
 					   "ssh": sshBackend,
+					   "s3": BotoBackend,
 					   "s3+http": BotoBackend,
 					   "webdav": webdavBackend,
-					   "webdavs": webdavBackend,}
+					   "webdavs": webdavBackend,
+					   }
