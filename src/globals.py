@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.3.RC8"
+version = "0.4.3.RC9"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -57,6 +57,9 @@ gpg_profile = None
 # If true, filelists and directory statistics will be split on
 # nulls instead of newlines.
 null_separator = None
+
+# number of retries on network operations
+num_retries = 5
 
 # Character used like the ":" in time strings like
 # 2002-08-06T04:22:00-07:00.  The colon isn't good for filenames on
