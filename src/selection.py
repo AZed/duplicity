@@ -1,9 +1,9 @@
 # Copyright 2002 Ben Escoto
 #
-# This file is part of rdiff-backup.
+# This file is part of duplicity.
 #
-# rdiff-backup is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
 # 02139, USA; either version 2 of the License, or (at your option) any
 # later version; incorporated herein by reference.
@@ -73,7 +73,7 @@ class Select:
 
 	def __init__(self, path):
 		"""Initializer, called with Path of root directory"""
-		assert isinstance(path, Path), path
+		assert isinstance(path, Path), str(path)
 		self.selection_functions = []
 		self.rootpath = path
 		self.prefix = self.rootpath.name
@@ -327,8 +327,9 @@ probably isn't what you meant.""" %
 		assert include == 0 or include == 1
 		root_devloc = self.rootpath.getdevloc()
 		def sel_func(path):
-			if path.getdevloc() == root_devloc: return None
-			else: return include
+			if path.exists() and path.getdevloc() != root_devloc:
+				return include
+			else: return None
 		sel_func.exclude = not include
 		sel_func.name = "Match other filesystems"
 		return sel_func

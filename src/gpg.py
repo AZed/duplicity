@@ -1,4 +1,14 @@
-"""duplicity's gpg interface"""
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
+"""duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
 
 import select, os, sys, thread, sha, md5, types, cStringIO, tempfile, re
 import GnuPGInterface, misc
@@ -9,10 +19,33 @@ class GPGError(Exception):
 	"""Indicate some GPG Error"""
 	pass
 
+class GPGProfile:
+	"""Just hold some GPG settings, avoid passing tons of arguments"""
+	def __init__(self, passphrase = None, sign_key = None,
+				 recipients = None):
+		"""Set all data with initializer
+
+		passphrase is the passphrase.  If it is None (not ""), assume
+		it hasn't been set.  sign_key can be blank if no signing is
+		indicated, and recipients should be a list of keys.  For all
+		keys, the format should be an 8 character hex key like
+		'AA0E73D2'.
+
+		"""
+		assert passphrase is None or type(passphrase) is types.StringType
+		if sign_key: assert recipients # can only sign with asym encryption
+
+		self.passphrase = passphrase
+		self.sign_key = sign_key
+		if recipients is not None:
+			assert type(recipients) is types.ListType # must be list, not tuple
+			self.recipients = recipients
+		else: self.recipients = []
+
+
 class GPGFile:
 	"""File-like object that decrypts another file on the fly"""
-	def __init__(self, encrypt, encrypt_path, passphrase,
-				 sign_key = None, recipients = []):
+	def __init__(self, encrypt, encrypt_path, profile):
 		"""GPGFile initializer
 
 		If recipients is set, use public key encryption and encrypt to
@@ -24,25 +57,22 @@ class GPGFile:
 		If passphrase is false, do not set passphrase - GPG program
 		should prompt for it.
 
-		sign_key should be the 8 character hex key, like AA0E73D2.
-
 		"""
-		if recipients: assert encrypt # no recipients for decryption
-		if sign_key: assert encrypt and recipients # only sign w asym encrypt
-		assert type(recipients) is types.ListType # must be list, not tuple
+		self.status_fp = None # used to find signature
+		self.closed = None # set to true after file closed
 
 		# Start GPG process - copied from GnuPGInterface docstring.
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
 		gnupg.options.extra_args.append('--no-secmem-warning')
-		gnupg.passphrase = passphrase
-		if sign_key: gnupg.options.default_key = sign_key
+		gnupg.passphrase = profile.passphrase
+		if profile.sign_key: gnupg.options.default_key = profile.sign_key
 
 		if encrypt:
-			if recipients:
-				gnupg.options.recipients = recipients
+			if profile.recipients:
+				gnupg.options.recipients = profile.recipients
 				cmdlist = ['--encrypt']
-				if sign_key: cmdlist.append("--sign")
+				if profile.sign_key: cmdlist.append("--sign")
 			else: cmdlist = ['--symmetric']
 			p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
 						   attach_fhs={'stdout': encrypt_path.open("wb")})
@@ -56,50 +86,45 @@ class GPGFile:
 		self.gpg_process = p1
 		self.encrypt = encrypt
 
-		# Following left over from trying to manage both ends
-		# self.gpg_input = p1.handles['stdin']
-		# thread.start_new_thread(self.feed_process, ())
-
 	def read(self, length = -1): return self.gpg_output.read(length)
 	def write(self, buf): return self.gpg_input.write(buf)
 
 	def close(self):
 		if self.encrypt:
 			self.gpg_input.close()
+			if self.status_fp: self.set_signature()
 			self.gpg_process.wait()
 		else:
 			while self.gpg_output.read(blocksize):
 				pass # discard remaining output to avoid GPG error
 			self.gpg_output.close()
+			if self.status_fp: self.set_signature()
 			self.gpg_process.wait()
+		self.closed = 1
 
-	def get_signature(self):
-		"""Return 8 character signature keyID
+	def set_signature(self):
+		"""Set self.signature to 8 character signature keyID
 
 		This only applies to decrypted files.  If the file was not
-		signed, None will be returned.
+		signed, set self.signature to None.
 
 		"""
 		self.status_fp.seek(0)
 		status_buf = self.status_fp.read()
-		print "*******************", status_buf
 		match = re.search("^\\[GNUPG:\\] GOODSIG ([0-9A-F]*)",
 						  status_buf, re.M)
-		if not match: return None
-		assert len(match.group(1)) >= 8
-		return match.group(1)[-8:]
+		if not match: self.signature = None
+		else:
+			assert len(match.group(1)) >= 8
+			self.signature = match.group(1)[-8:]
 
-	def feed_process(self):
-		while 1:
-			inbuf = self.infp.read(blocksize)
-			if not inbuf: break
-			self.gpg_input.write(inbuf)
-		self.infp.close()
-		self.gpg_input.close()
+	def get_signature(self):
+		"""Return 8 character keyID of signature, or None if none"""
+		assert self.closed
+		return self.signature
 
 
-def GPGWriteFile(block_iter, filename, passphrase, sign_key = None,
-				 recipients = [],
+def GPGWriteFile(block_iter, filename, profile,
 				 size = 50 * 1024 * 1024, max_footer_size = 16 * 1024):
 	"""Write GPG compressed file of given size
 
@@ -115,20 +140,18 @@ def GPGWriteFile(block_iter, filename, passphrase, sign_key = None,
 	max_footer_size.
 
 	"""
-	assert type(recipients) is types.ListType
-
 	def start_gpg(filename, passphrase):
 		"""Start GPG process, return (process, to_gpg_fileobj)"""
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
 		gnupg.options.extra_args.append('--no-secmem-warning')
 		gnupg.passphrase = passphrase
-		if sign_key: gnupg.options.default_key = sign_key
+		if profile.sign_key: gnupg.options.default_key = profile.sign_key
 
-		if recipients:
-			gnupg.options.recipients = recipients
+		if profile.recipients:
+			gnupg.options.recipients = profile.recipients
 			cmdlist = ['--encrypt']
-			if sign_key: cmdlist.append("--sign")
+			if profile.sign_key: cmdlist.append("--sign")
 		else: cmdlist = ['--symmetric']
 		p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
 					   attach_fhs={'stdout': open(filename, "wb")})
@@ -155,7 +178,7 @@ def GPGWriteFile(block_iter, filename, passphrase, sign_key = None,
 
 	target_size = size - 18 * 1024 # fudge factor, compensate for gpg buffering
 	check_size = target_size - max_footer_size
-	gpg_process, to_gpg_fp = start_gpg(filename, passphrase)
+	gpg_process, to_gpg_fp = start_gpg(filename, profile.passphrase)
 	while (block_iter.peek() and
 		   get_current_size() + len(block_iter.peek().data) <= check_size):
 		to_gpg_fp.write(block_iter.next().data)
@@ -165,7 +188,7 @@ def GPGWriteFile(block_iter, filename, passphrase, sign_key = None,
 		if cursize < target_size: top_off(target_size - cursize, to_gpg_fp)
 	close_process(gpg_process, to_gpg_fp)
 
-		
+
 def get_hash(hash, path, hex = 1):
 	"""Return hash of path
 

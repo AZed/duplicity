@@ -1,7 +1,17 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 """Create and edit manifest for session contents"""
 
 import re
-import log
+import log, globals
 
 class ManifestError(Exception):
 	"""Exception raised when problem with manifest"""
@@ -11,7 +21,40 @@ class Manifest:
 	"""List of volumes and information about each one"""
 	def __init__(self):
 		"""Create blank Manifest"""
+		self.hostname = None; self.local_dirname = None
 		self.volume_info_dict = {} # dictionary vol numbers -> vol infos
+
+	def set_dirinfo(self):
+		"""Set information about directory from globals"""
+		self.hostname = globals.hostname
+		self.local_dirname = globals.local_path.name
+		return self
+
+	def check_dirinfo(self):
+		"""Return None if dirinfo is the same, otherwise error message
+
+		Does not raise an error message if hostname or local_dirname
+		are not available.
+
+		"""
+		if globals.allow_source_mismatch: return
+		if self.hostname and self.hostname != globals.hostname:
+			errmsg = """Fatal Error: Backup source host has changed.
+Current hostname: %s
+Previous hostname: %s""" % (globals.hostname, self.hostname)
+		elif (self.local_dirname and
+			  self.local_dirname != globals.local_path.name):
+			errmsg = """Fatal Error: Backup source directory has changed.
+Current directory: %s
+Previous directory: %s""" % (self.local_dirname, globals.local_path.name)
+		else: return
+
+		log.FatalError(errmsg + """
+
+Aborting because you may have accidentally tried to backup two
+different data sets to the same remote location, or using the same
+archive directory.  If this is not a mistake, use the
+--allow-source-mismatch switch to avoid seeing this message""")
 
 	def add_volume_info(self, vi):
 		"""Add volume info vi to manifest"""
@@ -22,15 +65,30 @@ class Manifest:
 
 	def to_string(self):
 		"""Return string version of self (just concatenate vi strings)"""
+		result = ""
+		if self.hostname: result += "Hostname %s\n" % self.hostname
+		if self.local_dirname:
+			result += "Localdir %s\n" % Quote(self.local_dirname)
+
 		vol_num_list = self.volume_info_dict.keys()
 		vol_num_list.sort()
 		def vol_num_to_string(vol_num):
 			return self.volume_info_dict[vol_num].to_string()
-		return "\n".join(map(vol_num_to_string, vol_num_list)) + "\n"
+		result = "%s%s\n" % (result,
+							 "\n".join(map(vol_num_to_string, vol_num_list)))
+		return result
 	__str__ = to_string
 
 	def from_string(self, s):
 		"""Initialize self from string s, return self"""
+		def get_field(fieldname):
+			"""Return the value of a field by parsing s, or None if no field"""
+			m = re.search("(^|\\n)%s\\s(.*?)\n" % fieldname, s, re.I)
+			if not m: return None
+			else: return Unquote(m.group(2))
+		self.hostname = get_field("hostname")
+		self.local_dirname = get_field("localdir")
+
 		next_vi_string_regexp = re.compile("(^|\\n)(volume\\s.*?)"
 										   "(\\nvolume\\s|$)", re.I | re.S)
 		starting_s_index = 0
@@ -52,7 +110,14 @@ class Manifest:
 			return None
 		for i in range(len(vi_list1)):
 			if not vi_list1[i] == vi_list2[i]: return None
+
+		if (self.hostname != other.hostname or
+			self.local_dirname != other.local_dirname): return None
 		return 1
+
+	def __ne__(self, other):
+		"""Defines !=.  Not doing this always leads to annoying bugs..."""
+		return not self.__eq__(other)
 
 	def write_to_path(self, path):
 		"""Write string version of manifest to given path"""
@@ -113,22 +178,11 @@ class VolumeInfo:
 
 	def to_string(self):
 		"""Return nicely formatted string reporting all information"""
-		nonnormal_char_re = re.compile("(\\s|[\\\\\"'])")
 		def index_to_string(index):
 			"""Return printable version of index without any whitespace"""
-			def quote(s):
-				"""Backquote any non-normal characters"""
-				slist = []
-				for char in s:
-					if nonnormal_char_re.search(char):
-						slist.append("\\x%02x" % ord(char))
-					else: slist.append(char)
-				return "".join(slist)
-
 			if index:
 				s = "/".join(index)
-				if nonnormal_char_re.search(s): return '"%s"' % quote(s)
-				else: return s
+				return Quote(s)
 			else: return "."
 
 		slist = ["Volume %d:" % self.volume_number]
@@ -145,25 +199,10 @@ class VolumeInfo:
 
 	def from_string(self, s):
 		"""Initialize self from string s as created by to_string"""
-		def unquote(s):
-			"""Undo quoting applied by index_to_string above"""
-			return_list = []
-			i = 0
-			while i < len(s):
-				char = s[i]
-				if char == "\\": # quoted section
-					assert s[i+1] == "x"
-					return_list.append(chr(int(s[i+2:i+4], 16)))
-					i += 4
-				else:
-					return_list.append(char)
-					i += 1
-			return "".join(return_list)
-
 		def string_to_index(s):
 			"""Return tuple index from string"""
+			s = Unquote(s)
 			if s == ".": return ()
-			if s[0] == '"' or s[0] == "'": s = unquote(s[1:-1])
 			return tuple(s.split("/"))
 
 		linelist = s.strip().split("\n")
@@ -216,6 +255,10 @@ class VolumeInfo:
 			return None
 		return 1
 
+	def __ne__(self, other):
+		"""Defines !="""
+		return not self.__eq__(other)
+
 	def contains(self, index_prefix, recursive = 1):
 		"""Return true if volume might contain index
 
@@ -228,3 +271,33 @@ class VolumeInfo:
 		if recursive: return (self.start_index[:len(index_prefix)] <=
 							  index_prefix <= self.end_index)
 		else: return self.start_index <= index_prefix <= self.end_index
+
+
+nonnormal_char_re = re.compile("(\\s|[\\\\\"'])")
+def Quote(s):
+	"""Return quoted version of s safe to put in a manifest or volume info"""
+	if not nonnormal_char_re.search(s): return s # no quoting necessary
+	slist = []
+	for char in s:
+		if nonnormal_char_re.search(char):
+			slist.append("\\x%02x" % ord(char))
+		else: slist.append(char)
+	return '"%s"' % "".join(slist)
+
+def Unquote(quoted_string):
+	"""Return original string from quoted_string produced by above"""
+	if not quoted_string[0] == '"' or quoted_string[0] == "'":
+		return quoted_string
+	assert quoted_string[0] == quoted_string[-1]
+	return_list = []
+	i = 1 # skip initial char
+	while i < len(quoted_string)-1:
+		char = quoted_string[i]
+		if char == "\\": # quoted section
+			assert quoted_string[i+1] == "x"
+			return_list.append(chr(int(quoted_string[i+2:i+4], 16)))
+			i += 4
+		else:
+			return_list.append(char)
+			i += 1
+	return "".join(return_list)

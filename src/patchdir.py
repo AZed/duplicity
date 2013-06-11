@@ -1,3 +1,13 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 """Functions for patching of directories"""
 
 from __future__ import generators
@@ -36,9 +46,12 @@ def patch_diff_tarfile(base_path, diff_tarfile, restrict_index = ()):
 
 	ITR = IterTreeReducer(PathPatcher, [base_path])
 	for basis_path, diff_ropath in collated:
-		if basis_path: index = basis_path.index
-		else: index = diff_ropath.index
-		ITR(index, basis_path, diff_ropath)
+		if basis_path:
+			log.Log("Patching %s" % (basis_path.get_relative_path(),), 5)
+			ITR(basis_path.index, basis_path, diff_ropath)
+		else:
+			log.Log("Patching %s" % (diff_ropath.get_relative_path(),), 5)
+			ITR(diff_ropath.index, basis_path, diff_ropath)
 	ITR.Finish()
 	base_path.setdata()
 

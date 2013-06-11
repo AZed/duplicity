@@ -1,7 +1,17 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 """Classes and functions on collections of backup volumes"""
 
 import gzip
-import log, file_naming, path, dup_time, globals
+import log, file_naming, path, dup_time, globals, manifest
 
 class CollectionsError(Exception): pass
 
@@ -30,7 +40,7 @@ class BackupSet:
 
 		"""
 		pr = file_naming.parse(filename)
-		if not pr: return None
+		if not pr or not (pr.type == "full" or pr.type == "inc"): return None
 
 		if not self.info_set: self.set_info(pr)
 		else:
@@ -89,6 +99,39 @@ class BackupSet:
 		"""Return time string suitable for log statements"""
 		return dup_time.timetopretty(self.time or self.end_time)
 
+	def check_manifests(self):
+		"""Make sure remote manifest is equal to local one"""
+		if not self.remote_manifest_name and not self.local_manifest_path:
+			log.FatalError("Fatal Error: "
+						   "No manifests found for most recent backup")
+		assert self.remote_manifest_name, "if only one, should be remote"
+		remote_manifest = self.get_remote_manifest()
+		if self.local_manifest_path:
+			local_manifest = self.get_local_manifest()
+			if remote_manifest != local_manifest:
+				log.FatalError(
+"""Fatal Error: Remote manifest does not match local one.  Either the
+remote backup set or the local archive directory has been corrupted.""")
+
+		remote_manifest.check_dirinfo()
+
+	def get_local_manifest(self):
+		"""Return manifest object by reading local manifest file"""
+		assert self.local_manifest_path
+		manifest_buffer = self.local_manifest_path.get_data()
+		return manifest.Manifest().from_string(manifest_buffer)
+
+	def get_remote_manifest(self):
+		"""Return manifest by reading remote manifest on backend"""
+		assert self.remote_manifest_name
+		manifest_buffer = self.backend.get_data(self.remote_manifest_name)
+		return manifest.Manifest().from_string(manifest_buffer)
+
+	def get_manifest(self):
+		"""Return manifest object, showing preference for local copy"""
+		if self.local_manifest_path: return self.get_local_manifest()
+		else: return self.get_remote_manifest()
+
 
 class BackupChain:
 	"""BackupChain - a number of linked BackupSets
@@ -130,6 +173,11 @@ class BackupChain:
 		older_incsets = filter(lambda s: s.end_time <= time, self.incset_list)
 		return [self.fullset] + older_incsets
 
+	def get_last(self):
+		"""Return last BackupSet in chain"""
+		if self.incset_list: return self.incset_list[-1]
+		else: return self.fullset
+
 
 class SignatureChain:
 	"""A number of linked signatures
@@ -138,48 +186,72 @@ class SignatureChain:
 	new-sigs.
 
 	"""
-	def __init__(self, archive_dir):
-		"""Return new SignatureChain.  archive_dir is Path sigs are in"""
-		self.archive_dir = archive_dir
-		self.fullsig = None
-		self.inclist = []
+	def __init__(self, local, location):
+		"""Return new SignatureChain.
+
+		local should be true iff the signature chain resides in
+		globals.archive_dir and false if the chain is in
+		globals.backend.
+
+		"""
+		if local: self.archive_dir, self.backend = location, None
+		else: self.archive_dir, self.backend = None, location
+		self.fullsig = None # filename of full signature
+		self.inclist = [] # list of filenames of incremental signatures
 		self.start_time, self.end_time = None, None
 
-	def add_path(self, sigpath, pr = None):
-		"""Add new signature path to current chain.  Return true if it fits"""
-		if not pr: pr = file_naming.parse(sigpath.get_filename())
+	def islocal(self):
+		"""Return true if represents a signature chain in archive_dir"""
+		return self.archive_dir
+
+	def add_filename(self, filename, pr = None):
+		"""Add new sig filename to current chain.  Return true if fits"""
+		if not pr: pr = file_naming.parse(filename)
 		if not pr: return None
 
 		if self.fullsig:
 			if pr.type != "new-sig": return None
 			if pr.start_time != self.end_time: return None
-			self.inclist.append(sigpath)
+			self.inclist.append(filename)
 			self.end_time = pr.end_time
 			return 1
 		else:
 			if pr.type != "full-sig": return None
-			self.fullsig = sigpath
+			self.fullsig = filename
 			self.start_time, self.end_time = pr.time, pr.time
 			return 1
 		
 	def get_fileobjs(self):
 		"""Return ordered list of signature fileobjs opened for reading"""
 		assert self.fullsig
-		return map(lambda sigpath: gzip.GzipFile(sigpath.name, "rb"),
-				   [self.fullsig] + self.inclist)
+		if self.archive_dir: # local
+			def filename_to_fileobj(filename):
+				"""Open filename in archive_dir, return filtered fileobj"""
+				sig_dp = path.DupPath(self.archive_dir.name, (filename,))
+				return sig_dp.filtered_open("rb")
+		else: filename_to_fileobj = self.backend.get_fileobj_read
+		return map(filename_to_fileobj, [self.fullsig] + self.inclist)
 
 	def delete(self):
 		"""Remove all files in signature set"""
-		for i in range(len(self.inclist)-1, -1, -1): self.inclist[i].delete()
-		self.fullsig.delete()
+		# Try to delete in opposite order, so something useful even if aborted
+		if self.archive_dir:
+			for i in range(len(self.inclist)-1, -1, -1):
+				self.inclist[i].delete()
+			self.fullsig.delete()
+		else:
+			assert self.backend
+			inclist_copy = self.inclist[:]
+			inclist_copy.reverse()
+			inclist_copy.append(self.fullsig)
+			self.backend.delete(inclist_copy)
 
 
 class CollectionsStatus:
 	"""Hold information about available chains and sets"""
-	def __init__(self, backend, archive_dir):
+	def __init__(self, backend, archive_dir = None):
 		"""Make new object.  Does not set values"""
-		self.backend = backend
-		self.archive_dir = archive_dir
+		self.backend, self.archive_dir = backend, archive_dir
 
 		# Will hold (signature chain, backup chain) pair of active
 		# (most recent) chains
@@ -191,46 +263,85 @@ class CollectionsStatus:
 		self.other_sig_chains = None
 
 		# Other misc paths and sets which shouldn't be there
-		self.orphaned_sig_paths = None
+		self.orphaned_sig_names = None
 		self.orphaned_backup_sets = None
 		self.incomplete_backup_sets = None
 
 		# True if set_values() below has run
 		self.values_set = None
 
-	def set_values(self, backend_filename_list = None, no_archive_dir = None):
-		"""Set values from archive_dir and backend.  Return self"""
-		if backend_filename_list is None:
-			backend_filename_list = self.backend.list()
+	def __str__(self):
+		"""Return string version, for testing purposes"""
+		l = ["Backend: %s" % (self.backend,),
+			 "Archive dir: %s" % (self.archive_dir,),
+			 "Matched pair: %s" % (self.matched_chain_pair,),
+			 "All backup chains: %s" % (self.all_backup_chains,),
+			 "Other backup chains: %s" % (self.other_backup_chains,),
+			 "Other sig chains: %s" % (self.other_sig_chains,),
+			 "Orphaned sig names: %s" % (self.orphaned_sig_names,),
+			 "Orphaned backup sets: %s" % (self.orphaned_backup_sets,),
+			 "Incomplete backup sets: %s" % (self.incomplete_backup_sets,)]
+		return "\n".join(l)
+
+	def set_values(self, sig_chain_warning = 1):
+		"""Set values from archive_dir and backend.
+
+		if archive_dir is None, omit any local chains.  Returs self
+		for convenience.  If sig_chain_warning is set to None, do not
+		warn about unnecessary sig chains.  This is because there may
+		naturally be some unecessary ones after a full backup.
+
+		"""
+		self.values_set = 1
+		backend_filename_list = self.backend.list()
+
 		backup_chains, self.orphaned_backup_sets, self.incomplete_backup_set=\
 					   self.get_backup_chains(backend_filename_list)
 		backup_chains = self.get_sorted_chains(backup_chains)
 		self.all_backup_chains = backup_chains
-		if no_archive_dir: return self # only process backend
 
-		sig_chains, self.orphaned_sig_paths = self.get_signature_chains()
-		sig_chains = self.get_sorted_chains(sig_chains)
-
-		if sig_chains and backup_chains:
-			sig_chain, backup_chain = sig_chains[-1], backup_chains[-1]
-			if (sig_chain.start_time == backup_chain.start_time and
-				sig_chain.end_time == backup_chain.end_time):
-				del sig_chains[-1]
-				del backup_chains[-1]
-				self.matched_chain_pair = (sig_chain, backup_chain)
-
-		self.other_sig_chains = sig_chains
-		self.other_backup_chains = backup_chains
-		self.values_set = 1
+		if self.archive_dir:
+			local_sig_chains, local_orphaned_sig_names = \
+							  self.get_signature_chains(local = 1)
+		else: local_sig_chains, local_orphaned_sig_names = [], []
+		remote_sig_chains, remote_orphaned_sig_names = \
+						   self.get_signature_chains(0, backend_filename_list)
+		self.orphaned_sig_names = (local_orphaned_sig_names +
+								   remote_orphaned_sig_names)
+		self.set_matched_chain_pair(local_sig_chains + remote_sig_chains,
+									backup_chains)
+		self.warn(sig_chain_warning)
 		return self
 
-	def warn(self):
+	def set_matched_chain_pair(self, sig_chains, backup_chains):
+		"""Set self.matched_chain_pair and self.other_sig/backup_chains
+
+		The latest matched_chain_pair will be set.  If there are both
+		remote and local signature chains capable of matching the
+		latest backup chain, use the local sig chain (it does not need
+		to be downloaded).
+
+		"""
+		if sig_chains and backup_chains:
+			latest_backup_chain = backup_chains[-1]
+			sig_chains = self.get_sorted_chains(sig_chains)
+			for i in range(len(sig_chains)-1, -1, -1):
+				if sig_chains[i].end_time == latest_backup_chain.end_time:
+					self.matched_chain_pair = (sig_chains[i],
+											   backup_chains[-1])
+					del sig_chains[i]
+					break
+			
+		self.other_sig_chains = sig_chains
+		self.other_backup_chains = backup_chains
+
+	def warn(self, sig_chain_warning):
 		"""Log various error messages if find incomplete/orphaned files"""
 		assert self.values_set
-		if self.orphaned_sig_paths:
+		if self.orphaned_sig_names:
 			log.Log("Warning, found the following orphaned signature files:\n"
-					+ "\n".join(map(lambda x: x.name, orphaned_sig_paths)), 2)
-		if self.other_sig_chains:
+					+ "\n".join(self.orphaned_sig_names), 2)
+		if self.other_sig_chains and sig_chain_warning:
 			if self.matched_chain_pair:
 				log.Log("Warning, found unnecessary signature chain(s)", 2)
 			else: log.FatalError("Found signatures but no corresponding "
@@ -261,7 +372,7 @@ class CollectionsStatus:
 			else:
 				new_set = BackupSet(self.backend)
 				if new_set.add_filename(filename): sets.append(new_set)
-				else: log.Log("Ignoring file '%s'" % filename, 5)
+				else: log.Log("Ignoring file '%s'" % filename, 9)
 		map(add_to_sets, filename_list)
 		sets, incomplete_sets = self.get_sorted_sets(sets)
 
@@ -290,40 +401,72 @@ class CollectionsStatus:
 		time_set_pairs.sort()
 		return (map(lambda p: p[1], time_set_pairs), incomplete_sets)
 
-	def get_signature_chains(self):
-		"""Find chains present from listing self.archive_dir
+	def get_signature_chains(self, local, filelist = None):
+		"""Find chains in archive_dir (if local is true) or backend
 
-		Return value is pair (list of chains, list of signature paths not
-		in any chains).
+		Use filelist if given, otherwise regenerate.  Return value is
+		pair (list of chains, list of signature paths not in any
+		chains).
 
 		"""
+		def get_filelist():
+			if filelist is not None: return filelist
+			elif local: return self.archive_dir.listdir()
+			else: return self.backend.list()
+
+		def get_new_sigchain():
+			"""Return new empty signature chain"""
+			if local: return SignatureChain(1, self.archive_dir)
+			else: return SignatureChain(None, self.backend)
+
 		# Build initial chains from full sig filenames
 		chains, new_sig_filenames = [], []
-		for filename in self.archive_dir.listdir():
+		for filename in get_filelist():
 			pr = file_naming.parse(filename)
 			if pr:
 				if pr.type == "full-sig":
-					new_chain = SignatureChain(self.archive_dir)
-					assert new_chain.add_path(self.archive_dir
-											     .append(filename), pr)
+					new_chain = get_new_sigchain()
+					assert new_chain.add_filename(filename, pr)
 					chains.append(new_chain)
 				elif pr.type == "new-sig": new_sig_filenames.append(filename)
 
 		# Try adding new signatures to existing chains
-		orphaned_paths = []
+		orphaned_filenames = []
 		new_sig_filenames.sort()
 		for sig_filename in new_sig_filenames:
-			sig_path = self.archive_dir.append(sig_filename)
 			for chain in chains:
-				if chain.add_path(sig_path): break
-			else: orphaned_paths.append(sig_path)
-		return (chains, orphaned_paths)
+				if chain.add_filename(sig_filename): break
+			else: orphaned_filenames.append(sig_filename)
+		return (chains, orphaned_filenames)
 
 	def get_sorted_chains(self, chain_list):
-		"""Return chains sorted by end_time"""
-		pairs = map(lambda chain: (chain.end_time, chain), chain_list)
-		pairs.sort()
-		return map(lambda p: p[1], pairs)
+		"""Return chains sorted by end_time.  If tie, local goes last"""
+		# Build dictionary from end_times to lists of corresponding chains
+		endtime_chain_dict = {}
+		for chain in chain_list:
+			if endtime_chain_dict.has_key(chain.end_time):
+				endtime_chain_dict[chain.end_time].append(chain)
+			else: endtime_chain_dict[chain.end_time] = [chain]
+		
+		# Use dictionary to build final sorted list
+		sorted_end_times = endtime_chain_dict.keys()
+		sorted_end_times.sort()
+		sorted_chain_list = []
+		for end_time in sorted_end_times:
+			chain_list = endtime_chain_dict[end_time]
+			if len(chain_list) == 1: sorted_chain_list.append(chain_list[0])
+			else:
+				assert len(chain_list) == 2
+				if chain_list[0].backend: # is remote, goes first
+					assert chain_list[1].archive_dir # other is local
+					sorted_chain_list.append(chain_list[0])
+					sorted_chain_list.append(chain_list[1])
+				else: # is local, goes second
+					assert chain_list[1].backend # other is remote
+					sorted_chain_list.append(chain_list[1])
+					sorted_chain_list.append(chain_list[0])
+
+		return sorted_chain_list
 
 	def get_backup_chain_at_time(self, time):
 		"""Return backup chain covering specified time
@@ -347,3 +490,6 @@ class CollectionsStatus:
 		if old_chains: return old_chains[-1]
 		else: return self.all_backup_chains[0] # no chains are old enough
 
+	def cleanup_signatures(self):
+		"""Delete unnecessary older signatures"""
+		map(SignatureChain.delete, self.other_sig_chains)

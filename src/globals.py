@@ -1,19 +1,26 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 """Store global configuration information"""
 
+import socket
+
 # The current version of duplicity
-version = "0.1.1"
+version = "0.2.0"
 
-# If true, filelists and directory statistics will be split on
-# nulls instead of newlines.
-null_separator = None
+# The name of the current host, or None if it cannot be set
+hostname = socket.getfqdn()
 
-# Path of duplicity directory (usually $HOME/.duplicity)
-dupdir = None
-
-# Character used like the ":" in time strings like
-# 2002-08-06T04:22:00-07:00.  The colon isn't good for filenames on
-# windows machines.
-time_separator = ":"
+# The main local path.  For backing up the is the path to be backed
+# up.  For restoring, this is the destination of the restored files.
+local_path = None
 
 # Set to the Path of the archive directory (the directory which
 # contains the signatures and manifests of the relevent backup
@@ -28,11 +35,35 @@ current_time = None
 # If it is None, default to current time.
 restore_time = None
 
-# If set, use public key encryption to listed keys when backing up,
-# otherwise use symmetric encryption.
-encryption_keys = []
+# If set, restore only the subdirectory or file specified, not the
+# whole root.
+restore_dir = None
 
-# If set, when encrypting sign with this key, and when decrypting
-# require that the file be signed with this key.
-sign_key = None
+# The backend representing the remote side
+backend = None
+
+# If set, the Select object which iterates paths in the local
+# source directory.
+select = None
+
+# Set to GPGProfile that will be used to compress/uncompress encrypted
+# files.  Replaces encryption_keys, sign_key, and passphrase settings.
+gpg_profile = None
+
+# If true, filelists and directory statistics will be split on
+# nulls instead of newlines.
+null_separator = None
+
+# Character used like the ":" in time strings like
+# 2002-08-06T04:22:00-07:00.  The colon isn't good for filenames on
+# windows machines.
+time_separator = ":"
+
+# If this is true, only warn and don't raise fatal error when backup
+# source directory doesn't match previous backup source directory.
+allow_source_mismatch = None
+
+# If set, abort if cannot do an incremental backup.  Otherwise if
+# signatures not found, default to full.
+incremental = None
 

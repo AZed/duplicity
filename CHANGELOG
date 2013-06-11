@@ -1,3 +1,38 @@
+New in v0.2.0 (2002/09/29)
+--------------------------
+
+(Thanks to Peter Ehrenberg for his valuable suggestions on many of the
+below.)
+
+** IMPORTANT ** New syntax intended to make duplicity more
+user-friendly.  Old duplicity invocation will not work so change your
+scripts and read the man page.
+
+By default no local archive dir will be read or created.
+$HOME/.duplicity has no special significance.  However, one can be
+specified with --archive-dir for faster operation.
+
+If PASSPHRASE environment variable not set, ask user for passphrase
+instead of exiting.
+
+The source directory and hostname are now recorded, and rdiff-backup
+will complain if you try to back up different directories to the same
+location (but --allow-source-mismatch can override).
+
+Changed some of the logging verbosity levels.  Level 5 now lists files
+being backed up.
+
+Fixed large file problems.  Files larger than 2GB should be backed up
+correctly.
+
+Significant additions to the manual page.
+
+By default, duplicity now chooses whether to make a full or
+incremental backup depending on whether up-to-date signatures can be
+found on the remote side or local archive directory.  Overrideable
+with (-f/--full and -i/--incremental).
+
+
 New in v0.1.1 (2002/09/16)
 --------------------------
 

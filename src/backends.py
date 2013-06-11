@@ -1,16 +1,26 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 """Provides functions and classes for getting/sending files to destination"""
 
 import os
-import log, path
+import log, path, dup_temp, file_naming
 
 class BackendException(Exception): pass
 
 def get_backend(url_string):
-	"""Return Backend object from url string
+	"""Return Backend object from url string, or None if not a url string
 
 	url strings are like
 	scp://foobar:password@hostname.net:124/usr/local.  If a protocol
-	is unsupported an error will be returned.
+	is unsupported a fatal error will be raised.
 
 	"""
 	global protocol_class_dict
@@ -18,15 +28,12 @@ def get_backend(url_string):
 		if message:
 			err_string = "Bad URL string '%s': %s" % (url_string, message)
 		else: err_string = "Bad URL string '%s'" % url_string
-		err_string += ("\nExample URL strings are file:///usr/local and "
-					   "scp://root@host.net/dir\n"
-					   "See the man page for more information")
 		log.FatalError(err_string)
 
 	colon_position = url_string.find(":")
-	if colon_position < 1: bad_url()
+	if colon_position < 1: return None
 	protocol = url_string[:colon_position]
-	if url_string[colon_position+1:colon_position+3] != '//': bad_url()
+	if url_string[colon_position+1:colon_position+3] != '//': return None
 	remaining_string = url_string[colon_position+3:]
 	
 	try: backend, separate_host = protocol_class_dict[protocol]
@@ -64,7 +71,7 @@ class Backend:
 		pass
 
 	def delete(self, filename_list):
-		"""Delete each filename in filename_list"""
+		"""Delete each filename in filename_list, in order if possible"""
 		pass
 
 	def run_command(self, commandline):
@@ -82,6 +89,57 @@ class Backend:
 			raise BackendException("Error running '%s'" % commandline)
 		return results
 
+	def get_fileobj_read(self, filename, parseresults = None):
+		"""Return fileobject opened for reading of filename on backend
+
+		The file will be downloaded first into a temp file.  When the
+		returned fileobj is closed, the temp file will be deleted.
+
+		"""
+		if not parseresults:
+			parseresults = file_naming.parse(filename)
+			assert parseresults, "Filename not correctly parsed"
+		tdp = dup_temp.new_tempduppath(parseresults)
+		self.get(filename, tdp)
+		tdp.setdata()
+		return tdp.filtered_open_with_delete("rb")
+
+	def get_fileobj_write(self, filename, parseresults = None):
+		"""Return fileobj opened for writing, write to backend on close
+
+		The file will be encoded as specified in parseresults (or as
+		read from the filename), and stored in a temp file until it
+		can be copied over and deleted.
+
+		"""
+		if not parseresults:
+			parseresults = file_naming.parse(filename)
+			assert parseresults, "Filename not correctly parsed"
+		tdp = dup_temp.new_tempduppath(parseresults)
+
+		def close_file_hook():
+			"""This is called when returned fileobj is closed"""
+			self.put(tdp, filename)
+			tdp.delete()
+
+		fh = dup_temp.FileobjHooked(tdp.filtered_open("wb"))
+		fh.addhook(close_file_hook)
+		return fh
+
+	def get_data(self, filename, parseresults = None):
+		"""Retrieve a file from backend, process it, return contents"""
+		fin = self.get_fileobj_read(filename, parseresults)
+		buf = fin.read()
+		assert not fin.close()
+		return buf
+
+	def put_data(self, buffer, filename, parseresults = None):
+		"""Put buffer into filename on backend after processing"""
+		fout = self.get_fileobj_write(filename, parseresults)
+		fout.write(buffer)
+		assert not fout.close()
+
+
 class LocalBackend(Backend):
 	"""Use this backend when saving to local disk
 
@@ -96,7 +154,7 @@ class LocalBackend(Backend):
 		"""If rename is set, try that first, copying if doesn't work"""
 		if not remote_filename: remote_filename = source_path.get_filename()
 		target_path = self.remote_pathdir.append(remote_filename)
-		log.Log("Writing %s" % target_path.name, 4)
+		log.Log("Writing %s" % target_path.name, 6)
 		if rename:
 			try: source_path.rename(target_path)
 			except OSError: pass

@@ -1,3 +1,13 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 import tempfile
 import librsync, errno, log, path
 
@@ -36,14 +46,3 @@ def listpath(path):
 	dir_listing.sort()
 	return dir_listing
 
-
-def get_tmpfile(dir_path = None):
-	"""Get a temp file in the given directory"""
-	if not dir_path: return path.Path(tempfile.mktemp())
-
-	global tmp_file_index
-	while 1:
-		new_path = dir_path.append("tmpfile.duplicity.%d" % tmp_file_index)
-		if not new_path.exists(): break
-		tmp_file_index += 1
-	return new_path

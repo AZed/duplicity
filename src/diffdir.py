@@ -1,3 +1,13 @@
+# Copyright 2002 Ben Escoto
+#
+# This file is part of duplicity.
+#
+# duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA
+# 02139, USA; either version 2 of the License, or (at your option) any
+# later version; incorporated herein by reference.
+
 """Functions for producing signatures and deltas of directories
 
 Note that the main processes of this module have two parts.  In the
@@ -78,6 +88,14 @@ def get_delta_path(new_path, sig_path):
 	delta_path.stat.st_size = new_path.stat.st_size		
 	return delta_path
 
+def log_delta_path(delta_path):
+	"""Look at delta path and log delta"""
+	if delta_path.difftype == "snapshot":
+		log.Log("Generating delta - new file: %s" %
+				(delta_path.get_relative_path(),), 5)
+	else: log.Log("Generating delta - changed file: %s" %
+				  (delta_path.get_relative_path(),), 5)
+
 def get_delta_iter(new_iter, sig_iter):
 	"""Generate delta iter from new Path iter and sig Path iter.
 
@@ -91,13 +109,17 @@ def get_delta_iter(new_iter, sig_iter):
 		log.Log("Comparing %s and %s" % (new_path and new_path.index,
 										 sig_path and sig_path.index), 6)
 		if (not new_path or not new_path.type) and sig_path and sig_path.type:
-			yield ROPath(sig_path.index) # indicates deleted
+			log.Log("Generating delta - deleted file: %s" %
+					(sig_path.get_relative_path(),), 5)
+			yield ROPath(sig_path.index)
 		elif sig_path and new_path == sig_path: pass # no change, skip
 		else:
 			delta_path = robust.check_common_error(delta_iter_error_handler,
 												   get_delta_path,
 												   (new_path, sig_path))
-			if delta_path: yield delta_path # otherwise error
+			if delta_path: # if not, an error must have occurred
+				log_delta_path(delta_path)
+				yield delta_path
 
 def sigtar2path_iter(sigtarobj):
 	"""Convert signature tar file object open for reading into path iter"""
@@ -225,9 +247,10 @@ def get_delta_iter_w_sig(path_iter, sig_path_iter, sig_fileobj):
 										 sig_path and sig_path.index), 6)
 		if not new_path or not new_path.type: # file doesn't exist
 			if sig_path and sig_path.exists(): # but signature says it did
+				log.Log("Generating delta - deleted file: %s" %
+						(sig_path.get_relative_path(),), 5)
 				ti = ROPath(sig_path.index).get_tarinfo()
 				ti.name = "deleted/" + "/".join(sig_path.index)
-				log.Log(ti.name + " was deleted", 7)
 				sigTarFile.addfile(ti)
 				yield ROPath(sig_path.index)
 		elif not sig_path or new_path != sig_path:
@@ -235,7 +258,9 @@ def get_delta_iter_w_sig(path_iter, sig_path_iter, sig_fileobj):
 			delta_path = robust.check_common_error(
 				delta_iter_error_handler, get_delta_path_w_sig,
 				(new_path, sig_path, sigTarFile))
-			if delta_path: yield delta_path
+			if delta_path:
+				log_delta_path(delta_path)
+				yield delta_path
 	sigTarFile.close()
 
 def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
