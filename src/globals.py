@@ -24,7 +24,7 @@
 import socket, sys, os
 
 # The current version of duplicity
-version = "0.6.04"
+version = "0.6.05"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -166,9 +166,6 @@ ssh_askpass = False
 
 # user added ssh options
 ssh_options = ""
-
-# true if user wants no restart
-no_restart = False
 
 # will be a Restart object if restarting
 restart = None
