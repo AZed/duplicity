@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.4"
+version = "0.4.5"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -91,6 +91,10 @@ force = None
 # If set, signifies time in seconds before which backup files should
 # be deleted.
 remove_time = None
+
+# If set, signifies the number of backups chains to keep when perfroming
+# a --remove-all-but-n-full.
+keep_chains = None
 
 # If set to false, then do not encrypt files on remote system
 encryption = 1
