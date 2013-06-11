@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -23,8 +23,8 @@ import os
 import types
 
 import duplicity.backend
-import duplicity.log as log
-import duplicity.path as path
+from duplicity import log
+from duplicity import path
 from duplicity.errors import *
 
 class LocalBackend(duplicity.backend.Backend):
@@ -46,7 +46,7 @@ class LocalBackend(duplicity.backend.Backend):
         if not remote_filename:
             remote_filename = source_path.get_filename()
         target_path = self.remote_pathdir.append(remote_filename)
-        log.Log("Writing %s" % target_path.name, 6)
+        log.Info("Writing %s" % target_path.name)
         if rename:
             try:
                 source_path.rename(target_path)

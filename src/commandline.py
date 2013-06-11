@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -36,8 +36,8 @@ from duplicity import selection
 
 # Also import the sshbackend module specifically because we stomp on
 # its options.
-import duplicity.backends.sshbackend as sshbackend
-import duplicity.backends.imapbackend as imapbackend
+from duplicity.backends import sshbackend
+from duplicity.backends import imapbackend
 
 
 select_opts = [] # Will hold all the selection options
@@ -66,6 +66,7 @@ options = ["allow-source-mismatch",
            "dry-run",
            "encrypt-key=",
            "exclude=",
+           "exclude-if-present=",
            "exclude-device-files",
            "exclude-filelist=",
            "exclude-globbing-filelist=",
@@ -207,6 +208,7 @@ def parse_cmdline_options(arglist):
             globals.gpg_profile.recipients.append(arg)
         elif opt in ["--exclude",
                      "--exclude-regexp",
+                     "--exclude-if-present",
                      "--include",
                      "--include-regexp"]:
             select_opts.append((opt, arg))
@@ -301,9 +303,24 @@ def parse_cmdline_options(arglist):
             print "duplicity", str(globals.version)
             sys.exit(0)
         elif opt in ["-v", "--verbosity"]:
-            verb = int(arg)
-            if verb < 0 or verb > 9:
-                command_line_error("verbosity must be between 0 and 9.")
+            arg = arg.lower()
+            if arg in ['e', 'error']:
+                verb = log.ERROR
+            elif arg in ['w', 'warning']:
+                verb = log.WARNING
+            elif arg in ['n', 'notice']:
+                verb = log.NOTICE
+            elif arg in ['i', 'info']:
+                verb = log.INFO
+            elif arg in ['d', 'debug']:
+                verb = log.DEBUG
+            elif arg.isdigit() and (len(arg) == 1):
+                verb = int(arg)
+            else:
+                command_line_error("\nVerbosity must be one of: digit [0-9], character [ewnid],\n"
+                                   "or word ['error', 'warning', 'notice', 'info', 'debug'].\n"
+                                   "The default is 4 (Notice).  It is strongly recommended\n"
+                                   "that verbosity level is set at 2 (Warning) or higher.")
             log.setverbosity(verb)
         elif opt == "--volsize":
             globals.volsize = int(arg)*1024*1024
@@ -414,6 +431,10 @@ Options:
     --version
     --volsize <number>
     -v[0-9], --verbosity [0-9]
+    Verbosity must be one of: digit [0-9], character [ewnid],
+    or word ['error', 'warning', 'notice', 'info', 'debug'].
+    The default is 4 (Notice).  It is strongly recommended
+    that verbosity level is set at 2 (Warning) or higher.
 """) % (globals.version, sys.platform))
 
 
@@ -580,5 +601,5 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
         command_line_error("Too many arguments")
 
     check_consistency(action)
-    log.Log(_("Main action: ") + action, 7)
+    log.Info(_("Main action: ") + action)
     return action

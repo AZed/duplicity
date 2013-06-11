@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -32,7 +32,7 @@ def check_common_error(error_handler, function, args = ()):
 
     """
     # todo: import here to avoid circular dependency issue
-    import duplicity.path as path
+    from duplicity import path
 
     try: return function(*args)
     #except (EnvironmentError, SkipFileException, DSRPPermError,
@@ -55,12 +55,12 @@ def check_common_error(error_handler, function, args = ()):
 def listpath(path):
     """Like path.listdir() but return [] if error, and sort results"""
     def error_handler(exc):
-        log.Log(_("Error listing directory %s") % path.name, 2)
+        log.Warn(_("Error listing directory %s") % path.name)
         return []
     dir_listing = check_common_error(error_handler, path.listdir)
     dir_listing.sort()
     return dir_listing
 
-import duplicity.librsync as librsync
-import duplicity.log as log
+from duplicity import librsync
+from duplicity import log
 

@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -24,7 +24,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.5.13"
+version = "0.5.14"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()

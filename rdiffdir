@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # rdiffdir -- Extend rdiff functionality to directories
-# Version 0.5.13 released March 26, 2009
+# Version 0.5.14 released April 02, 2009
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -9,7 +9,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -30,7 +30,13 @@ import sys, getopt, gzip, os
 import gettext
 gettext.install('duplicity')
 
-from duplicity import diffdir, patchdir, log, tarfile, globals, selection, path
+from duplicity import diffdir
+from duplicity import patchdir
+from duplicity import log
+from duplicity import tarfile
+from duplicity import globals
+from duplicity import selection
+from duplicity import path
 
 # If set, compress diff and delta files using gzip
 gzip_compress = None

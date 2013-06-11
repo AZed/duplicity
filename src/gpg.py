@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,10 +22,11 @@
 """duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface"""
 
 import select, os, sys, thread, types, cStringIO, tempfile, re, gzip
-import misc, log
 
-import duplicity.globals as globals
-import duplicity.GnuPGInterface as GnuPGInterface
+from duplicity import misc
+from duplicity import log
+from duplicity import globals
+from duplicity import GnuPGInterface
 
 try:
     from hashlib import sha1

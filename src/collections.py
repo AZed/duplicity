@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,8 +22,14 @@
 """Classes and functions on collections of backup volumes"""
 
 import gzip, types
-import log, file_naming, path, dup_time, globals, manifest
 import gettext
+
+from duplicity import log
+from duplicity import file_naming
+from duplicity import path
+from duplicity import dup_time
+from duplicity import globals
+from duplicity import manifest
 
 class CollectionsError(Exception):
     pass
@@ -226,17 +232,17 @@ class BackupChain:
             if (self.incset_list
                 and incset.start_time == self.incset_list[-1].start_time
                 and incset.end_time > self.incset_list[-1]):
-                log.Log(_("Preferring Backupset over previous one!"), 8)
+                log.Info(_("Preferring Backupset over previous one!"))
                 self.incset_list[-1] = incset
             else:
-                log.Log(_("Ignoring incremental Backupset (start_time: %s; needed: %s)") %
-                        (dup_time.timetopretty(incset.start_time),
-                         dup_time.timetopretty(self.end_time)), 8)
+                log.Info(_("Ignoring incremental Backupset (start_time: %s; needed: %s)") %
+                         (dup_time.timetopretty(incset.start_time),
+                          dup_time.timetopretty(self.end_time)))
                 return None
         self.end_time = incset.end_time
-        log.Log(_("Added incremental Backupset (start_time: %s / end_time: %s)") %
-                (dup_time.timetopretty(incset.start_time),
-                 dup_time.timetopretty(incset.end_time)), 8)
+        log.Info(_("Added incremental Backupset (start_time: %s / end_time: %s)") %
+                 (dup_time.timetopretty(incset.start_time),
+                  dup_time.timetopretty(incset.end_time)))
         assert self.end_time
         return 1
 
@@ -667,7 +673,7 @@ class CollectionsStatus:
                 if new_set.add_filename(filename):
                     sets.append(new_set)
                 else:
-                    log.Log(_("Ignoring file (rejected by backup set) '%s'") % filename, 9)
+                    log.Debug(_("Ignoring file (rejected by backup set) '%s'") % filename)
         map(add_to_sets, filename_list)
         sets, incomplete_sets = self.get_sorted_sets(sets)
 

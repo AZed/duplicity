@@ -7,7 +7,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,9 +22,11 @@
 """Manage temporary files"""
 
 import tempfile
-import log, path, file_naming
 
-import duplicity.tempdir as tempdir
+from duplicity import log
+from duplicity import path
+from duplicity import file_naming
+from duplicity import tempdir
 
 
 def new_temppath():
@@ -57,7 +59,7 @@ def get_fileobj_duppath(dirpath, filename):
     td = tempdir.TemporaryDirectory(dirpath.name)
     tdpname = td.mktemp()
     tdp = TempDupPath(tdpname, parseresults = file_naming.parse(filename))
-    
+
     fh = FileobjHooked(tdp.filtered_open("wb"))
     def rename_and_forget():
         tdp.rename(dirpath.append(filename))
@@ -109,7 +111,7 @@ class FileobjHooked:
         if self.second:
             self.second.write(buf)
         return self.fileobj.write(buf)
-    
+
     def read(self, length = -1):
         return self.fileobj.read(length)
 
@@ -127,7 +129,7 @@ class FileobjHooked:
 
     def addfilehandle(self, fh):
         """Add a second filehandle for listening to the input
-        
+
         This only works properly for two write handles"""
         assert not self.second
         self.second = fh

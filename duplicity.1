@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "March 26, 2009" "Version 0.5.13" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "April 02, 2009" "Version 0.5.14" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -284,6 +284,11 @@ and
 .B --exclude.
 
 .TP
+.BR "--exclude-if-present " filename
+Exclude directories if filename is present. This option needs to
+come before any other include or exclude options.
+
+.TP
 .B --exclude-other-filesystems
 Exclude files on file systems (identified by device number) other than
 the file system the root of the source directory is on.
@@ -528,13 +533,29 @@ encryption process and it will turn off any passphrase interaction with
 the user with respect to
 .I --encrypt-key
 or
-.I --sign-key
-.
+.I --sign-key.
+
 
 .TP
-.BI -v [0-9] ", --verbosity " [0-9]
-Specify verbosity level (0 is total silent, 3 is the default, and 9 is
-noisiest).
+.BI -v verb ", --verbosity " verb
+Specify verbosity level (0 is total silent, 4 is the default, and 9 is
+noisiest).  Verbosity may also be one of: character
+.I ewnid,
+or word
+.I error,
+.I warning,
+.I notice,
+.I info,
+.I debug.
+The default is 4 (Notice).  The options
+.I -v4,
+.I -vn,
+and
+.I -vnotice
+are functionally equivalent, as are  the mixed/upper-case versions,
+.I -vN,
+.I -vNotice, and
+.I -vNOTICE.
 
 .TP
 .BI --version

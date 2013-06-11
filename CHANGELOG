@@ -1,3 +1,38 @@
+New in v0.5.14 (2009/04/02)
+---------------------------
+After email voting among known duplicity contributors,
+the decision was reached to revert to the GPL Version 2
+license, so with their consensus, duplicity is now under
+GPL Version 2.
+
+Revert to calling NcFTP utilities (ls, get, put) directly
+rather than scripting ncftp via pexpect by reverting to the
+0.5.07 version of ftpbackend.py.
+
+Changed fatal error regarding version 3.2.0 of ncftpput to
+warning level since it has been reported that the problem
+does not occur on most distributions.
+
+Changed from log.Log with numbered log levels to log.Debug,
+log.Info, log.Notice, log.Warn, log.FatalError as below:
+    0    log.FatalError
+    1-2  log.Warn
+    3-4  log.Notice
+    5-8  log.Info
+    9 log.Debug
+The -vN option has not changed.  Verbosity may also be one
+of: character [ewnid], or word ['error', 'warning', 'notice',
+'info', 'debug'].  The default is 4 (Notice).  The options
+-v4, -vn, and -vnotice are functionally equivalent, as are
+the mixed-case versions, -vN, -vNotice, -vNOTICE.
+
+Normalized include statements and tried to insure that all
+duplicity includes were from the duplicity module.
+
+patch #6790: Add --exclude-if-present
+https://savannah.nongnu.org/patch/?6790
+
+
 New in v0.5.13 (2009/03/26)
 ---------------------------
 Add more error detection to FTP backend.
