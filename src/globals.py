@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.09"
+version = "0.6.10"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -107,9 +107,15 @@ force = None
 # be deleted.
 remove_time = None
 
-# If set, signifies the number of backups chains to keep when perfroming
-# a --remove-all-but-n-full.
+# If set, signifies the number of backups chains to keep when performing
+# a remove-all-but-n-full.
 keep_chains = None
+
+# If set, signifies that remove-all-but-n-full in progress
+remove_all_but_n_full_mode = None
+
+# If set, signifies that remove-all-inc-of-but-n-full in progress (variant of remove-all-but-n-full)
+remove_all_inc_of_but_n_full_mode = None
 
 # Don't actually do anything, but still report what would be done
 dry_run = False

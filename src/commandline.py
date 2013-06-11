@@ -58,6 +58,7 @@ commands = ["cleanup",
             "list-current-files",
             "remove-older-than",
             "remove-all-but-n-full",
+            "remove-all-inc-of-but-n-full",
             "restore",
             "verify",
             ]
@@ -128,9 +129,9 @@ def check_verbosity(option, opt, value):
     else:
         try:
             verb = int(value)
+            if verb < 0 or verb > 9:
+                fail = True
         except ValueError:
-            fail = True
-        if verb < 0 or verb > 9:
             fail = True
 
     if fail:
@@ -312,10 +313,11 @@ def parse_cmdline_options(arglist):
     # circumstances. the default should absolutely always be False unless
     # you know what you are doing.
     parser.add_option("--ignore-errors", action="callback",
+                      dest="ignore_errors",
                       callback=lambda o, s, v, p: (log.Warn(
                           _("Running in 'ignore errors' mode due to %s; please "
                             "re-consider if this was not intended") % s),
-                          setattr(p.values, o.dest, True)))
+                          setattr(p.values, "ignore errors", True)))
 
     # Whether to use the full email address as the user name when
     # logging into an imap server. If false just the user name
@@ -368,6 +370,7 @@ def parse_cmdline_options(arglist):
 
     # Whether the old filename format is in effect.
     parser.add_option("--old-filenames", action="callback",
+                      dest="old_filenames",
                       callback=lambda o, s, v, p: (setattr(p.values, o.dest, True),
                                                    old_fn_deprecation(s)))
 
@@ -403,6 +406,7 @@ def parse_cmdline_options(arglist):
 
     # If set, use short (< 30 char) filenames for all the remote files.
     parser.add_option("--short-filenames", action="callback",
+                      dest="short_filenames",
                       callback=lambda o, s, v, p: (setattr(p.values, o.dest, True),
                                                    old_fn_deprecation(s)))
 
@@ -507,14 +511,18 @@ def parse_cmdline_options(arglist):
             command_line_error("Missing time string for remove-older-than")
         globals.remove_time = dup_time.genstrtotime(arg)
         num_expect = 1
-    elif cmd == "remove-all-but-n-full":
+    elif cmd == "remove-all-but-n-full" or cmd == "remove-all-inc-of-but-n-full":
+        if cmd == "remove-all-but-n-full" :
+            globals.remove_all_but_n_full_mode = True
+        if cmd == "remove-all-inc-of-but-n-full" :
+            globals.remove_all_inc_of_but_n_full_mode = True
         try:
             arg = args.pop(0)
         except:
-            command_line_error("Missing count for remove-all-but-n-full")
+            command_line_error("Missing count for " + cmd)
         globals.keep_chains = int(arg)
         if not globals.keep_chains > 0:
-            command_line_error("remove-all-but-n-full count must be > 0")
+            command_line_error(cmd + " count must be > 0")
         num_expect = 1
     elif cmd == "verify":
         verify = True
@@ -702,6 +710,7 @@ def usage():
   duplicity cleanup [%(options)s] %(target_url)s
   duplicity remove-older-than %(time)s [%(options)s] %(target_url)s
   duplicity remove-all-but-n-full %(count)s [%(options)s] %(target_url)s
+  duplicity remove-all-inc-of-but-n-full %(count)s [%(options)s] %(target_url)s
 
 """ % dict
 
@@ -735,6 +744,7 @@ def usage():
   restore <%(target_url)s> <%(source_dir)s>
   remove-older-than <%(time)s> <%(target_url)s>
   remove-all-but-n-full <%(count)s> <%(target_url)s>
+  remove-all-inc-of-but-n-full <%(count)s> <%(target_url)s>
   verify <%(target_url)s> <%(source_dir)s>""" % dict
 
     return msg
@@ -845,7 +855,7 @@ def check_consistency(action):
                 n+=1
         assert n <= 1, "Invalid syntax, two conflicting modes specified"
     if action in ["list-current", "collection-status",
-                  "cleanup", "remove-old", "remove-all-but-n-full"]:
+                  "cleanup", "remove-old", "remove-all-but-n-full", "remove-all-inc-of-but-n-full"]:
         assert_only_one([list_current, collection_status, cleanup,
                          globals.remove_time is not None])
     elif action == "restore" or action == "verify":
@@ -896,8 +906,10 @@ def ProcessCommandLine(cmdline_list):
             action = "cleanup"
         elif globals.remove_time is not None:
             action = "remove-old"
-        elif globals.keep_chains is not None:
+        elif globals.remove_all_but_n_full_mode:
             action = "remove-all-but-n-full"
+        elif globals.remove_all_inc_of_but_n_full_mode:
+            action = "remove-all-inc-of-but-n-full"
         else:
             command_line_error("Too few arguments")
         globals.backend = backend.get_backend(args[0])
