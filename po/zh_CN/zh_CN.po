@@ -1,20 +1,20 @@
-# Language io translations for duplicity package.
-# Copyright (C) 2008 Kenneth Loafman <kenneth@loafman.com>
+# Simplified Chinese translation for duplicity
+# Copyright (c) 2009 Rosetta Contributors and Canonical Ltd 2009
 # This file is distributed under the same license as the duplicity package.
-# Michael Terry <mike@mterry.name>, 2008.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2009.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: duplicity 0.5.03\n"
+"Project-Id-Version: duplicity\n"
 "Report-Msgid-Bugs-To: Kenneth Loafman <kenneth@loafman.com>\n"
 "POT-Creation-Date: 2009-07-22 17:34-0700\n"
-"PO-Revision-Date: 2009-07-03 14:45+0000\n"
-"Last-Translator: Michael Terry <michael.terry@canonical.com>\n"
-"Language-Team: Ido\n"
+"PO-Revision-Date: 2009-07-08 10:43+0000\n"
+"Last-Translator: Careone <zzbusagain@yahoo.com.cn>\n"
+"Language-Team: Simplified Chinese <zh_CN@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 "X-Launchpad-Export-Date: 2009-07-21 22:24+0000\n"
 "X-Generator: Launchpad (build Unknown)\n"
 
@@ -22,8 +22,8 @@ msgstr ""
 #, c-format
 msgid "%d file compared"
 msgid_plural "%d files compared"
-msgstr[0] "%d dokumento esis komparar"
-msgstr[1] "%d dokumenti esis komparar"
+msgstr[0] ""
+msgstr[1] ""
 
 #: ../duplicity-bin:671
 #, c-format
@@ -175,7 +175,7 @@ msgstr ""
 
 #: ../duplicity/collections.py:360
 msgid "Time:"
-msgstr "Tempo:"
+msgstr ""
 
 #: ../duplicity/collections.py:360
 msgid "Num volumes:"
@@ -183,7 +183,7 @@ msgstr ""
 
 #: ../duplicity/collections.py:364
 msgid "Full"
-msgstr "Integra"
+msgstr ""
 
 #: ../duplicity/collections.py:367
 msgid "Incremental"
@@ -386,7 +386,7 @@ msgstr ""
 #. rsync://user[:password]@other_host[:port]//absolute_path
 #: ../duplicity/commandline.py:444
 msgid "absolute_path"
-msgstr "absoluta_voyo"
+msgstr ""
 
 #. Used in usage help. Example:
 #. tahoe://alias/some_dir
@@ -404,17 +404,17 @@ msgstr ""
 #. s3://other.host/bucket_name[/prefix]
 #: ../duplicity/commandline.py:453
 msgid "bucket_name"
-msgstr "sitela_nomo"
+msgstr ""
 
 #. Used in usage help, abbreviation for "character" (noun)
 #: ../duplicity/commandline.py:455
 msgid "char"
-msgstr "litero"
+msgstr ""
 
 #. Used in usage help (noun)
 #: ../duplicity/commandline.py:457
 msgid "command"
-msgstr "impero"
+msgstr ""
 
 #. Used in usage help to represent the name of a container in Amazon Web Services'
 #. Cloudfront. Example:
@@ -426,18 +426,18 @@ msgstr ""
 #. Used in usage help (noun)
 #: ../duplicity/commandline.py:463
 msgid "count"
-msgstr "konto"
+msgstr ""
 
 #. Used in usage help to represent the name of a file directory
 #: ../duplicity/commandline.py:465
 msgid "directory"
-msgstr "dokumentuyo"
+msgstr ""
 
 #. Used in usage help to represent the name of a file. Example:
 #. --log-file <filename>
 #: ../duplicity/commandline.py:468
 msgid "filename"
-msgstr "dokumentonomo"
+msgstr ""
 
 #. Used in usage help to represent an ID for a GnuPG key. Example:
 #. --encrypt-key <gpg_key_id>
@@ -449,62 +449,62 @@ msgstr ""
 #. rsync://user[:password]@other.host[:port]::/module/some_dir
 #: ../duplicity/commandline.py:474
 msgid "module"
-msgstr "modulo"
+msgstr ""
 
 #. Used in usage help to represent a desired number of something. Example:
 #. --num-retries <number>
 #: ../duplicity/commandline.py:477
 msgid "number"
-msgstr "nombro"
+msgstr ""
 
 #. Used in usage help. (Should be consistent with the "Options:" header.)
 #. Example:
 #. duplicity [full|incremental] [options] source_dir target_url
 #: ../duplicity/commandline.py:481
 msgid "options"
-msgstr "selekti"
+msgstr ""
 
 #. Used in usage help to represent an internet hostname. Example:
 #. ftp://user[:password]@other.host[:port]/some_dir
 #: ../duplicity/commandline.py:484
 msgid "other.host"
-msgstr "altra.hosto"
+msgstr ""
 
 #. Used in usage help. Example:
 #: ../duplicity/commandline.py:486
 msgid "password"
-msgstr "pasovorto"
+msgstr ""
 
 #. Used in usage help to represent a Unix-style path name. Example:
 #. --archive-dir <path>
 #: ../duplicity/commandline.py:489
 msgid "path"
-msgstr "voyo"
+msgstr ""
 
 #. Used in usage help to represent a TCP port number. Example:
 #. ftp://user[:password]@other.host[:port]/some_dir
 #: ../duplicity/commandline.py:492
 msgid "port"
-msgstr "sabordo"
+msgstr ""
 
 #. Used in usage help. This represents a string to be used as a prefix to
 #. names for backup files created by Duplicity. Example:
 #. s3://other.host/bucket_name[/prefix]
 #: ../duplicity/commandline.py:496
 msgid "prefix"
-msgstr "prefixo"
+msgstr ""
 
 #. Used in usage help to represent a Unix-style path name. Example:
 #. rsync://user[:password]@other.host[:port]/relative_path
 #: ../duplicity/commandline.py:499
 msgid "relative_path"
-msgstr "relatanta_voyo"
+msgstr ""
 
 #. Used in usage help. Example:
 #. --timeout <seconds>
 #: ../duplicity/commandline.py:502
 msgid "seconds"
-msgstr "sekundi"
+msgstr ""
 
 #. Used in usage help to represent a "glob" style pattern for matching one or
 #. more files, as described in the documentation. Example:
@@ -518,56 +518,56 @@ msgstr ""
 #. file:///%(x_some_dir)s
 #: ../duplicity/commandline.py:510
 msgid "some_dir"
-msgstr "ula_dokumentuyo"
+msgstr ""
 
 #. Used in usage help to represent the name of a single file directory or a
 #. Unix-style path to a directory where files will be coming FROM. Example:
 #. duplicity [full|incremental] [options] source_dir target_url
 #: ../duplicity/commandline.py:514
 msgid "source_dir"
-msgstr "fonta_dokumentuyo"
+msgstr ""
 
 #. Used in usage help to represent a URL files will be coming FROM. Example:
 #. duplicity [restore] [options] source_url target_dir
 #: ../duplicity/commandline.py:517
 msgid "source_url"
-msgstr "fonta_url"
+msgstr ""
 
 #. Used in usage help to represent the name of a single file directory or a
 #. Unix-style path to a directory. where files will be going TO. Example:
 #. duplicity [restore] [options] source_url target_dir
 #: ../duplicity/commandline.py:521
 msgid "target_dir"
-msgstr "skopa_dokumentuyo"
+msgstr ""
 
 #. Used in usage help to represent a URL files will be going TO. Example:
 #. duplicity [full|incremental] [options] source_dir target_url
 #: ../duplicity/commandline.py:524
 msgid "target_url"
-msgstr "skopa_url"
+msgstr ""
 
 #. Used in usage help to represent a time spec for a previous point in time,
 #. as described in the documentation. Example:
 #. duplicity remove-older-than time [options] target_url
 #: ../duplicity/commandline.py:528
 msgid "time"
-msgstr "tempo"
+msgstr ""
 
 #. Used in usage help to represent a user name (i.e. login). Example:
 #. ftp://user[:password]@other.host[:port]/some_dir
 #: ../duplicity/commandline.py:531
 msgid "user"
-msgstr "uzero"
+msgstr ""
 
 #: ../duplicity/commandline.py:533
 #, python-format
 msgid "duplicity version %s running on %s."
-msgstr "duplicity versiono %s kuras sur %s."
+msgstr ""
 
 #. Header in usage help
 #: ../duplicity/commandline.py:537
 msgid "Usage:"
-msgstr "Uzado:"
+msgstr ""
 
 #. Header in usage help
 #: ../duplicity/commandline.py:550
@@ -577,12 +577,12 @@ msgstr ""
 #. Header in usage help
 #: ../duplicity/commandline.py:570
 msgid "Commands:"
-msgstr "Imperi:"
+msgstr ""
 
 #. Header in usage help
 #: ../duplicity/commandline.py:584
 msgid "Options:"
-msgstr "Selekti:"
+msgstr ""
 
 #. In this portion of the usage instructions, "[ewnid]" indicates which
 #. characters are permitted (e, w, n, i, or d); the brackets imply their own
@@ -1029,3 +1029,21 @@ msgstr ""
 #, python-format
 msgid "Could not copy %s to %s"
 msgstr ""
+
+#~ msgid "No signatures found, switching to full backup."
+#~ msgstr "找不到标记，转换到完全备份。"
+
+#~ msgid "Backup Statistics"
+#~ msgstr "备份统计"
+
+#~ msgid "No signature data found, unable to list files."
+#~ msgstr "找不到标记数据，无法列出文件。"
+
+#~ msgid "No files found in archive - nothing restored."
+#~ msgstr "压缩包中找不到文件 - 没有进行任何还原。"
+
+#~ msgid "Calculated hash: %s"
+#~ msgstr "计算 hash 值： %s"
+
+#~ msgid "Manifest hash: %s"
+#~ msgstr "清单的 hash 值：%s"

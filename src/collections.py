@@ -21,7 +21,7 @@
 
 """Classes and functions on collections of backup volumes"""
 
-import gzip, types
+import types
 import gettext
 
 from duplicity import log
@@ -120,8 +120,10 @@ class BackupSet:
 
         for local_filename in globals.archive_dir.listdir():
             pr = file_naming.parse(local_filename)
-            if (pr and pr.manifest and pr.type == self.type and
-                pr.time == self.time and pr.start_time == self.start_time
+            if (pr and pr.manifest
+                and pr.type == self.type
+                and pr.time == self.time
+                and pr.start_time == self.start_time
                 and pr.end_time == self.end_time):
                 self.local_manifest_path = \
                               globals.archive_dir.append(local_filename)
@@ -129,11 +131,26 @@ class BackupSet:
 
     def delete(self):
         """
-        Remove all files in set
+        Remove all files in set, both local and remote
         """
-        l = self.get_filenames()
-        l.reverse() # delete starting with manifest
-        self.backend.delete(l)
+        rfn = self.get_filenames()
+        rfn.reverse()
+        try:
+            self.backend.delete(rfn)
+        except:
+            log.Debug("BackupSet.delete: missing %s" % rfn)
+            pass
+        for lfn in globals.archive_dir.listdir():
+            pr = file_naming.parse(lfn)
+            if (pr
+                and pr.time == self.time
+                and pr.start_time == self.start_time
+                and pr.end_time == self.end_time):
+                try:
+                    globals.archive_dir.append(lfn).delete()
+                except:
+                    log.Debug("BackupSet.delete: missing %s" % lfn)
+                    pass
 
     def __str__(self):
         """
@@ -196,7 +213,9 @@ class BackupSet:
         try:
             manifest_buffer = self.backend.get_data(self.remote_manifest_name)
         except GPGError, message:
-            if "secret key not available" in message.args[0]:
+            #TODO: We check for gpg v1 and v2 messages, should be an error code.
+            if ("secret key not available" in message.args[0] or
+                "No secret key" in message.args[0]):
                 return None
             else:
                 raise
@@ -770,7 +789,7 @@ class CollectionsStatus:
         """
         Split given filename_list into chains
 
-        Return value will be pair (list of chains, list of sets, list
+        Return value will be tuple (list of chains, list of sets, list
         of incomplete sets), where the list of sets will comprise sets
         not fitting into any chain, and the incomplete sets are sets
         missing files.
