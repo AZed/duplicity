@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: Kenneth Loafman <kenneth@loafman.com>\n"
-"POT-Creation-Date: 2010-11-20 15:05-0600\n"
+"POT-Creation-Date: 2011-03-08 13:54-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -157,71 +157,76 @@ msgstr ""
 msgid "Deleting local %s (not authoritative at backend)."
 msgstr ""
 
-#: ../duplicity-bin:890 ../duplicity/dup_temp.py:239
+#: ../duplicity-bin:869
+#, python-format
+msgid "Unable to delete %s: %s"
+msgstr ""
+
+#: ../duplicity-bin:893 ../duplicity/dup_temp.py:239
 #, python-format
 msgid "Failed to read %s: %s"
 msgstr ""
 
-#: ../duplicity-bin:901
+#: ../duplicity-bin:904
 #, python-format
 msgid "Copying %s to local cache."
 msgstr ""
 
-#: ../duplicity-bin:942
+#: ../duplicity-bin:945
 msgid "Local and Remote metadata are synchronized, no sync needed."
 msgstr ""
 
-#: ../duplicity-bin:947
+#: ../duplicity-bin:950
 msgid "Synchronizing remote metadata to local cache..."
 msgstr ""
 
-#: ../duplicity-bin:956
+#: ../duplicity-bin:959
 msgid "Sync would copy the following from remote to local:"
 msgstr ""
 
-#: ../duplicity-bin:959
+#: ../duplicity-bin:962
 msgid "Sync would remove the following spurious local files:"
 msgstr ""
 
-#: ../duplicity-bin:1002
+#: ../duplicity-bin:1005
 msgid "Unable to get free space on temp."
-msgstr ""
-
-#: ../duplicity-bin:1010
-#, python-format
-msgid "Temp space has %d available, backup needs approx %d."
 msgstr ""
 
 #: ../duplicity-bin:1013
 #, python-format
+msgid "Temp space has %d available, backup needs approx %d."
+msgstr ""
+
+#: ../duplicity-bin:1016
+#, python-format
 msgid "Temp has %d available, backup will use approx %d."
 msgstr ""
 
-#: ../duplicity-bin:1021
+#: ../duplicity-bin:1024
 msgid "Unable to get max open files."
 msgstr ""
 
-#: ../duplicity-bin:1025
+#: ../duplicity-bin:1028
 #, python-format
 msgid ""
 "Max open files of %s is too low, should be >= 1024.\n"
 "Use 'ulimit -n 1024' or higher to correct.\n"
 msgstr ""
 
-#: ../duplicity-bin:1071
+#: ../duplicity-bin:1074
 msgid ""
 "RESTART: The first volume failed to upload before termination.\n"
 "         Restart is impossible...starting backup from beginning."
 msgstr ""
 
-#: ../duplicity-bin:1077
+#: ../duplicity-bin:1080
 #, python-format
 msgid ""
 "RESTART: Volumes %d to %d failed to upload before termination.\n"
 "         Restarting backup at volume %d."
 msgstr ""
 
-#: ../duplicity-bin:1085
+#: ../duplicity-bin:1088
 #, python-format
 msgid ""
 "RESTART: Impossible backup state: manifest has %d vols, remote has %d vols.\n"
@@ -230,39 +235,39 @@ msgid ""
 "         backup then restart the backup from the beginning."
 msgstr ""
 
-#: ../duplicity-bin:1166
+#: ../duplicity-bin:1170
 #, python-format
 msgid "Last %s backup left a partial set, restarting."
 msgstr ""
 
-#: ../duplicity-bin:1170
+#: ../duplicity-bin:1174
 #, python-format
 msgid "Cleaning up previous partial %s backup set, restarting."
 msgstr ""
 
-#: ../duplicity-bin:1181
+#: ../duplicity-bin:1185
 msgid "Last full backup date:"
 msgstr ""
 
-#: ../duplicity-bin:1183
+#: ../duplicity-bin:1187
 msgid "Last full backup date: none"
 msgstr ""
 
-#: ../duplicity-bin:1185
+#: ../duplicity-bin:1189
 msgid "Last full backup is too old, forcing full backup"
 msgstr ""
 
-#: ../duplicity-bin:1259
+#: ../duplicity-bin:1263
 #, python-format
 msgid "GPG error detail: %s"
 msgstr ""
 
-#: ../duplicity-bin:1268
+#: ../duplicity-bin:1272
 #, python-format
 msgid "User error detail: %s"
 msgstr ""
 
-#: ../duplicity-bin:1277
+#: ../duplicity-bin:1281
 #, python-format
 msgid "Backend error detail: %s"
 msgstr ""
@@ -303,26 +308,26 @@ msgstr ""
 msgid "task execution done (success: %s)"
 msgstr ""
 
-#: ../duplicity/backend.py:414 ../duplicity/backend.py:438
+#: ../duplicity/backend.py:415 ../duplicity/backend.py:439
 #, python-format
 msgid "Reading results of '%s'"
 msgstr ""
 
-#: ../duplicity/backend.py:453
+#: ../duplicity/backend.py:454
 #, python-format
 msgid "Running '%s' failed with code %d (attempt #%d)"
 msgid_plural "Running '%s' failed with code %d (attempt #%d)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: ../duplicity/backend.py:457
+#: ../duplicity/backend.py:458
 #, python-format
 msgid ""
 "Error is:\n"
 "%s"
 msgstr ""
 
-#: ../duplicity/backend.py:459
+#: ../duplicity/backend.py:460
 #, python-format
 msgid "Giving up trying to execute '%s' after %d attempt"
 msgid_plural "Giving up trying to execute '%s' after %d attempts"
@@ -807,40 +812,40 @@ msgid "Backends and their URL formats:"
 msgstr ""
 
 #. Header in usage help
-#: ../duplicity/commandline.py:742
+#: ../duplicity/commandline.py:743
 msgid "Commands:"
 msgstr ""
 
-#: ../duplicity/commandline.py:766
+#: ../duplicity/commandline.py:767
 #, python-format
 msgid "Specified archive directory '%s' does not exist, or is not a directory"
 msgstr ""
 
-#: ../duplicity/commandline.py:775
+#: ../duplicity/commandline.py:776
 #, python-format
 msgid ""
 "Sign key should be an 8 character hex string, like 'AA0E73D2'.\n"
 "Received '%s' instead."
 msgstr ""
 
-#: ../duplicity/commandline.py:833
+#: ../duplicity/commandline.py:834
 #, python-format
 msgid ""
 "Restore destination directory %s already exists.\n"
 "Will not overwrite."
 msgstr ""
 
-#: ../duplicity/commandline.py:838
+#: ../duplicity/commandline.py:839
 #, python-format
 msgid "Verify directory %s does not exist"
 msgstr ""
 
-#: ../duplicity/commandline.py:844
+#: ../duplicity/commandline.py:845
 #, python-format
 msgid "Backup source directory %s does not exist."
 msgstr ""
 
-#: ../duplicity/commandline.py:921
+#: ../duplicity/commandline.py:922
 #, python-format
 msgid ""
 "Bad URL '%s'.\n"
@@ -848,7 +853,7 @@ msgid ""
 "\"file:///usr/local\".  See the man page for more information."
 msgstr ""
 
-#: ../duplicity/commandline.py:946
+#: ../duplicity/commandline.py:947
 msgid "Main action: "
 msgstr ""
 
@@ -882,7 +887,7 @@ msgstr ""
 msgid "D %s"
 msgstr ""
 
-#: ../duplicity/dup_time.py:48
+#: ../duplicity/dup_time.py:49
 #, python-format
 msgid ""
 "Bad interval string \"%s\"\n"
@@ -892,7 +897,7 @@ msgid ""
 "page for more information."
 msgstr ""
 
-#: ../duplicity/dup_time.py:54
+#: ../duplicity/dup_time.py:55
 #, python-format
 msgid ""
 "Bad time string \"%s\"\n"
@@ -992,12 +997,12 @@ msgid ""
 "Renaming %s to %s"
 msgstr ""
 
-#: ../duplicity/patchdir.py:73 ../duplicity/patchdir.py:78
+#: ../duplicity/patchdir.py:74 ../duplicity/patchdir.py:79
 #, python-format
 msgid "Patching %s"
 msgstr ""
 
-#: ../duplicity/patchdir.py:566
+#: ../duplicity/patchdir.py:567
 #, python-format
 msgid "Writing %s of type %s"
 msgstr ""
@@ -1051,22 +1056,22 @@ msgstr ""
 msgid "Device file %%s has numbers %s, expected %s"
 msgstr ""
 
-#: ../duplicity/path.py:543
+#: ../duplicity/path.py:544
 #, python-format
 msgid "Making directory %s"
 msgstr ""
 
-#: ../duplicity/path.py:553
+#: ../duplicity/path.py:554
 #, python-format
 msgid "Deleting %s"
 msgstr ""
 
-#: ../duplicity/path.py:562
+#: ../duplicity/path.py:563
 #, python-format
 msgid "Touching %s"
 msgstr ""
 
-#: ../duplicity/path.py:569
+#: ../duplicity/path.py:570
 #, python-format
 msgid "Deleting tree %s"
 msgstr ""
@@ -1217,17 +1222,12 @@ msgstr ""
 msgid "IGNORED_ERROR: Warning: ignoring error as requested: %s: %s"
 msgstr ""
 
-#: ../duplicity/backends/giobackend.py:87
+#: ../duplicity/backends/giobackend.py:88
 #, python-format
 msgid "Connection failed, please check your password: %s"
 msgstr ""
 
-#: ../duplicity/backends/giobackend.py:96
+#: ../duplicity/backends/giobackend.py:111
 #, python-format
 msgid "Writing %s"
-msgstr ""
-
-#: ../duplicity/backends/giobackend.py:106
-#, python-format
-msgid "Could not copy %s to %s"
 msgstr ""

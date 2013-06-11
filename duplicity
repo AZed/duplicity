@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.11 released November 20, 2010
+# Version 0.6.12 released March 08, 2011
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -863,7 +863,10 @@ def sync_archive():
         del_name = globals.archive_dir.append(loc_name).name
 
         log.Notice(_("Deleting local %s (not authoritative at backend).") % del_name)
-        os.unlink(del_name)
+        try:
+            os.unlink(del_name)
+        except Exception as e:
+            log.Warn(_("Unable to delete %s: %s") % (del_name, str(e)))
 
     def copy_to_local(fn):
         """
@@ -1031,7 +1034,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.11 (November 20, 2010)", verbosity)
+    log.Log("duplicity 0.6.12 (March 08, 2011)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1100,15 +1103,16 @@ def main():
     """
     Start/end here
     """
-    # The following is for starting remote debugging in Eclipse with Pydev Extensions.
+    # The following is for starting remote debugging in Eclipse with Pydev.
     # Adjust the path to your location and version of Eclipse and Pydev.  Comment out
     # to run normally, or this process will hang at pydevd.settrace() waiting for the
     # remote debugger to start.
-#    pysrc = "/home/ken/eclipse3.4/plugins/org.python.pydev.debug_1.5.0.1251989166/pysrc/"
+#    pysrc = "/opt/Aptana Studio 2.0/plugins/org.python.pydev.debug_1.6.5.2011020317/pysrc/"
 #    if os.path.isdir(pysrc):
 #        sys.path.append(pysrc)
-#        import pydevd
+#        import pydevd #@UnresolvedImport
 #        pydevd.settrace()
+    # end remote debugger startup
 
     # if python is run setuid, it's only partway set,
     # so make sure to run with euid/egid of root
