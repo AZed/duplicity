@@ -3,7 +3,7 @@
 import sys, os, getopt
 from distutils.core import setup, Extension
 
-version_string = "0.4.2"
+version_string = "0.4.3.RC1"
 
 if sys.version_info[:2] < (2,2):
 	print "Sorry, duplicity requires version 2.2 or later of python"
@@ -11,10 +11,10 @@ if sys.version_info[:2] < (2,2):
 
 setup(name="duplicity",
 	  version=version_string,
-	  description="Untrusted backup using rsync algorithm",
-	  author="Ben Escoto",
-	  author_email="bescoto@stanford.edu",
-	  url="http://rdiff-backup.stanford.edu/duplicity",
+	  description="Encrypted backup using rsync algorithm",
+	  author="Kenneth Loafman",
+	  author_email="kenneth@loafman.com",
+	  url="http://duplicity.nongnu.org/index.html",
 	  packages = ['duplicity'],
 	  package_dir = {"duplicity": "src"},
 	  ext_modules = [Extension("duplicity._librsync",

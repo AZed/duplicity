@@ -18,10 +18,10 @@
 
 """Store global configuration information"""
 
-import socket
+import socket, sys
 
 # The current version of duplicity
-version = "0.4.2"
+version = "0.4.3.RC1"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
