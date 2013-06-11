@@ -1,3 +1,4 @@
+import tempfile
 import librsync, errno, log, path
 
 tmp_file_index = 1
@@ -36,8 +37,10 @@ def listpath(path):
 	return dir_listing
 
 
-def get_tmpfile(dir_path):
+def get_tmpfile(dir_path = None):
 	"""Get a temp file in the given directory"""
+	if not dir_path: return path.Path(tempfile.mktemp())
+
 	global tmp_file_index
 	while 1:
 		new_path = dir_path.append("tmpfile.duplicity.%d" % tmp_file_index)

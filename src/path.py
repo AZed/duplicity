@@ -57,6 +57,10 @@ class ROPath:
 		# in later versions of python (>= 2.3 I think)
 		self.devnums = (self.stat.st_rdev >> 8, self.stat.st_rdev & 0xff)
 		
+	def blank(self):
+		"""Black out self - set type and stat to None"""
+		self.type, self.stat = None, None
+
 	def exists(self):
 		"""True if corresponding file exists"""
 		return self.type
@@ -219,6 +223,8 @@ class ROPath:
 			return self.perms_equal(other) and self.devnums == other.devnums
 		assert 0
 
+	def __ne__(self, other): return not self.__eq__(other)
+
 	def perms_equal(self, other):
 		"""True if self and other have same permissions and ownership"""
 		s1, s2 = self.stat, other.stat
@@ -255,6 +261,10 @@ class ROPath:
 			stat.st_mtime = self.stat.st_mtime
 			other.stat = stat
 			other.mode = self.mode
+
+	def __repr__(self):
+		"""Return string representation"""
+		return "(%s %s)" % (self.index, self.type)
 
 
 class Path(ROPath):
@@ -316,6 +326,7 @@ class Path(ROPath):
 
 	def mkdir(self):
 		"""Make a directory at specified path"""
+		log.Log("Making directory %s" % (self.name,), 7)
 		os.mkdir(self.name)
 		self.setdata()
 
@@ -402,6 +413,12 @@ class Path(ROPath):
 		if not s: s = self.name
 		return '"%s"' % self.regex_chars_to_quote.sub(
 			lambda m: "\\"+m.group(0), s)
+
+	def get_filename(self):
+		"""Return filename of last component"""
+		components = self.name.split("/")
+		assert components and components[-1]
+		return components[-1]
 
 
 class PathDeleter(ITRBranch):

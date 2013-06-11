@@ -95,7 +95,7 @@ class Select:
 		scanning" bit.
 
 		"""
-		def error_handler(exc, filename):
+		def error_handler(exc, path, filename):
 			log.Log("Error initializing file %s/%s" % (path.name, filename), 2)
 			return None
 
@@ -108,8 +108,8 @@ class Select:
 
 			"""
 			for filename in robust.listpath(path):
-				new_path = robust.check_common_error(error_handler,
-													 path.append, (filename,))
+				new_path = robust.check_common_error(
+					error_handler, Path.append, (path, filename))
 				if new_path:
 					s = self.Select(new_path)
 					if s == 1: yield (new_path, 0)
@@ -121,6 +121,7 @@ class Select:
 			return
 		log.Log("Selecting %s" % path.name, 7)
 		yield path
+		if not path.isdir(): return
 		diryield_stack = [diryield(path)]
 		delayed_path_stack = []
 

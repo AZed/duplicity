@@ -1,7 +1,7 @@
 """Provides functions and classes for getting/sending files to destination"""
 
 import os
-import log
+import log, path
 
 class BackendException(Exception): pass
 
@@ -39,15 +39,33 @@ def get_backend(url_string):
 class Backend:
 	"""Represent a connection to the destination device/computer
 
-	This class only needs to have three methods: put(), and get(),
-	which each take filenames, and list(), which should list the files
-	available to get().
+	Classes that subclass this should implement the put, get, list,
+	and delete methods.
 
 	"""
 	def init(self, some_arguments): pass
-	def put(self, pathname): pass
-	def get(self, filename, dest_dir): pass
-	def list(self): pass
+
+	def put(self, source_path, remote_filename = None):
+		"""Transfer source_path (Path object) to remote_filename (string)
+
+		If remote_filename is None, get the filename from the last
+		path component of pathname.
+
+		"""
+		if not remote_filename: remote_filename = source_path.get_filename()
+		pass
+
+	def get(self, remote_filename, local_path):
+		"""Retrieve remote_filename and place in local_path"""
+		pass
+	
+	def list(self):
+		"""Return list of filenames (strings) present in backend"""
+		pass
+
+	def delete(self, filename_list):
+		"""Delete each filename in filename_list"""
+		pass
 
 	def run_command(self, commandline):
 		"""Run given commandline with logging and error detection"""
@@ -55,44 +73,52 @@ class Backend:
 		if os.system(commandline):
 			raise BackendException("Error running '%s'" % commandline)
 
-	def get_dir_filename(self, pathname):
-		"""Return (parent_dir, filename) pair from pathname"""
-		components = pathname.split("/")
-		return ("/".join(components[:-1]), components[-1])
+	def popen(self, commandline):
+		"""Run command and return stdout results"""
+		log.Log("Reading results of '%s'" % commandline, 4)
+		fout = os.popen(commandline)
+		results = fout.read()
+		if fout.close():
+			raise BackendException("Error running '%s'" % commandline)
+		return results
 
 class LocalBackend(Backend):
-	"""Use this backend when saving to local disk"""
-	def __init__(self, target_dir):
-		self.target_dir = target_dir
+	"""Use this backend when saving to local disk
 
-	def copyfileobj(infp, outfp):
-		"""Copy file object infp to outfp, closing afterwards"""
-		blocksize = 32 * 1024
-		while 1:
-			buf = infp.read(blocksize)
-			if not buf: break
-			outfp.write(buf)
-		infp.close()
-		outfp.close()
+	Urls look like file://testfiles/output.  Relative to root can be
+	gotten with extra slash (file:///usr/local).
 
-	def put(self, pathname):
-		"""Try to rename first, copying if that doesn't work"""
-		source_dir, filename = self.get_dir_filename(pathname)
-		dest_path = os.path.join(self.target_dir, filename)
-		log.Log("Writing %s" % dest_path, 4)
-		try: os.rename(pathname, dest_path)
-		except OSError: # rename failed, try copying
-			self.copyfileobj(open(pathname, "rb"), open(dest_path, "wb"))
+	"""
+	def __init__(self, directory_name):
+		self.remote_pathdir = path.Path(directory_name)
 
-	def get(self, filename, dest_dir):
-		"""Get file and put in dest_dir"""
-		source_path = os.path.join(self.target_dir, filename)
-		dest_path = os.path.join(dest_dir, filename)
-		self.copyfileobj(open(source_path, "rb"), open(dest_path, "wb"))
+	def put(self, source_path, remote_filename = None, rename = None):
+		"""If rename is set, try that first, copying if doesn't work"""
+		if not remote_filename: remote_filename = source_path.get_filename()
+		target_path = self.remote_pathdir.append(remote_filename)
+		log.Log("Writing %s" % target_path.name, 4)
+		if rename:
+			try: source_path.rename(target_path)
+			except OSError: pass
+			else: return
+		target_path.writefileobj(source_path.open("rb"))
+
+	def get(self, filename, local_path):
+		"""Get file and put in local_path (Path object)"""
+		source_path = self.remote_pathdir.append(filename)
+		local_path.writefileobj(source_path.open("rb"))
 
 	def list(self):
 		"""List files in that directory"""
-		return os.listdir(self.target_dir)
+		return self.remote_pathdir.listdir()
+
+	def delete(self, filename_list):
+		"""Delete all files in filename list"""
+		try:
+			for filename in filename_list:
+				self.remote_pathdir.append(filename).delete()
+		except OSError, e: raise BackendException(str(e))
+
 
 class scpBackend(Backend):
 	"""This backend copies files using scp.  List not supported"""
@@ -104,31 +130,57 @@ class scpBackend(Backend):
 		'scp://' of a url is stripped.
 
 		"""
-		self.scp_string = url_string.replace("/", ":", 1)
+		comps = url_string.split("/")
+		self.host_string = comps[0] # of form user@hostname
+		self.remote_dir = "/".join(comps[1:]) # can be empty string
+		if self.remote_dir: self.remote_prefix = self.remote_dir + "/"
+		else: self.remote_prefix = ""
 
-	def put(self, pathname):
+	def put(self, source_path, remote_filename = None):
 		"""Use scp to copy source_dir/filename to remote computer"""
-		filename = self.get_dir_filename(pathname)[1]
-		commandline = "scp %s %s/%s" % (pathname, self.scp_string, filename)
+		if not remote_filename: remote_filename = source_path.get_filename()
+		commandline = "scp %s %s:%s%s" % \
+					  (source_path.name, self.host_string,
+					   self.remote_prefix, remote_filename)
 		self.run_command(commandline)
 
-	def get(self, filename, dest_dir):
+	def get(self, remote_filename, local_path):
 		"""Use scp to get a remote file"""
-		dest_path = Path(os.path.join(dest_dir, filename))
-		commandline = "scp %s/%s %s" % (self.scp_string, filename,
-										dest_path.name)
+		commandline = "scp %s:%s%s %s" % \
+					  (self.host_string, self.remote_prefix,
+					   remote_filename, local_path.name)
 		self.run_command(commandline)
-		dest_path.setdata()
-		if not dest_path.exists():
-			raise BackendException("File %s not found" % dest_path.name)
+		local_path.setdata()
+		if not local_path.exists():
+			raise BackendException("File %s not found" % local_path.name)
 		
 	def list(self):
-		"""List files available for scp"""
-		assert 0, "How do I list files for scp???"
+		"""List files available for scp
+
+		Note that this command can get confused when dealing with
+		files with newlines in them, as the embedded newlines cannot
+		be distinguished from the file boundaries.
+
+		"""
+		commandline = "ssh %s ls %s" % (self.host_string, self.remote_dir)
+		return filter(lambda x: x, self.popen(commandline).split("\n"))
+
+	def delete(self, filename_list):
+		"""Runs ssh rm to delete files.  Files must not require quoting"""
+		pathlist = map(lambda fn: self.remote_prefix + fn, filename_list)
+		commandline = "ssh %s rm %s" % \
+					  (self.host_string, " ".join(pathlist))
+		self.run_command(commandline)
+
+
+class sftpBackend(Backend):
+	"""This backend uses sftp to perform file operations"""
+	pass # Do this later
 
 
 # Dictionary relating protocol strings to tuples (backend_object,
 # separate_host).  If separate_host is true, get_backend() above will
-# parse the url futher to try to extract a hostname, protocol, etc.
+# parse the url further to try to extract a hostname, protocol, etc.
 protocol_class_dict = {"scp": (scpBackend, 0),
+					   "ssh": (scpBackend, 0),
 					   "file": (LocalBackend, 0)}

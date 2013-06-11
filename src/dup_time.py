@@ -25,6 +25,7 @@ _genstr_date_regexp1 = re.compile("^(?P<year>[0-9]{4})[-/]"
 _genstr_date_regexp2 = re.compile("^(?P<month>[0-9]{1,2})[-/]"
 					   "(?P<day>[0-9]{1,2})[-/](?P<year>[0-9]{4})$")
 curtime = curtimestr = None
+prevtime = prevtimestr = None
 been_awake_since = None # stores last time sleep() was run
 
 def setcurtime(time_in_secs = None):
@@ -32,6 +33,11 @@ def setcurtime(time_in_secs = None):
 	global curtime, curtimestr
 	t = time_in_secs or time.time()
 	curtime, curtimestr = t, timetostring(t)
+
+def setprevtime(time_in_secs):
+	"""Sets the previous time in prevtime and prevtimestr"""
+	global prevtime, prevtimestr
+	prevtime, prevtimestr = time_in_secs, timetostring(time_in_secs)
 
 def timetostring(timeinseconds):
 	"""Return w3 datetime compliant listing of timeinseconds"""

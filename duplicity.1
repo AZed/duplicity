@@ -1,65 +1,112 @@
-.TH RDIFFDIR 1 "August 2002" "Version 0.0.2" "User Manuals"
+.TH RDIFFDIR 1 "August 2002" "Version 0.1.0" "User Manuals"
 .SH NAME
-rdiffdir \- compute and apply signatures and diffs to directories
+duplicity \- Flexible and secure backup using rsync algorithm
 .SH SYNOPSIS
-.B rdiffdir
+.B duplicity
 .BI [ options ]
-.B sig[nature]
-.I basis_dir signature_file
+.B full
+.I archive_name input_directory destination_url
 
-.B rdiffdir
+.B duplicity
 .BI [ options ]
-.B delta
-.I signature_file new_dir delta_file
+.B incremental
+.I archive_name input_directory destination_url
 
-.B rdiffdir
+.B duplicity
 .BI [ options ]
-.B patch
-.I basis_dir delta_file
-
-.B rdiffdir
-.BI [ options ]
-.B tar
-.I basis_dir tar_file
-
-If
-.I signature_file
-or
-.I delta_file
-are "-", the data will be read from stdin or written to stdout as appropriate.
+.B restore
+.I source_url
+.BI [ path_to_backup ]
+.I target_filename
 
 .SH DESCRIPTION
-.B rdiffdir
-is supposed to be like rdiff, but can operate on directories.  See
-.BR rdiff (1)
-for more information.  The syntax is similar.  This is not very well
-tested yet and is not yet ready for end-users.
+Duplicity incrementally backs up files and directory by encrypting
+tar-format volumes with GnuPG and uploading them to a remote (or
+local) file server.  In theory many remote backends are possible;
+right now only the local or ssh/scp backend is written.  Because
+duplicity uses librsync, the incremental archives are space efficient
+and only record the parts of files that have changed since the last
+backup.  Currently duplicity supports deleted files, full unix
+permissions, directories, symbolic links, fifos, etc., but not hard
+links.
+
+When running duplicity, the passphrase given to GPG will be read out
+of the PASSPHRASE environmental variable.
+
+.SH EXAMPLES
+Here is an example of a simple full backup:
+.PP
+.RS
+PASSPHRASE=foobar duplicity full myhomedir /home/me scp:://uid@other.host/some_dir
+.PP
+.RE
+After that is done, we may want to add an incremental backup one or
+more times:
+.PP
+.RS
+duplicity inc myhomedir /home/me scp://uid@other.host/some_dir
+.PP
+.RE
+Above we have omitted setting the "PASSPHRASE" variable on the same
+command line, although duplicity always requires that it be set.
+Then, suppose we accidentally delete /home/me and want to restore it
+the way it was at the time of last backup:
+.PP
+.RS
+duplicity restore scp://uid@other.host/some_dir /home/me
+.PP
+.RE
+If we wanted to restore just the file "Mail/article" in /home/me as it was
+three days ago into /home/me/restored_file:
+.PP
+.RS
+duplicity -t 3D restore scp://uid@other.host/some_dir Mail/article /home/me/restored_file
 
 .SH OPTIONS
 .TP
-.BI "--write-sig-to " sigfile
-This option is only used in
-.B delta
-and
-.B tar
-modes.  When specified, rdiffdir will write a signature of the
-directory it is processing to sigfile.  The end result will be a delta
-and a new signature calculated over the
-.B same
-data.
-
+.BI -t time ", --restore-time " time
+When restoring, specify the time to restore to.
 .TP
-.B -z, --gzip-compress
-Enable gzip compression and decompression of signature and delta
-files.
+.BI -v [0-9] ", --verbosity " [0-9]
+Specify verbosity level (0 is total silent, 3 is the default, and 9 is
+noisiest).
+
+.SH TIME FORMATS
+duplicity uses time strings in two places.  Firstly, many of the files
+duplicity creates will have the time in their filenames in the w3
+datetime format as described in a w3 note at
+http://www.w3.org/TR/NOTE-datetime.  Basically they look like
+"2001-07-15T04:09:38-07:00", which means what it looks like.  The
+"-07:00" section means the time zone is 7 hours behind UTC.
+.PP
+Secondly, the
+.BI -t ", and " --restore-time
+options take a time string, which can be given in any of several
+formats:
+.IP 1.
+the string "now" (refers to the current time)
+.IP 2.
+a sequences of digits, like "123456890" (indicating the time in
+seconds after the epoch)
+.IP 3.
+A string like "2002-01-25T07:00:00+02:00" in datetime format 
+.IP 4.
+An interval, which is a number followed by one of the characters s, m,
+h, D, W, M, or Y (indicating seconds, minutes, hourse, days, weeks,
+months, or years respectively), or a series of such pairs.  In this
+case the string refers to the time that preceded the current time by
+the length of the interval.  For instance, "1h78m" indicates the time
+that was one hour and 78 minutes ago.  The calendar here is
+unsophisticated: a month is always 30 days, a year is always 365 days,
+and a day is always 86400 seconds.
+.IP 5.
+A date format of the form YYYY/MM/DD, YYYY-MM-DD, MM/DD/YYYY, or
+MM/DD/YYYY, which indicates midnight on the day in question, relative
+to the current timezone settings.  For instance, "2002/3/5",
+"03-05-2002", and "2002-3-05" all mean March 5th, 2002.
 
 .SH SELECTION OPTIONS
-
-In
-.B signature
-and
-.B delta
-modes, rdiffdir accepts
+duplicity accepts
 .BR rdiff-backup -like
 selection options including --exclude, --exclude-filelist-stdin, etc.
 See the
@@ -77,7 +124,7 @@ error message.
 Ben Escoto <bescoto@stanford.edu>
 
 .SH SEE ALSO
-.BR duplicity (1),
+.BR rdiffdir (1),
 .BR python (1),
 .BR rdiff (1),
 .BR rdiff-backup (1).

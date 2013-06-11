@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # duplicity -- Extend rdiff functionality to directories
-# Version 0.0.2 released August 6, 2002
+# Version 0.1.0 released August 26, 2002
 #
 # Copyright (C) 2001, 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -17,9 +17,11 @@
 # Please send mail to me or the mailing list if you find bugs or have
 # any suggestions.
 
-import sys, getopt, re, gzip, os
+from __future__ import generators
+import sys, getopt, re, gzip, os, time
 from duplicity import diffdir, log, globals, selection, path, \
-	 dup_time, backends, gpg, misc, robust
+	 dup_time, backends, gpg, misc, robust, file_naming, manifest, \
+	 collections, patchdir
 
 # Will hold all the selection options
 select_opts = []
@@ -28,17 +30,20 @@ select_opts = []
 def parse_cmdline_options(arglist):
 	"""Parse argument list"""
 	global select_opts
-	try: optlist, args = getopt.getopt(arglist, "v:V",
-		 ["exclude=", "exclude-device-files",
+	try: optlist, args = getopt.getopt(arglist, "t:v:V",
+		 ["current-time=", "exclude=", "exclude-device-files",
 		  "exclude-filelist=", "exclude-filelist-stdin",
 		  "exclude-other-filesystems", "exclude-regexp=", "include=",
 		  "include-filelist=", "include-filelist-stdin",
-		  "include-regexp=", "null-separator", "verbosity="])
+		  "include-regexp=", "null-separator", "restore-time=",
+		  "verbosity="])
 	except getopt.error, e:
 		command_line_error("Bad command line option: %s" % (str(e),))
 
 	for opt, arg in optlist:
-		if (opt == "--exclude" or opt == "--exclude-regexp" or
+		if opt == "--current-time":
+			globals.current_time = get_int(arg, "current-time")
+		elif (opt == "--exclude" or opt == "--exclude-regexp" or
 			opt == "--include" or opt == "--include-regexp"):
 			select_opts.append((opt, arg))
 		elif (opt == "--exclude-device-files" or
@@ -49,6 +54,8 @@ def parse_cmdline_options(arglist):
 		elif (opt == "--exclude-filelist-stdin" or
 			  opt == "--include-filelist-stdin"):
 			select_opts.append((opt, ("stdin", sys.stdin)))
+		elif opt == "-t" or opt == "--restore-time":
+			globals.restore_time = dup_time.genstrtotime(arg)
 		elif opt == "-V":
 			print "duplicity version", str(globals.version)
 			sys.exit(0)
@@ -63,13 +70,21 @@ def command_line_error(message):
 	sys.stderr.write("See the duplicity manual page for instructions\n")
 	sys.exit(1)
 
+def get_int(int_string, description):
+	"""Require that int_string be an integer, return int value"""
+	try: return int(int_string)
+	except ValueError: log.FatalError("Received '%s' for %s, need integer" %
+									  (int_string, description))
+
 def get_action(args):
 	"""Figure out the main action from the arguments"""
 
-	if len(args) < 4: command_line_error("Too few arguments")
-	elif len(args) > 4: command_line_error("Too many arguments")
-
+	if len(args) < 3: command_line_error("Too few arguments")
 	command = args[0]
+	if command != "restore" and len(args) < 4:
+		command_line_error("Too few arguments")
+	if len(args) > 4: command_line_error("Too many arguments")
+
 	if command == "inc" or command == "increment": command = "inc"
 	return command, args[1:]
 
@@ -79,6 +94,20 @@ def get_selection(filename):
 	sel.ParseArgs(select_opts)
 	return sel.set_iter()
 
+def set_archive_dir(archive_name):
+	"""Verify archive dir and set globals.archive_dir exist"""
+	verify_duplicity_dir()
+	if not re.search("^[0-9a-zA-Z_-]*$", archive_name):
+		log.FatalError("Archive name %s contains bad characters"
+					   % archive_name)
+	archive_dir = globals.dupdir.append(archive_name)
+	if not archive_dir.exists():
+		log.Log("Creating archive directory %s" % archive_dir.name, 3)
+		archive_dir.mkdir()
+	elif not archive_dir.isdir():
+		log.FatalError("%s exists but isn't a directory" % archive_dir.name)
+	globals.archive_dir = archive_dir
+	return archive_dir
 
 def verify_duplicity_dir():
 	"""Create .duplicity if not already there"""
@@ -95,19 +124,6 @@ def verify_duplicity_dir():
 		log.FatalError("%s exists but isn't a directory" % dupdir.name)
 	globals.dupdir = dupdir
 
-def check_archive_name(archive_name):
-	"""Make sure archive name isn't too strange"""
-	if not re.search("^[0-9a-zA-Z_-]*$", archive_name):
-		log.FatalError("Archive name %s contains bad characters"
-					   % archive_name)
-	archive_dir = globals.dupdir.append(archive_name)
-	if not archive_dir.exists():
-		log.Log("Creating archive directory %s" % archive_dir.name, 3)
-		archive_dir.mkdir()
-	elif not archive_dir.isdir():
-		log.FatalError("%s exists but isn't a directory" % archive_dir.name)
-	return archive_dir
-
 def get_passphrase():
 	"""Get passphrase from environment"""
 	try: return os.environ['PASSPHRASE']
@@ -115,77 +131,172 @@ def get_passphrase():
 		log.FatalError("Cannot read passphrase from environment "
 					   "variable PASSPHRASE.")
 
-def full_backup(directory, archive_path, backend):
+def write_multivol(backup_type, archive_dir, tarblock_iter, backend):
+	"""Encrypt volumes of tarblock_iter and write to backend
+
+	backup_type should be "inc" or "full" and only matters here when
+	picking the filenames.  The path_prefix will determine the names
+	of the files written to backend.  Also writes manifest file.
+
+	"""
+	mf = manifest.Manifest()
+	volume_number = 1
+	while tarblock_iter.peek():
+		# Create volume
+		start_index = tarblock_iter.peek().index
+		volume_path = archive_dir.append(
+			file_naming.get(backup_type, volume_number, encrypted = 1))
+		gpg.GPGWriteFile(tarblock_iter, volume_path.name, get_passphrase())
+		volume_path.setdata()
+		end_index = tarblock_iter.get_previous_index()
+
+		# Add volume information to manifest
+		vi = manifest.VolumeInfo()
+		vi.set_info(volume_number, start_index, end_index)
+		vi.set_hash("SHA1", gpg.get_sha_hash(volume_path))
+		mf.add_volume_info(vi)
+
+		backend.put(volume_path)
+		volume_path.delete()
+		volume_number += 1
+
+	write_manifest(mf, backup_type, archive_dir, backend)
+
+def write_manifest(mf, backup_type, archive_dir, backend):
+	"""Write manifest to file in archive_dir and encrypted to backend"""
+	manifest_path = archive_dir.append(
+		file_naming.get(backup_type, manifest = 1))
+	mf.write_to_path(manifest_path)
+
+	encrypted_mf_path = archive_dir.append(
+		file_naming.get(backup_type, manifest = 1, encrypted = 1))
+	assert not encrypted_mf_path.exists()
+	fout = gpg.GPGFile(1, encrypted_mf_path, get_passphrase())
+	fout.write(str(mf))
+	assert not fout.close()
+	backend.put(encrypted_mf_path)
+	encrypted_mf_path.delete()
+
+def full_backup(sel, backend):
 	"""Do full backup of directory to backend, using archive_dir"""
-	sel = get_selection(directory)
-	tmp_sig_path = robust.get_tmpfile(archive_path)
+	tmp_sig_path = robust.get_tmpfile(globals.archive_dir)
 	sig_outfp = gzip.GzipFile(tmp_sig_path.name, "wb")
-	tar_outfp = diffdir.Tar_WriteSig(sel, sig_outfp)
 
-	tar_out_prefix = archive_path.append("duplicity-full.%s.tar.gpg"
-										 % dup_time.curtimestr).name
-	encrypted_tar_outfp = gpg.GPGFile(1, tar_outfp, get_passphrase())
-	for volume_name in misc.FileVolumeWriter(encrypted_tar_outfp,
-											 tar_out_prefix):
-		backend.put(volume_name)
-		os.unlink(volume_name)
+	tarblock_iter = diffdir.DirFull_WriteSig(sel, sig_outfp)
+
+	write_multivol("full", globals.archive_dir, tarblock_iter, backend)
 	tmp_sig_path.rename(
-		archive_path.append("duplicity-signatures.%s.sigtar.gz" %
-							(dup_time.curtimestr,)))
-
-def incremental_backup(directory, archive_path, backend):
+		globals.archive_dir.append(file_naming.get("full-sig", gzipped = 1)))
+	
+def incremental_backup(col_stats, sel, backend):
 	"""Do incremental backup of directory to backend, using archive_dir"""
-	sel = get_selection(directory)
-	old_sig_path = inc_backup_get_latest_sigs(archive_path)
-	old_sig_infp = misc.BufferedFile(gzip.GzipFile(old_sig_path.name, "rb"))
-	tmp_sig_path = robust.get_tmpfile(archive_path)
+	if not col_stats.matched_chain_pair:
+		log.FatalError("Unable to start incremental backup, old signatures "
+					   "not found.")
+	sig_chain = col_stats.matched_chain_pair[0]		
+	dup_time.setprevtime(sig_chain.end_time)
+
+	tmp_sig_path = robust.get_tmpfile(globals.archive_dir)
 	new_sig_outfp = gzip.GzipFile(tmp_sig_path.name, "wb")
 
-	delta_outfp = diffdir.DirDelta_WriteSig(sel, old_sig_infp, new_sig_outfp)
-	delta_out_prefix = archive_path.append("duplicity-inc.%s.difftar.gpg"
-										   % dup_time.curtimestr).name
-	encrypted_deltatar_outfp = gpg.GPGFile(1, delta_outfp, get_passphrase())
-	for volume_name in misc.FileVolumeWriter(encrypted_deltatar_outfp,
-											 delta_out_prefix):
-		backend.put(volume_name)
-		os.unlink(volume_name)
+	tarblock_iter = diffdir.DirDelta_WriteSig(sel, sig_chain.get_fileobjs(),
+											  new_sig_outfp)
+	write_multivol("inc", globals.archive_dir, tarblock_iter, backend)
 	tmp_sig_path.rename(
-		archive_path.append("duplicity-signatures.%s.sigtar.gz" %
-									   (dup_time.curtimestr,)))
-	old_sig_path.delete()
+		globals.archive_dir.append(file_naming.get("new-sig", gzipped = 1)))
 
-def inc_backup_get_latest_sigs(archive_path):
-	"""Return path of latest signature in archive dir"""
-	name_time_pairs = []
-	for filename in archive_path.listdir():
-		# First weed out the non-signature files
-		comps = filename.split(".")
-		if (not len(comps) == 4 or not comps[0] == "duplicity-signatures" or
-			not comps[2] == "sigtar"): continue
-		timeinseconds = dup_time.stringtotime(comps[1])
-		if not timeinseconds: continue
-		name_time_pairs.append((timeinseconds, filename))
-	if not name_time_pairs:
-		log.FatalError("No signatures found, cannot perform "
-					   "incremental backup")
-	else:
-		name_time_pairs.sort()
-		sig_path = archive_path.append(name_time_pairs[-1][1])
-		log.Log("Using signatures at %s" % (sig_path.name,), 5)
-		return sig_path
+
+def restore(backend, restrict_pathname, target_pathname):
+	"""Restore archive in backend to target_pathname.
+
+	If restrict_pathname is given, only backup files starting it.
+
+	"""
+	if restrict_pathname: index = tuple(restrict_pathname.split("/"))
+	else: index = ()
+	target = path.Path(target_pathname)
+
+	for backup_set in restore_get_setlist(backend,
+										  globals.restore_time or
+										  globals.current_time):
+		log.Log("Patching from backup set at time " +
+				backup_set.get_timestr(), 4)
+		patchdir.Patch_from_iter(target,
+								 restore_fileobj_iter(backup_set, index),
+								 index)
+
+def restore_get_setlist(backend, time):
+	"""Get list of relevant backup sets"""
+	col_stats = collections.CollectionsStatus(backend, None)
+	col_stats.set_values(no_archive_dir = 1)
+	chain = col_stats.get_backup_chain_at_time(time)
+	return chain.get_sets_at_time(time)
+
+def restore_fileobj_iter(backup_set, index = ()):
+	"""Get file object iterator from backup_set contain given index"""
+	manifest = restore_get_manifest(backup_set)
+	for vol_num in manifest.get_containing_volumes(index):
+		yield restore_get_enc_fileobj(backup_set.backend,
+									  backup_set.volume_name_dict[vol_num])
+
+def restore_get_manifest(backup_set):
+	"""Return manifest from given backup set"""
+	temp = robust.get_tmpfile()
+	fp = restore_get_enc_fileobj(backup_set.backend,
+								 backup_set.remote_manifest_name)
+	buf = fp.read()
+	assert not fp.close()
+	return manifest.Manifest().from_string(buf)
+
+def restore_get_enc_fileobj(backend, filename, encrypted = 1):
+	"""Return plaintext fileobj from encrypted filename on backend"""
+	class FileLike:
+		"""Like file but add extra closing hook"""
+		def __init__(self, fileobj, closing_hook):
+			self.fileobj = fileobj
+			self.closing_hook = closing_hook
+		def read(self, length = -1): return self.fileobj.read(length)
+		def close(self):
+			result = self.fileobj.close()
+			self.closing_hook()
+			return result
+
+	temp = robust.get_tmpfile(globals.archive_dir)
+	backend.get(filename, temp)
+	if not encrypted: temp.open("rb")
+	else: fileobj = gpg.GPGFile(0, temp, get_passphrase())
+	return FileLike(fileobj, temp.delete)
 
 def main():
 	"""Start/end here"""
 	args = parse_cmdline_options(sys.argv[1:])
-	action, (archive_name, directory, dest_url) = get_action(args)
-	verify_duplicity_dir()
-	archive_path = check_archive_name(archive_name)
-	backend = backends.get_backend(dest_url)
-	dup_time.setcurtime()
+	action, other_args = get_action(args)
+	dup_time.setcurtime(globals.current_time)
 
-	if action == "inc": incremental_backup(directory, archive_path, backend)
-	elif action == "full": full_backup(directory, archive_path, backend)
-	else: command_line_error("Bad action " + action)
+	if action == "restore":
+		if len(other_args) == 2:
+			backup_url, target_pathname = other_args
+			restrict_pathname = None
+		else: backup_url,  restrict_pathname, target_pathname = other_args
+		backend = backends.get_backend(backup_url)
+		restore(backend, restrict_pathname, target_pathname)
+	else:
+		# Full or incremental backup
+		archive_name, directory, dest_url = other_args
+		archive_dir = set_archive_dir(archive_name)
+		backend = backends.get_backend(dest_url)
+
+		col_stats = collections.CollectionsStatus(backend, archive_dir)
+		col_stats.set_values()
+		sel = get_selection(directory)
+
+		if action == "inc":
+			incremental_backup(col_stats, sel, backend)
+		elif action == "full":
+			full_backup(sel, backend)
+			if col_stats.matched_chain_pair:
+				col_stats.matched_chain_pair[0].delete()
+		else: command_line_error("Bad action " + action)
 
 		
 if __name__ == "__main__": main()
