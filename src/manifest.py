@@ -97,6 +97,20 @@ class VolumeInfo:
 		"""Set the value of hash hash_name (e.g. "MD5") to data"""
 		self.hashes[hash_name] = data
 
+	def get_best_hash(self):
+		"""Return pair (hash_type, hash_data)
+
+		SHA1 is the best hash, and MD5 is the second best hash.  None
+		is returned if no hash is available.
+
+		"""
+		if not self.hashes: return None
+		try: return ("SHA1", self.hashes['SHA1'])
+		except KeyError: pass
+		try: return ("MD5", self.hashes['MD5'])
+		except KeyError: pass
+		return self.hashes.items()[0]
+
 	def to_string(self):
 		"""Return nicely formatted string reporting all information"""
 		nonnormal_char_re = re.compile("(\\s|[\\\\\"'])")

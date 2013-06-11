@@ -103,4 +103,3 @@ class ParseResults:
 		self.time = time
 		self.start_time, self.end_time = start_time, end_time
 
-		

@@ -1,7 +1,7 @@
 """Classes and functions on collections of backup volumes"""
 
 import gzip
-import log, file_naming, path, dup_time
+import log, file_naming, path, dup_time, globals
 
 class CollectionsError(Exception): pass
 
@@ -39,10 +39,7 @@ class BackupSet:
 			if (pr.start_time != self.start_time or
 				pr.end_time != self.end_time): return None
 
-		if pr.manifest:
-			assert not self.remote_manifest_name, \
-				   (self.remote_manifest_name, filename)
-			self.remote_manifest_name = filename
+		if pr.manifest: self.set_manifest(filename)
 		else:
 			assert pr.volume_number is not None
 			assert not self.volume_name_dict.has_key(pr.volume_number), \
@@ -58,6 +55,22 @@ class BackupSet:
 		self.start_time, self.end_time = pr.start_time, pr.end_time
 		self.time = pr.time
 		self.info_set = 1
+
+	def set_manifest(self, remote_filename):
+		"""Add local and remote manifest filenames to backup set"""
+		assert not self.remote_manifest_name, (self.remote_manifest_name,
+											   remote_filename)
+		self.remote_manifest_name = remote_filename
+
+		if not globals.archive_dir: return
+		for local_filename in globals.archive_dir.listdir():
+			pr = file_naming.parse(local_filename)
+			if (pr and pr.manifest and pr.type == self.type and
+				pr.time == self.time and pr.start_time == self.start_time
+				and pr.end_time == self.end_time):
+				self.local_manifest_path = \
+							  globals.archive_dir.append(local_filename)
+				break
 
 	def delete(self):
 		"""Remove all files in set"""

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # duplicity -- Extend rdiff functionality to directories
-# Version 0.1.0 released August 26, 2002
+# Version 0.1.1 released September 16, 2002
 #
 # Copyright (C) 2001, 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -31,18 +31,21 @@ def parse_cmdline_options(arglist):
 	"""Parse argument list"""
 	global select_opts
 	try: optlist, args = getopt.getopt(arglist, "t:v:V",
-		 ["current-time=", "exclude=", "exclude-device-files",
-		  "exclude-filelist=", "exclude-filelist-stdin",
-		  "exclude-other-filesystems", "exclude-regexp=", "include=",
-		  "include-filelist=", "include-filelist-stdin",
-		  "include-regexp=", "null-separator", "restore-time=",
+		 ["archive-dir=", "current-time=", "encrypt-key=", "exclude=",
+		  "exclude-device-files", "exclude-filelist=",
+		  "exclude-filelist-stdin", "exclude-other-filesystems",
+		  "exclude-regexp=", "include=", "include-filelist=",
+		  "include-filelist-stdin", "include-regexp=",
+		  "null-separator", "restore-time=", "sign-key=",
 		  "verbosity="])
 	except getopt.error, e:
 		command_line_error("Bad command line option: %s" % (str(e),))
 
 	for opt, arg in optlist:
-		if opt == "--current-time":
+		if opt == "--archive-dir": globals.archive_dir = path.Path(arg)
+		elif opt == "--current-time":
 			globals.current_time = get_int(arg, "current-time")
+		elif opt == "--encrypt-key": globals.encryption_keys.append(arg)
 		elif (opt == "--exclude" or opt == "--exclude-regexp" or
 			opt == "--include" or opt == "--include-regexp"):
 			select_opts.append((opt, arg))
@@ -56,6 +59,7 @@ def parse_cmdline_options(arglist):
 			select_opts.append((opt, ("stdin", sys.stdin)))
 		elif opt == "-t" or opt == "--restore-time":
 			globals.restore_time = dup_time.genstrtotime(arg)
+		elif opt == "--sign-key": set_sign_key(arg)
 		elif opt == "-V":
 			print "duplicity version", str(globals.version)
 			sys.exit(0)
@@ -75,6 +79,13 @@ def get_int(int_string, description):
 	try: return int(int_string)
 	except ValueError: log.FatalError("Received '%s' for %s, need integer" %
 									  (int_string, description))
+
+def set_sign_key(sign_key):
+	"""Set globals.sign_key assuming proper key given"""
+	if not len(sign_key) == 8 or not re.search("^[0-9A-F]*$", sign_key):
+		log.FatalError("Sign key should be an 8 character hex string, like "
+					   "'AA0E73D2'.\nReceived '%s' instead." % (sign_key,))
+	globals.sign_key = sign_key
 
 def get_action(args):
 	"""Figure out the main action from the arguments"""
@@ -146,14 +157,16 @@ def write_multivol(backup_type, archive_dir, tarblock_iter, backend):
 		start_index = tarblock_iter.peek().index
 		volume_path = archive_dir.append(
 			file_naming.get(backup_type, volume_number, encrypted = 1))
-		gpg.GPGWriteFile(tarblock_iter, volume_path.name, get_passphrase())
+		gpg.GPGWriteFile(tarblock_iter, volume_path.name, get_passphrase(),
+						 recipients = globals.encryption_keys,
+						 sign_key = globals.sign_key)
 		volume_path.setdata()
 		end_index = tarblock_iter.get_previous_index()
 
 		# Add volume information to manifest
 		vi = manifest.VolumeInfo()
 		vi.set_info(volume_number, start_index, end_index)
-		vi.set_hash("SHA1", gpg.get_sha_hash(volume_path))
+		vi.set_hash("SHA1", gpg.get_hash("SHA1", volume_path))
 		mf.add_volume_info(vi)
 
 		backend.put(volume_path)
@@ -171,7 +184,9 @@ def write_manifest(mf, backup_type, archive_dir, backend):
 	encrypted_mf_path = archive_dir.append(
 		file_naming.get(backup_type, manifest = 1, encrypted = 1))
 	assert not encrypted_mf_path.exists()
-	fout = gpg.GPGFile(1, encrypted_mf_path, get_passphrase())
+	fout = gpg.GPGFile(1, encrypted_mf_path,
+					   get_passphrase(), recipients = globals.encryption_keys,
+					   sign_key = globals.sign_key)
 	fout.write(str(mf))
 	assert not fout.close()
 	backend.put(encrypted_mf_path)
@@ -237,35 +252,75 @@ def restore_fileobj_iter(backup_set, index = ()):
 	manifest = restore_get_manifest(backup_set)
 	for vol_num in manifest.get_containing_volumes(index):
 		yield restore_get_enc_fileobj(backup_set.backend,
-									  backup_set.volume_name_dict[vol_num])
+							 backup_set.volume_name_dict[vol_num],
+							 volume_info = manifest.volume_info_dict[vol_num])
 
 def restore_get_manifest(backup_set):
-	"""Return manifest from given backup set"""
-	temp = robust.get_tmpfile()
-	fp = restore_get_enc_fileobj(backup_set.backend,
-								 backup_set.remote_manifest_name)
+	"""Return manifest from given backup set
+
+	Use local copy if available, so the hashes can be checked with
+	some security.
+
+	"""
+	if backup_set.local_manifest_path:
+		fp = backup_set.local_manifest_path.open("r")
+	else:
+		log.Log("Warning: Local manifest file not found, using remote copy", 2)
+		fp = restore_get_enc_fileobj(backup_set.backend,
+									 backup_set.remote_manifest_name)
 	buf = fp.read()
 	assert not fp.close()
 	return manifest.Manifest().from_string(buf)
 
-def restore_get_enc_fileobj(backend, filename, encrypted = 1):
-	"""Return plaintext fileobj from encrypted filename on backend"""
+def restore_get_enc_fileobj(backend, filename, encrypted = 1,
+							volume_info = None):
+	"""Return plaintext fileobj from encrypted filename on backend
+
+	If volume_info is set, the hash of the file will be checked,
+	assuming some hash is available.  Also, if globals.sign_key is
+	set, a fatal error will be raised if file not signed by sign_key.
+
+	"""
+	if globals.sign_key: assert encrypted # File must be encrypted if signed
+
 	class FileLike:
-		"""Like file but add extra closing hook"""
-		def __init__(self, fileobj, closing_hook):
+		"""Like file but add extra closing hook
+
+		Also, if sign_key is set, raise fatal error on close if
+		sign_key was not used to sign the decrypted file
+
+		"""
+		def __init__(self, fileobj, closing_hook, sign_key):
 			self.fileobj = fileobj
 			self.closing_hook = closing_hook
+			self.sign_key = sign_key
 		def read(self, length = -1): return self.fileobj.read(length)
 		def close(self):
 			result = self.fileobj.close()
+			if self.sign_key:
+				actual_sig = self.fileobj.get_signature()
+				if actual_sig != self.sign_key:
+					log.FatalError("Volume was not signed by key %s, not %s" %
+								   (actual_sig, self.sign_key))
 			self.closing_hook()
 			return result
 
 	temp = robust.get_tmpfile(globals.archive_dir)
 	backend.get(filename, temp)
+
+	if volume_info:
+		hash_pair = volume_info.get_best_hash()
+		if hash_pair:
+			calculated_hash = gpg.get_hash(hash_pair[0], temp)
+			if calculated_hash != hash_pair[1]:
+				log.FatalError("Invalid data - %s hash mismatch:\n"
+							   "Calculated hash: %s\n"
+							   "Manifest hash: %s\n" %
+							   (hash_pair[0], calculated_hash, hash_pair[1]))
+	
 	if not encrypted: temp.open("rb")
 	else: fileobj = gpg.GPGFile(0, temp, get_passphrase())
-	return FileLike(fileobj, temp.delete)
+	return FileLike(fileobj, temp.delete, globals.sign_key)
 
 def main():
 	"""Start/end here"""

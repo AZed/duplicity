@@ -1,9 +1,9 @@
 """duplicity's gpg interface"""
 
-import select, os, sys, thread, sha
+import select, os, sys, thread, sha, md5, types, cStringIO, tempfile, re
 import GnuPGInterface, misc
 
-blocksize = 16 * 1024
+blocksize = 256 * 1024
 
 class GPGError(Exception):
 	"""Indicate some GPG Error"""
@@ -11,25 +11,47 @@ class GPGError(Exception):
 
 class GPGFile:
 	"""File-like object that decrypts another file on the fly"""
-	def __init__(self, encrypt, encrypt_path, passphrase):
+	def __init__(self, encrypt, encrypt_path, passphrase,
+				 sign_key = None, recipients = []):
 		"""GPGFile initializer
+
+		If recipients is set, use public key encryption and encrypt to
+		the given keys.  Otherwise, use symmetric encryption.
 
 		encrypt_path is the Path of the gpg encrypted file.  Right now
 		only symmetric encryption/decryption is supported.
 
+		If passphrase is false, do not set passphrase - GPG program
+		should prompt for it.
+
+		sign_key should be the 8 character hex key, like AA0E73D2.
+
 		"""
+		if recipients: assert encrypt # no recipients for decryption
+		if sign_key: assert encrypt and recipients # only sign w asym encrypt
+		assert type(recipients) is types.ListType # must be list, not tuple
+
 		# Start GPG process - copied from GnuPGInterface docstring.
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
 		gnupg.options.extra_args.append('--no-secmem-warning')
 		gnupg.passphrase = passphrase
+		if sign_key: gnupg.options.default_key = sign_key
+
 		if encrypt:
-			p1 = gnupg.run(['--symmetric'], create_fhs=['stdin'],
+			if recipients:
+				gnupg.options.recipients = recipients
+				cmdlist = ['--encrypt']
+				if sign_key: cmdlist.append("--sign")
+			else: cmdlist = ['--symmetric']
+			p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
 						   attach_fhs={'stdout': encrypt_path.open("wb")})
 			self.gpg_input = p1.handles['stdin']
 		else:
+			self.status_fp = tempfile.TemporaryFile()
 			p1 = gnupg.run(['--decrypt'], create_fhs=['stdout'],
-						   attach_fhs={'stdin': encrypt_path.open("rb")})
+						   attach_fhs={'stdin': encrypt_path.open("rb"),
+									   'status': self.status_fp})
 			self.gpg_output = p1.handles['stdout']
 		self.gpg_process = p1
 		self.encrypt = encrypt
@@ -46,8 +68,26 @@ class GPGFile:
 			self.gpg_input.close()
 			self.gpg_process.wait()
 		else:
+			while self.gpg_output.read(blocksize):
+				pass # discard remaining output to avoid GPG error
 			self.gpg_output.close()
 			self.gpg_process.wait()
+
+	def get_signature(self):
+		"""Return 8 character signature keyID
+
+		This only applies to decrypted files.  If the file was not
+		signed, None will be returned.
+
+		"""
+		self.status_fp.seek(0)
+		status_buf = self.status_fp.read()
+		print "*******************", status_buf
+		match = re.search("^\\[GNUPG:\\] GOODSIG ([0-9A-F]*)",
+						  status_buf, re.M)
+		if not match: return None
+		assert len(match.group(1)) >= 8
+		return match.group(1)[-8:]
 
 	def feed_process(self):
 		while 1:
@@ -58,7 +98,8 @@ class GPGFile:
 		self.gpg_input.close()
 
 
-def GPGWriteFile(block_iter, filename, passphrase,
+def GPGWriteFile(block_iter, filename, passphrase, sign_key = None,
+				 recipients = [],
 				 size = 50 * 1024 * 1024, max_footer_size = 16 * 1024):
 	"""Write GPG compressed file of given size
 
@@ -74,14 +115,22 @@ def GPGWriteFile(block_iter, filename, passphrase,
 	max_footer_size.
 
 	"""
+	assert type(recipients) is types.ListType
+
 	def start_gpg(filename, passphrase):
 		"""Start GPG process, return (process, to_gpg_fileobj)"""
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
 		gnupg.options.extra_args.append('--no-secmem-warning')
 		gnupg.passphrase = passphrase
+		if sign_key: gnupg.options.default_key = sign_key
 
-		p1 = gnupg.run(['--symmetric'], create_fhs=['stdin'],
+		if recipients:
+			gnupg.options.recipients = recipients
+			cmdlist = ['--encrypt']
+			if sign_key: cmdlist.append("--sign")
+		else: cmdlist = ['--symmetric']
+		p1 = gnupg.run(cmdlist, create_fhs=['stdin'],
 					   attach_fhs={'stdout': open(filename, "wb")})
 		return (p1, p1.handles['stdin'])
 
@@ -117,16 +166,23 @@ def GPGWriteFile(block_iter, filename, passphrase,
 	close_process(gpg_process, to_gpg_fp)
 
 		
-def get_sha_hash(path, hex = 1):
-	"""Return SHA1 hash of path, in hexadecimal form if hex is true"""
+def get_hash(hash, path, hex = 1):
+	"""Return hash of path
+
+	hash should be "MD5" or "SHA1".  The output will be in hexadecimal
+	form if hex is true, and in text (base64) otherwise.
+
+	"""
 	assert path.isreg()
-	blocksize = 64 * 1024
 	fp = path.open("rb")
-	sha_obj = sha.new()
+	if hash == "SHA1": hash_obj = sha.new()
+	elif hash == "MD5": hash_obj = md5.new()
+	else: assert 0, "Unknown hash %s" % (hash,)
+
 	while 1:
 		buf = fp.read(blocksize)
 		if not buf: break
-		sha_obj.update(buf)
+		hash_obj.update(buf)
 	assert not fp.close()
-	if hex: return sha_obj.hexdigest()
-	else: return sha_obj.digest()
+	if hex: return hash_obj.hexdigest()
+	else: return hash_obj.digest()

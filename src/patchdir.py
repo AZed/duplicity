@@ -243,13 +243,15 @@ class TarFile_FromFileobjs:
 		"""
 		self.fileobj_iter = fileobj_iter
 		self.tarfile, self.tar_iter = None, None
+		self.current_fp = None
 
 	def __iter__(self): return self
 
 	def set_tarfile(self):
 		"""Set tarfile from next file object, or raise StopIteration"""
-		self.tarfile = tarfile.TarFile("arbitrary", "r",
-									   self.fileobj_iter.next())
+		if self.current_fp: assert not self.current_fp.close()
+		self.current_fp = self.fileobj_iter.next()
+		self.tarfile = tarfile.TarFile("arbitrary", "r", self.current_fp)
 		self.tar_iter = iter(self.tarfile)
 
 	def next(self):

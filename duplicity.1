@@ -1,4 +1,4 @@
-.TH RDIFFDIR 1 "August 2002" "Version 0.1.0" "User Manuals"
+.TH RDIFFDIR 1 "September 2002" "Version 0.1.1" "User Manuals"
 .SH NAME
 duplicity \- Flexible and secure backup using rsync algorithm
 .SH SYNOPSIS
@@ -64,8 +64,27 @@ duplicity -t 3D restore scp://uid@other.host/some_dir Mail/article /home/me/rest
 
 .SH OPTIONS
 .TP
+.BI "--archive-dir " path
+When restoring, specify the local archive directory.  This option is
+not necessary, but if hash data is found locally in
+.I path
+it will be checked against remote files.
+.TP
+.BI "--encrypt-key " key
+When backing up, encrypt to the given public key, instead of using
+symmetric (traditional) encryption.  Can be specified multiple times.
+.TP
 .BI -t time ", --restore-time " time
 When restoring, specify the time to restore to.
+.TP
+.BI "--sign-key " key
+This option can be used when backing up or restoring.  When backing
+up, all backup files will be signed with keyid
+.IR key .
+When restoring, duplicity will signal an error if any remote file is
+not signed with the given keyid.
+.I key
+should be an 8 character hex string, like AA0E73D2.
 .TP
 .BI -v [0-9] ", --verbosity " [0-9]
 Specify verbosity level (0 is total silent, 3 is the default, and 9 is
@@ -119,6 +138,9 @@ regular files).
 
 Bad signatures will be treated as empty instead of logging appropriate
 error message.
+
+Large files (> 2GB) are not handled correctly.  Send me email if you
+know how to stat large files.
 
 .SH AUTHOR
 Ben Escoto <bescoto@stanford.edu>

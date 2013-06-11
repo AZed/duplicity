@@ -1,3 +1,21 @@
+New in v0.1.1 (2002/09/16)
+--------------------------
+
+Supports asymmetric encryption with GPG public keys using the
+--encrypt-key option.
+
+Added option --sign-key.  When backing up, files are signed with the
+given key.  When restoring, remote files are required to be signed by
+given key.
+
+Now duplicity checks the hash data found in the manifest file.  The
+previous version generated SHA1 hashes but did not check them when
+restoring.
+
+Fixed GnuPG broken pipe error.  In the previous version certain
+partial restores would end with a spurious GnuPG error message.
+
+
 New in v0.1.0 (2002/08/26)
 --------------------------
 
