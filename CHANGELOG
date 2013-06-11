@@ -1,3 +1,41 @@
+New in v0.6.15 (2011/08/19)
+----------------------------
+Enhancements:
+- Ignore 404 errors when deleting a file on Ubuntu One.
+- Ignore ENOENT (file missing) errors where it is safe.
+- Set minimum Python version to 2.4 in README.
+- introduce --numeric-owner parameter
+  patch courtesy of Lukas Anzinger <l.anzinger AT gmail.com>
+- duplicity:restore_check_hash
+  "Invalid data - *** hash mismatch" lists the offending filename
+- fixes to unit tests to support SIGN_PASSPHRASE
+
+Bugs closed in this release:
+524922     duplicity does not have numeric uid/gid support
+703142     AssertionError: assert len(chain_list) == 2
+794576     Transport endpoint is not connected
+815635     Bad passphrase can leave bogus sigtar in archive
+818178     Shouldn't try to delete files it knows don't exist
+821368     Error doing backup of the .evolution folder
+823556     sftp errors after rev 740 change
+824678     0.6.14 Fails to install on 8.04 LTS (Hardy)
+
+Merges:
+lp:~mterry/duplicity/u1-ignore-404
+lp:~mterry/duplicity/guard-tarinfo
+lp:~mterry/duplicity/enotconn
+lp:~mterry/duplicity/look-at-partials-during-sync
+lp:~mterry/duplicity/more-accurate-sync
+lp:~mterry/duplicity/report-encrypted-chains
+lp:~mterry/duplicity/815635
+lp:~mterry/duplicity/retry-u1
+lp:~mterry/duplicity/818178
+lp:~ed.so/duplicity/encr-sign-key2
+lp:~mterry/duplicity/u1-fixes
+lp:~carlos-abalde/duplicity/google-docs
+lp:~ed.so/duplicity/numowner+hashverbose
+
+
 New in v0.6.14 (2011/06/18)
 ----------------------------
 Enhancements:

@@ -23,7 +23,7 @@
 import sys, os
 from distutils.core import setup, Extension
 
-version_string = "0.6.14"
+version_string = "0.6.15"
 
 if sys.version_info[:2] < (2,3):
     print "Sorry, duplicity requires version 2.4 or later of python"
