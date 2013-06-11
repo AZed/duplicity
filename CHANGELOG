@@ -1,3 +1,255 @@
+New in v0.6.18 (2012/02/29)
+----------------------------
+Enhancements:
+- fix extraneous '.py' in botobackend.py include
+- tests: add delay between backups to avoid assertion error
+- tests: use backup source that is more likely to be larger than 1M compressed
+- tests: make other-filesystem check more robust against certain directories being mounts or not
+- resuming an incremental results in a 'Restarting backup, but current encryption settings do not match original settings' error because curtime is incorrectly set away from previous incremental value
+- added option to not compress the backup, when no encryption is selected
+- always delay a little bit when a backend gives us errors
+- Don't cache TarInfo files. Tests still pass, so I don't believe we need the members cache (and in the old tarfile.py, we didn't cache either).
+- Adding --file-prefix option so different sets of backups can be stored in the same bucket.  See blueprint at https://blueprints.launchpad.net/duplicity/+spec/file-prefix-option
+- two changes that help the test suite pass
+- raise log level on backend import failure so it will be visible under default conditions
+- file /etc/motd may not exist in test environment.  Use __file__ instead to point to a known plaintext source file.
+- some code/import changes to make the ssh and boto backends compatible with Python 2.4.
+- some changes to make roottest.py compatible with the new dir structure.
+
+Bugs closed in this release:
+884638     Python 2.5 / boto error
+908228     possible memory leak
+909031     SSH-Backend: Creating dirs separately causes a permissons-problems
+916689     multipart upload fails on python 2.7.2
+929465     UnsupportedBackendScheme: scheme not supported in url: scp://u123@u123.example.com/foo/
+930727     ftpsbackend should respect num_retries for ftp commands
+931175     duplicity crashes when PYTHONOPTIMIZE is set
+
+Merges:
+lp:~mterry/duplicity/always-delay
+lp:~mterry/duplicity/memleak
+lp:~mterry/duplicity/nopexpect
+lp:~mterry/duplicity/resume-inc
+lp:~mterry/duplicity/testfixes
+lp:~nguyenqmai/duplicity/file-prefix-option
+lp:~tobias-genannt/duplicity/nocompress
+
+
+New in v0.6.17 (2011/11/25)
+----------------------------
+Enhancements:
+- Added --rsync-options flag to allow user to pass options to rsync at will
+- Added --s3-use-multiprocessing to select the new s3 multiprocessing backend.
+  Default is to use the single processing backend.  A helper, filechunkio.py,
+  requires Python 2.6+, so this option is not usable in earlier versions.
+
+Bugs closed in this release:
+411145     Misleading error message: "Invalid SSH password"
+871875     File ... was corrupted during upload.
+878220	   UnsupportedBackendScheme: scheme not supported in url: s3+http
+878964     Resuming a backup with a different password should throw an error
+881070	   Bugfix for S3 multipart upload on 0.6.16
+881727	   duplicity 0.6.16 lists all backup sets as incomplete
+885670	   Duplicity fails to add incremental backups to chain...
+
+Merges:
+lp:~mterry/duplicity/check-passphrase-on-restart
+lp:~moss-d/duplicity/rsync-options
+
+
+New in v0.6.16 (2011/10/16)
+----------------------------
+Enhancements:
+- Usability enhancement: sign passphrase prompt has no second
+  verification prompt anymore, symmetric passphrases are
+  still verified
+- Fixed Unicode errors when translations are used.
+- Replaced old tarfile.py with Python 2.7 version, modded
+  to support Python 2.4 syntax.
+
+Bugs closed in this release:
+485219     Fixed fields are not fixed, leading to buffer overflows...
+676109     Amazon S3 backend multipart upload support
+690549     uid and guid setting adversely affects integrity
+739438     Local backend should always try renaming instead of copying
+832149     Uploads to Rackspace fail silently
+835892     duplicity crash: "AssertionError: rb None None"
+838162     Duplicity URL Parser is not parsing IPv6 properly
+838264     Duplicity thinks partial encrypted backups are not encrypted
+870116     Duplicity does not handle UIDs higher than 60001
+
+Merges:
+lp:~ed.so/duplicity/reuse-passphrase-for-signing-fix
+lp:~mterry/duplicity/cloudfiles-10k
+lp:~duplicity-team/duplicity/check-volumes
+lp:~mterry/duplicity/tarfile
+lp:~mterry/duplicity/partial-encryption
+lp:~mterry/duplicity/fix-local-backend-validation
+lp:~ross-ross-williams/duplicity/gpg-agent-fix
+lp:~mterry/duplicity/rbNoneNone
+lp:~ed.so/duplicity/UnicodeDecodeError
+
+
+New in v0.6.15 (2011/08/19)
+----------------------------
+Enhancements:
+- Ignore 404 errors when deleting a file on Ubuntu One.
+- Ignore ENOENT (file missing) errors where it is safe.
+- Set minimum Python version to 2.4 in README.
+- introduce --numeric-owner parameter
+  patch courtesy of Lukas Anzinger <l.anzinger AT gmail.com>
+- duplicity:restore_check_hash
+  "Invalid data - *** hash mismatch" lists the offending filename
+- fixes to unit tests to support SIGN_PASSPHRASE
+
+Bugs closed in this release:
+524922     duplicity does not have numeric uid/gid support
+703142     AssertionError: assert len(chain_list) == 2
+794576     Transport endpoint is not connected
+815635     Bad passphrase can leave bogus sigtar in archive
+818178     Shouldn't try to delete files it knows don't exist
+821368     Error doing backup of the .evolution folder
+823556     sftp errors after rev 740 change
+824678     0.6.14 Fails to install on 8.04 LTS (Hardy)
+
+Merges:
+lp:~mterry/duplicity/u1-ignore-404
+lp:~mterry/duplicity/guard-tarinfo
+lp:~mterry/duplicity/enotconn
+lp:~mterry/duplicity/look-at-partials-during-sync
+lp:~mterry/duplicity/more-accurate-sync
+lp:~mterry/duplicity/report-encrypted-chains
+lp:~mterry/duplicity/815635
+lp:~mterry/duplicity/retry-u1
+lp:~mterry/duplicity/818178
+lp:~ed.so/duplicity/encr-sign-key2
+lp:~mterry/duplicity/u1-fixes
+lp:~carlos-abalde/duplicity/google-docs
+lp:~ed.so/duplicity/numowner+hashverbose
+
+
+New in v0.6.14 (2011/06/18)
+----------------------------
+Enhancements:
+452342     Provide Ubuntu One integration
+
+Bugs closed in this release:
+433591     AttributeError: FileobjHooked instance has no attribute 'name'
+487720     Restore fails with "Invalid data - SHA1 hash mismatch"
+507904     Cygwin: Full Backup fails with "IOError: [Errno 13] Permission denied"
+512628     --exclude-filelist-stdin and gpg error with/without PASSPHRASE
+680425     Endless retype passphrase when typo
+705499     "include-filelist-stdin" not implemented on version 0.6.11
+739438     [PATCH] Local backend should always try renaming instead of copying
+753858     cannot import name S3ResponseError
+761688     Difference found: File X has permissions 666, expected 666
+777377     collection-status asking for passphrase
+778215     ncftpls file delete fails in ftpbackend.py
+782294     create tomporary files with sftp
+782321     duplicity sftp backend should ignore removing a file which is not there
+792704     Webdav(s) url scheme lacks port support
+782294     create tomporary files with sftp
+782337     sftp backend cannot create new subdirs on new backup
+794123     Timeout on sftp command 'ls -1'
+797758     Duplicity ignores some FatalErrors
+793096     Allow to pass different passwords for --sign-key and --encrypt-key
+
+Merges:
+lp:~ed.so/duplicity/0.6-add_sftp
+lp:~ed.so/duplicity/0.6-nonfatal-exclude
+lp:~lekensteyn/duplicity/multipass
+lp:~mterry/duplicity/797758
+lp:~mterry/duplicity/gio-name
+lp:~mterry/duplicity/levelName
+lp:~mterry/duplicity/retry-decorator
+lp:~mterry/duplicity/u1-status
+
+
+New in v0.6.13 (2011/04/02)
+----------------------------
+Enhancements added this release:
+New manual test to make Ctrl-C issues easier to replicate.
+Use python-virtualenv to make testing multiple Python versions easier.
+In boto backend check for existing bucket before trying to create.
+
+Bugs closed in this release:
+579958     Assertion error "time not moving forward at appropriate pace"
+613244     silent data corruption with checkpoint/restore
+731905     File "/usr/bin/duplicity", error after upgrade from 6.11 to 6.12
+
+
+New in v0.6.12 (2011/03/08)
+----------------------------
+Enhancements added this release:
+626915     ftps support using lftp (ftpsbackend)
+
+Bugs closed in this release:
+486489     Only full backups done on webdav
+578663     Use log codes for common backend errors
+581054     Inverted "Current directory" "Previous directory" in error message
+620163     OSError: [Errno 2] No such file or directory
+629136     sslerror: The read operation timed out with cf
+629984     boto backend uses Python 2.5 conditional
+655797     symbolic link ownership not preserved
+670891     Cygwin: TypeError: basis_file must be a (true) file ...
+681980     Duplicity 0.6.11 aborts if RSYNC_RSH not set
+700390     Backup fails silently when target is full (sftp, verbosity=4)
+704314     Exception in log module
+
+Merges:
+lp:~mterry/duplicity/backend-log-codes3
+lp:~blueyed/duplicity/path-enodev-bugfix
+
+
+New in v0.6.11 (2010/11/20)
+----------------------------
+Bugs closed in this release:
+433970     Add an option to connect to S3 with regular HTTP (and not HTTPS)
+578663     Use log codes for common backend errors
+631275     missing ssh on rsyncd url - rsync: Failed to exec ssh: ...
+635494     backed up to S3, wiped drive, reinstalled, unable to restore backup
+637556     os.execve should get passed program as first argument
+669225     sftp: "Couldn't delete file: Failure'" only logged on level 9
+655468     0.6.10 does not work with S3
+674506     RsyncBackend instance has no attribute 'subprocess_popen_persist'
+
+Merges:
+lp:~blueyed/duplicity/bug-669225
+lp:~duplicity-team/duplicity/po-updates
+lp:~ed.so/duplicity/0.6.10-backend_fixes
+lp:~ed.so/duplicity/RSYNC_RSH-fix
+lp:~ed.so/duplicity/sign_symmetric2
+lp:~ed.so/duplicity/survive_spaces
+lp:~l2g/duplicity/use-py.test
+lp:~mbp/duplicity/433970-non-ssl
+
+
+New in v0.6.10 (2010/09/19)
+----------------------------
+Bugs closed in this release:
+542482     Offer command to remove old incremental backups from target
+578663     Use log codes for common backend errors
+589495     duplicity --short-filenames crashes with TypeError
+612714     NameError: global name 'parsed_url' is not defined
+613448     ftpbackend fails if target directory doesn't exist
+615449     Command-line verbosity parsing crash
+
+
+New in v0.6.09 (2010/07/25)
+----------------------------
+Bugs closed in this release:
+502609     Unknown error while uploading duplicity-full-signatures
+539393     Duplicity returns 1 when continuing an interrupted backup
+550455     duplicity doesn't handle with large files well
+567738     --ssh-options options passing options to ssh do not work
+576564     username not url decoded in backend (at least rsync)
+579958     Assertion error "time not moving forward at appropriate pace"
+582962     Diminishing performance on large files
+
+Upgraded tahoebackend to new parse_url.
+Fix to warning message in sshbackend.
+
+
 New in v0.6.08b (2010/03/11)
 ----------------------------
 Fix bug where encrypted backup without --gpg-options crashes.
