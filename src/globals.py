@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.8"
+version = "0.4.9"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -101,6 +101,9 @@ encryption = 1
 
 # volume size. default 5M
 volsize = 5*1024*1024
+
+# Working directory for the tempfile module. Defaults to /tmp on most systems.
+temproot = None
 
 # network timeout value
 timeout = 30

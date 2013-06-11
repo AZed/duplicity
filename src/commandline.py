@@ -36,6 +36,7 @@ commands = ["cleanup",
 			"list-current-files",
 			"remove-older-than",
 			"remove-all-but-n-full",
+			"restore",
 			"verify",
 			]
 
@@ -74,6 +75,7 @@ options = ["allow-source-mismatch",
 		   "sign-key=",
 		   "ssh-askpass",
 		   "ssh-options=",
+		   "tempdir=",
 		   "timeout=",
 		   "time-separator=",
 		   "verbosity=",
@@ -222,6 +224,8 @@ def parse_cmdline_options(arglist):
 			backends.ssh_askpass = True
 		elif opt == "--ssh-options":
 			backends.ssh_options = (backends.ssh_options + ' ' + arg).strip()
+		elif opt == "--tempdir":
+			globals.temproot = arg
 		elif opt == "--timeout":
 			globals.timeout = int(arg)
 		elif opt == "--time-separator":
@@ -266,17 +270,18 @@ Usage:
 	duplicity remove-all-but-n-full count [options] target_url
 
 Backends and their URL formats:
-	ssh://user@other.host:port/some_dir
-	scp://user@other.host:port/some_dir
-	ftp://user@other.host/some_dir
-	hsi://user@other.host/some_dir
+	ssh://user[:password]@other.host[:port]/some_dir
+	scp://user[:password]@other.host[:port]/some_dir
+	ftp://user[:password]@other.host[:port]/some_dir
+	hsi://user[:password]@other.host[:port]/some_dir
 	file:///some_dir
-	rsync://user@host:/module/some_dir
-	rsync://user@host/some_non_module_path
-	s3://host/bucket_name[/prefix]
+	rsync://user[:password]@other.host[:port]::/module/some_dir
+	rsync://user[:password]@other.host[:port]/relative_path
+	rsync://user[:password]@other.host[:port]//absolute_path
+	s3://other.host/bucket_name[/prefix]
 	s3+http://bucket_name[/prefix]
-	webdav://user@other.host/some_dir
-	webdavs://user@other.host/some_dir
+	webdav://user[:password]@other.host/some_dir
+	webdavs://user[:password]@other.host/some_dir
 
 Commands:
 	cleanup <target_url>
@@ -321,6 +326,7 @@ Options:
 	--ssh-askpass
 	--ssh-options
 	--short-filenames
+	--tempdir <directory>
 	--timeout <seconds>
 	-t<time>, --restore-time <time>
 	--volsize <number>
