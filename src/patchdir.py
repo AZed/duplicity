@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -19,8 +19,7 @@
 """Functions for patching of directories"""
 
 from __future__ import generators
-import re, tempfile
-import tarfile, librsync, log, diffdir, misc
+import re, tarfile, librsync, log, diffdir, misc
 from path import *
 from lazy import *
 
@@ -408,7 +407,7 @@ def patch_seq2ropath(patch_seq):
 	for delta_ropath in patch_seq[1:]:
 		assert delta_ropath.difftype == "diff", delta_ropath.difftype
 		if not isinstance(current_file, file): # librsync needs true file
-			tempfp = tempfile.TemporaryFile()
+			tempfp = os.tmpfile()
 			misc.copyfileobj(current_file, tempfp)
 			assert not current_file.close()
 			tempfp.seek(0)

@@ -4,7 +4,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -22,6 +22,9 @@ import select, os, sys, thread, sha, md5, types, cStringIO, tempfile, re, gzip
 import GnuPGInterface, misc, log, path
 
 blocksize = 256 * 1024
+
+# user options appended by --gpg-options
+gpg_options = ""
 
 class GPGError(Exception):
 	"""Indicate some GPG Error"""
@@ -76,9 +79,12 @@ class GPGFile:
 		gnupg = GnuPGInterface.GnuPG()
 		gnupg.options.meta_interactive = 0
 		gnupg.options.extra_args.append('--no-secmem-warning')
-		gnupg.options.extra_args.append('--compression-algo=bzip2')
-		gnupg.options.extra_args.append('--bzip2-compress-level=9')
-		if profile.sign_key: gnupg.options.default_key = profile.sign_key
+		if gpg_options:
+			for opt in gpg_options.split():
+				gnupg.options.extra_args.append(opt)
+
+		if profile.sign_key:
+			gnupg.options.default_key = profile.sign_key
 
 		if encrypt:
 			if profile.recipients:
