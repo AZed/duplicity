@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.05 released August 28, 2009
+# Version 0.6.06 released October 29, 2009
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -27,7 +27,6 @@
 # Please send mail to me or the mailing list if you find bugs or have
 # any suggestions.
 
-from __future__ import generators
 import getpass, gzip, os, sys, time, types
 import traceback, platform, statvfs, resource, re
 
@@ -426,7 +425,7 @@ def full_backup(col_stats):
         man_outfp.to_remote()
         man_outfp.to_final()
 
-        col_stats.set_values(sig_chain_warning=None).cleanup_signatures()
+        col_stats.set_values(sig_chain_warning=None)
 
     print_statistics(diffdir.stats, bytes_written)
 
@@ -510,11 +509,8 @@ def list_current(col_stats):
     @rtype: void
     @return: void
     """
-    sig_chain = check_sig_chain(col_stats)
-    if not sig_chain:
-        log.FatalError(_("No signature data found, unable to list files."),
-                       log.ErrorCode.no_sigs)
-    time = globals.restore_time # if None, will use latest
+    time = globals.restore_time or dup_time.curtime
+    sig_chain = col_stats.get_signature_chain_at_time(time)
     path_iter = diffdir.get_combined_path_iter(sig_chain.get_fileobjs(time))
     for path in path_iter:
         if path.difftype != "deleted":
@@ -537,7 +533,7 @@ def restore(col_stats):
     @return: void
     """
     if globals.dry_run:
-      return
+        return
     if not patchdir.Write_ROPaths(globals.local_path,
                                   restore_get_patched_rop_iter(col_stats)):
         if globals.restore_dir:
@@ -686,7 +682,7 @@ def cleanup(col_stats):
     @rtype: void
     @return: void
     """
-    ext_local, ext_remote = col_stats.get_extraneous()
+    ext_local, ext_remote = col_stats.get_extraneous(globals.extra_clean)
     extraneous = ext_local + ext_remote
     if not extraneous:
         log.Warn(_("No extraneous files found, nothing deleted in cleanup."))
@@ -771,7 +767,7 @@ def remove_old(col_stats):
             setlist.reverse() # save oldest for last
             for set in setlist:
                 set.delete()
-            col_stats.set_values(sig_chain_warning=None).cleanup_signatures()
+            col_stats.set_values(sig_chain_warning=None)
     else:
         log.Notice(gettext.ngettext("Found old backup set at the following time:",
                                     "Found old backup sets at the following times:",
@@ -918,9 +914,6 @@ def sync_archive():
     loclist = globals.archive_dir.listdir()
     local_metafiles, loc_needpass = get_metafiles(loclist)
 
-    if rem_needpass or loc_needpass:
-        globals.gpg_profile.passphrase = get_passphrase(1, "sync")
-
     # we have the list of metafiles on both sides. remote is always
     # authoritative. figure out which are local spurious (should not
     # be there) and missing (should be there but are not).
@@ -946,6 +939,8 @@ def sync_archive():
         local_spurious.sort()
         if not globals.dry_run:
             log.Notice(_("Synchronizing remote metadata to local cache..."))
+            if local_missing and (rem_needpass or loc_needpass):
+                globals.gpg_profile.passphrase = get_passphrase(1, "sync")
             for fn in local_spurious:
                 remove_local(fn)
             for fn in local_missing:
@@ -1030,7 +1025,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.05 (August 28, 2009)", verbosity)
+    log.Log("duplicity 0.6.06 (October 29, 2009)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1064,7 +1059,7 @@ class Restart:
 
     def checkManifest(self, mf):
         mf_len = len(mf.volume_info_dict)
-        if mf_len != self.start_vol:
+        if (mf_len != self.start_vol) or not (mf_len and self.start_vol):
             if self.start_vol == 0:
                 # upload of 1st vol failed, clean and restart
                 log.Notice(_("RESTART: The first volume failed to upload before termination.\n"
@@ -1103,7 +1098,7 @@ def main():
     # Adjust the path to your location and version of Eclipse and Pydev.  Comment out
     # to run normally, or this process will hang at pydevd.settrace() waiting for the
     # remote debugger to start.
-#    pysrc = "/home/ken/eclipse3.4/plugins/org.python.pydev.debug_1.4.7.2843/pysrc/"
+#    pysrc = "/home/ken/eclipse3.4/plugins/org.python.pydev.debug_1.5.0.1251989166/pysrc/"
 #    if os.path.isdir(pysrc):
 #        sys.path.append(pysrc)
 #        import pydevd

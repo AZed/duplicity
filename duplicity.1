@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "August 28, 2009" "Version 0.6.05" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "October 29, 2009" "Version 0.6.06" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -340,6 +340,14 @@ option, this option does not match files in a directory it matches.
 See the
 .B FILE SELECTION
 section for more information.
+
+.TP
+.B --extra-clean
+When cleaning up, be more aggressive about saving space.  For example, this
+may delete signature files for old backup chains.
+See the
+.B cleanup
+argument for more information.
 
 .TP
 .BI "--file-to-restore " path
