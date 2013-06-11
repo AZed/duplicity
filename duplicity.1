@@ -1,4 +1,4 @@
-.TH RDIFFDIR 1 "November 2002" "Version 0.3.1" "User Manuals"
+.TH RDIFFDIR 1 "August 2003" "Version 0.4.1" "User Manuals"
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
 .SH SYNOPSIS
@@ -8,7 +8,12 @@ duplicity \- Encrypted backup using rsync algorithm
 
 .B duplicity
 .BI [ options ]
-.I source_url target_filename
+.I source_url target_directory
+
+.B duplicity
+.BI [ options ]
+.B --verify
+.I source_url filename
 
 .B duplicity
 .BI [ options ]
@@ -20,21 +25,23 @@ duplicity \- Encrypted backup using rsync algorithm
 .B --cleanup
 .I target_url
 
-.SH DESCRIPTION
-Duplicity incrementally backs up files and directory by encrypting
-tar-format volumes with GnuPG and uploading them to a remote (or
-local) file server.  In theory many remote backends are possible;
-right now local, ftp, and ssh/scp backends are written.  Because
-duplicity uses librsync, the incremental archives are space efficient
-and only record the parts of files that have changed since the last
-backup.  Currently duplicity supports deleted files, full unix
-permissions, directories, symbolic links, fifos, etc., but not hard
-links.
+.SH DESCRIPTION Duplicity incrementally backs up files and directory
+by encrypting tar-format volumes with GnuPG and uploading them to a
+remote (or local) file server.  In theory many remote backends are
+possible; right now local, ftp, ssh/scp, and rsync backends are
+available.  Because duplicity uses librsync, the incremental archives
+are space efficient and only record the parts of files that have
+changed since the last backup.  Currently duplicity supports deleted
+files, full unix permissions, directories, symbolic links, fifos,
+etc., but not hard links.
 
 Duplicity will read the PASSPHRASE environment variable to find the
 passphrase to give to GnuPG.  If this is not set, the user will be
 prompted for the passphrase.
 
+If you are backing up the root directory /, remember to --exclude
+/proc, or else duplicity will probably crash on the weird stuff in
+there.
 
 .SH EXAMPLES
 Here is an example of a backup, using scp to back up /home/me to
@@ -65,6 +72,13 @@ directory.  If we wanted to restore just the file "Mail/article" in
 .PP
 .RS
 duplicity -t 3D --file-to-restore Mail/article scp://uid@other.host/some_dir /home/me/restored_file
+.PP
+.RE
+The following command compares the files we backed up, so see what has
+changed since then:
+.PP
+.RS
+duplicity --verify scp://uid@other.host/some_dir /home/me
 .PP
 .RE
 Finally, duplicity recognizes several include/exclude options.  For
@@ -229,6 +243,10 @@ itself.  Thus the whole archive does not have to be downloaded, but on
 the other hand if the archive has been deleted or corrupted, this
 command may not detect it.
 .TP
+.B --no-encryption
+Do not use GnuPG to encrypt files on remote system.  Instead just
+write gzipped volumes.
+.TP
 .B --no-print-statistics
 By default duplicity will print statistics about the current session
 after a successful backup.  This switch disables that behavior.
@@ -274,12 +292,26 @@ depend on them.  See the
 .B TIME FORMATS
 section for more information.
 .TP
+.BI --short-filenames
+If this option is specified, the names of the files duplicity writes
+will be shorter (about 30 chars) but less understandable.  This may be
+useful when backing up to MacOS or another OS or FS that doesn't
+support long filenames.
+.TP
 .BI -t time ", --restore-time " time
 When restoring, specify the time to restore to.
 .TP
 .BI -v [0-9] ", --verbosity " [0-9]
 Specify verbosity level (0 is total silent, 3 is the default, and 9 is
 noisiest).
+.TP
+.B --verify
+Enter verify mode instead of restore.  If the --file-to-restore option
+is given, restrict verify to that file or directory.  duplicity will
+exit with a non-zero error level if any files are different.  On
+verbosity level 4 or higher, log a message for each file that has
+changed.
+
 
 .SH TIME FORMATS
 duplicity uses time strings in two places.  Firstly, many of the files

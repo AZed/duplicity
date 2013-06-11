@@ -81,7 +81,7 @@ def delta_iter_error_handler(exc, new_path, sig_path, sig_tar = None):
 
 def get_delta_path(new_path, sig_path):
 	"""Get one delta_path, or None if error"""
-	delta_path = new_path.get_rorpath()
+	delta_path = new_path.get_ropath()
 	if not new_path.isreg():
 		delta_path.difftype = "snapshot"
 	elif not sig_path or not sig_path.isreg():
@@ -115,7 +115,7 @@ def get_delta_iter(new_iter, sig_iter):
 	instead of Paths.
 
 	"""
-	collated = collate_iters(new_iter, sig_iter)
+	collated = collate2iters(new_iter, sig_iter)
 	for new_path, sig_path in collated:
 		log.Log("Comparing %s and %s" % (new_path and new_path.index,
 										 sig_path and sig_path.index), 6)
@@ -155,7 +155,7 @@ def sigtar2path_iter(sigtarobj):
 		yield ropath
 	sigtarobj.close()
 
-def collate_iters(riter1, riter2):
+def collate2iters(riter1, riter2):
 	"""Collate two iterators.
 
 	The elements yielded by each iterator must be have an index
@@ -256,7 +256,7 @@ def get_combined_path_iter(sig_infp_list):
 
 def get_delta_iter_w_sig(path_iter, sig_path_iter, sig_fileobj):
 	"""Like get_delta_iter but also write signatures to sig_fileobj"""
-	collated = collate_iters(path_iter, sig_path_iter)
+	collated = collate2iters(path_iter, sig_path_iter)
 	sigTarFile = tarfile.TarFile("arbitrary", "w", sig_fileobj)
 	for new_path, sig_path in collated:
 		log.Log("Comparing %s and %s" % (new_path and new_path.index,
@@ -288,7 +288,7 @@ def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
 	assert new_path
 	ti = new_path.get_tarinfo()
 	index = new_path.index
-	delta_path = new_path.get_rorpath()
+	delta_path = new_path.get_ropath()
 	log.Log("Getting delta of %s and %s" % (new_path, sig_path), 7)
 
 	def callback(sig_string):
@@ -300,14 +300,16 @@ def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
 	if new_path.isreg() and sig_path and sig_path.difftype == "signature":
 		delta_path.difftype = "diff"
 		old_sigfp = sig_path.open("rb")
-		newfp = FileWithSignature(new_path.open("rb"), callback)
+		newfp = FileWithSignature(new_path.open("rb"), callback,
+								  new_path.getsize())
 		delta_path.setfileobj(librsync.DeltaFile(old_sigfp, newfp))
 	else:
 		delta_path.difftype = "snapshot"
 		ti.name = "snapshot/" + "/".join(index)	
 		if not new_path.isreg(): sigTarFile.addfile(ti)
 		else: delta_path.setfileobj(FileWithSignature(new_path.open("rb"),
-													  callback))
+													  callback,
+													  new_path.getsize()))
 	new_path.copy_attribs(delta_path)
 	delta_path.stat.st_size = new_path.stat.st_size
 	return delta_path
@@ -316,17 +318,19 @@ def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
 class FileWithSignature:
 	"""File-like object which also computes signature as it is read"""
 	blocksize = 32 * 1024
-	def __init__(self, infile, callback, *extra_args):
+	def __init__(self, infile, callback, filelen, *extra_args):
 		"""FileTee initializer
 
 		The object will act like infile, but whenever it is read it
 		add infile's data to a SigGenerator object.  When the file has
 		been read to the end the callback will be called with the
 		calculated signature, and any extra_args if given.
+		
+		filelen is used to calculate the block size of the signature.
 
 		"""
 		self.infile, self.callback = infile, callback
-		self.sig_gen = librsync.SigGenerator()
+		self.sig_gen = librsync.SigGenerator(get_block_size(filelen))
 		self.activated_callback = None
 		self.extra_args = extra_args
 
@@ -409,8 +413,7 @@ class TarBlockIter:
 		return result
 		
 	def get_previous_index(self):
-		"""Return index of last tarblock"""
-		assert self.previous_index is not None
+		"""Return index of last tarblock, or None if no previous index"""
 		return self.previous_index
 
 	def remember_next_index(self):
@@ -420,8 +423,7 @@ class TarBlockIter:
 
 	def recall_index(self):
 		"""Retrieve index remembered with remember_next_index"""
-		assert self.remember_value is not None
-		return self.remember_value
+		return self.remember_value # or None if no index recalled
 
 	def get_footer(self):
 		"""Return closing string for tarfile, reset offset"""
@@ -443,7 +445,8 @@ class SigTarBlockIter(TarBlockIter):
 		"""
 		ti = path.get_tarinfo()
 		if path.isreg():
-			sfp = librsync.SigFile(path.open("rb"))
+			sfp = librsync.SigFile(path.open("rb"),
+								   get_block_size(path.getsize()))
 			sigbuf = sfp.read()
 			sfp.close()
 			ti.name = "signature/" + "/".join(path.index)
@@ -534,3 +537,15 @@ def write_block_iter(block_iter, out_obj):
 	assert not fp.close()
 	if isinstance(out_obj, Path): out_obj.setdata()
 	
+def get_block_size(file_len):
+	"""Return a reasonable block size to use on files of length file_len
+
+	If the block size is too big, deltas will be bigger than is
+	necessary.  If the block size is too small, making deltas and
+	patching can take a really long time.
+
+	"""
+	if file_len < 1024000: return 512 # set minimum of 512 bytes
+	else: # Split file into about 2000 pieces, rounding to 512
+		return long((file_len/(2000*512))*512)
+

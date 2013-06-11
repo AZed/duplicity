@@ -27,11 +27,12 @@ full_backup = None # Will be set to true if -f or --full option given
 list_current = None # Will be set to true if --list-current option given
 collection_status = None # Will be set to true if --collection-status given
 cleanup = None # Set to true if --cleanup option given
+verify = None # Set to true if --verify option given
 
 def parse_cmdline_options(arglist):
 	"""Parse argument list"""
 	global select_opts, select_files, full_backup
-	global list_current, collection_status, cleanup, remove_time
+	global list_current, collection_status, cleanup, remove_time, verify
 	def sel_fl(filename):
 		"""Helper function for including/excluding filelists below"""
 		try: return open(filename, "r")
@@ -41,15 +42,16 @@ def parse_cmdline_options(arglist):
 		 ["allow-source-mismatch", "archive-dir=", "cleanup",
 		  "current-time=", "collection-status", "encrypt-key=",
 		  "exclude=", "exclude-device-files", "exclude-filelist=",
-		  "exclude-globbing-filelist", "exclude-filelist-stdin",
+		  "exclude-globbing-filelist=", "exclude-filelist-stdin",
 		  "exclude-other-filesystems", "exclude-regexp=",
 		  "file-to-restore=", "force", "full", "incremental",
 		  "include=", "include-filelist=", "include-filelist-stdin",
 		  "include-globbing-filelist=", "include-regexp=",
-		  "list-current-files", "no-print-statistics",
-		  "null-separator", "remove-older-than=", "restore-dir=",
-		  "restore-time=", "scp-command=", "short-filenames",
-		  "sign-key=", "ssh-command=", "verbosity="])
+		  "list-current-files", "no-encryption",
+		  "no-print-statistics", "null-separator",
+		  "remove-older-than=", "restore-dir=", "restore-time=",
+		  "scp-command=", "short-filenames", "sign-key=",
+		  "ssh-command=", "verbosity=", "verify", "version"])
 	except getopt.error, e:
 		command_line_error("%s" % (str(e),))
 
@@ -83,6 +85,7 @@ def parse_cmdline_options(arglist):
 			select_files.append(sys.stdin)
 		elif opt == "-i" or opt == "--incremental": globals.incremental = 1
 		elif opt == "--list-current-files": list_current = 1
+		elif opt == "--no-encryption": globals.encryption = 0
 		elif opt == "--no-print-statistics": globals.print_statistics = 0
 		elif opt == "--null-separator": globals.null_separator = 1
 		elif opt == "-r" or opt == "--file-to-restore":
@@ -95,10 +98,11 @@ def parse_cmdline_options(arglist):
 		elif opt == "--short-filenames": globals.short_filenames = 1
 		elif opt == "--sign-key": set_sign_key(arg)
 		elif opt == "--ssh-command": backends.ssh_command = arg
-		elif opt == "-V":
-			print "duplicity version", str(globals.version)
+		elif opt == "-V" or opt == "--version":
+			print "duplicity", str(globals.version)
 			sys.exit(0)
 		elif opt == "-v" or opt == "--verbosity": log.setverbosity(int(arg))
+		elif opt == "--verify": verify = 1
 		else: command_line_error("Unknown option %s" % opt)
 
 	return args
@@ -167,11 +171,16 @@ def process_local_dir(action, local_pathname):
 		if local_path.exists() and not local_path.isemptydir():
 			log.FatalError("Restore destination directory %s already "
 						   "exists.\nWill not overwrite." % (local_pathname,))
+	elif action == "verify":
+		if not local_path.exists():
+			log.FatalError("Verify directory %s does not exist" %
+						   (local_path.name,))
 	else:
 		assert action == "full" or action == "inc"
 		if not local_path.exists():
 			log.FatalError("Backup source directory %s does not exist."
 						   % (local_path.name,))
+	
 	globals.local_path = local_path
 
 def check_consistency(action):
@@ -187,18 +196,21 @@ def check_consistency(action):
 				  "cleanup", "remove-old"]:
 		assert_only_one([list_current, collection_status, cleanup,
 						 globals.remove_time is not None])
-	elif action == "restore":
+	elif action == "restore" or action == "verify":
 		if full_backup:
-			command_line_error("--full option cannot be used when restoring")
+			command_line_error("--full option cannot be used when "
+							   "restoring or verifying")
 		elif globals.incremental:
 			command_line_error("--incremental option cannot be used when "
-							   "restoring")
-		elif select_opts:
+							   "restoring or verifying")
+		if select_opts and action == "restore":
 			command_line_error("Selection options --exclude/--include\n"
 							   "currently work only when backing up, "
 							   "not restoring.")
 	else:
 		assert action == "inc" or action == "full"
+		if verify: command_line_error("--verify option cannot be used "
+									  "when backing up")
 		if globals.restore_dir:
 			log.FatalError("--restore-dir option incompatible with %s backup"
 						   % (action,))
@@ -206,7 +218,8 @@ def check_consistency(action):
 def ProcessCommandLine(cmdline_list):
 	"""Process command line, set globals, return action
 
-	action will be "list-current", "restore", "full", or "inc".
+	action will be "list-current", "collection-status", "cleanup",
+	"remove-old", "restore", "verify", "full", or "inc".
 
 	"""
 	globals.gpg_profile = gpg.GPGProfile()
@@ -228,10 +241,12 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
 		if backup:
 			if full_backup: action = "full"
 			else: action = "inc"
-		else: action = "restore"
+		else:
+			if verify: action = "verify"
+			else: action = "restore"
 
 		process_local_dir(action, local_pathname)
-		if backup: set_selection()
+		if action in ['full', 'inc', 'verify']: set_selection()
 	elif len(args) > 2: command_line_error("Too many arguments")
 
 	check_consistency(action)
