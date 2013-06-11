@@ -47,8 +47,13 @@ from duplicity.errors import UnsupportedBackendScheme
 # todo: this should really NOT be done here
 socket.setdefaulttimeout(globals.timeout)
 
+_forced_backend = None
 _backends = {}
 
+def force_backend(backend):
+    """Forces the use of a particular backend, regardless of schema"""
+    global _forced_backend
+    _forced_backend = backend
 
 def register_backend(scheme, backend_factory):
     """
@@ -76,6 +81,18 @@ def register_backend(scheme, backend_factory):
     _backends[scheme] = backend_factory
 
 
+def is_backend_url(url_string):
+    """
+    @return Whether the given string looks like a backend URL.
+    """
+    pu = ParsedUrl(url_string)
+
+    # Be verbose to actually return True/False rather than string.
+    if pu.scheme:
+        return True
+    else:
+        return False
+
 def get_backend(url_string):
     """
     Instantiate a backend suitable for the given URL, or return None
@@ -83,15 +100,19 @@ def get_backend(url_string):
 
     Raise InvalidBackendURL if the URL is not a valid URL.
     """
+    if not is_backend_url(url_string):
+        return None
+
     pu = ParsedUrl(url_string)
 
     # Implicit local path
-    if not pu.scheme:
-        return None
+    assert pu.scheme, "should be a backend url according to is_backend_url"
 
-    global _backends
+    global _backends, _forced_backend
 
-    if not pu.scheme in _backends:
+    if _forced_backend:
+        return _forced_backend(pu)
+    elif not pu.scheme in _backends:
         raise UnsupportedBackendScheme(url_string)
     else:
         return _backends[pu.scheme](pu)

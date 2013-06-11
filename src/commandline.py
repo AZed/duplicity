@@ -26,6 +26,11 @@ import os
 import re
 import sys
 
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import new as md5
+
 from duplicity import backend
 from duplicity import dup_time
 from duplicity import globals
@@ -35,14 +40,14 @@ from duplicity import path
 from duplicity import selection
 
 
-select_opts = [] # Will hold all the selection options
-select_files = [] # Will hold file objects when filelist given
+select_opts = []            # Will hold all the selection options
+select_files = []           # Will hold file objects when filelist given
 
-full_backup = None # Will be set to true if full command given
-list_current = None # Will be set to true if list-current command given
-collection_status = None # Will be set to true if collection-status command given
-cleanup = None # Set to true if cleanup command given
-verify = None # Set to true if verify command given
+full_backup = None          # Will be set to true if full command given
+list_current = None         # Will be set to true if list-current command given
+collection_status = None    # Will be set to true if collection-status command given
+cleanup = None              # Set to true if cleanup command given
+verify = None               # Set to true if verify command given
 
 commands = ["cleanup",
             "collection-status",
@@ -75,6 +80,7 @@ options = ["allow-source-mismatch",
            "ftp-passive",
            "ftp-regular",
            "full-if-older-than=",
+           "gio",
            "gpg-options=",
            "help",
            "imap-full-address",
@@ -86,6 +92,7 @@ options = ["allow-source-mismatch",
            "include-regexp=",
            "log-fd=",
            "log-file=",
+           "name=",
            "no-encryption",
            "no-print-statistics",
            "null-separator",
@@ -121,10 +128,42 @@ def expand_fn(filename):
     return os.path.expanduser(os.path.expandvars(filename))
 
 
+def expand_archive_dir(archdir, backname):
+    """
+    Return expanded version of archdir joined with backname.
+    """
+    assert globals.backup_name is not None, \
+        "expand_archive_dir() called prior to globals.backup_name being set"
+
+    return expand_fn(os.path.join(archdir, backname))
+
+
+def generate_default_backup_name(backend_url):
+    """
+    @param backend_url: URL to backend.
+    @returns A default backup name (string).
+    """
+    # For default, we hash args to obtain a reasonably safe default.
+    # We could be smarter and resolve things like relative paths, but
+    # this should actually be a pretty good compromise. Normally only
+    # the destination will matter since you typically only restart
+    # backups of the same thing to a given destination. The inclusion
+    # of the source however, does protect against most changes of
+    # source directory (for whatever reason, such as
+    # /path/to/different/snapshot). If the user happens to have a case
+    # where relative paths are used yet the relative path is the same
+    # (but duplicity is run from a different directory or similar),
+    # then it is simply up to the user to set --archive-dir properly.
+    burlhash = md5()
+    burlhash.update(backend_url)
+    return burlhash.hexdigest()
+
+
 def parse_cmdline_options(arglist):
     """Parse argument list"""
     global select_opts, select_files, full_backup
     global list_current, collection_status, cleanup, remove_time, verify
+
 
     def sel_fl(filename):
         """Helper function for including/excluding filelists below"""
@@ -180,14 +219,11 @@ def parse_cmdline_options(arglist):
         except:
             command_line_error("Missing count for remove-all-but-n-full")
         globals.keep_chains = int(arg)
-
         if not globals.keep_chains > 0:
             command_line_error("remove-all-but-n-full count must be > 0")
-
         num_expect = 1
     elif cmd == "verify":
         verify = True
-        num_expect = 2
 
     # parse the remaining args
     try:
@@ -241,6 +277,12 @@ def parse_cmdline_options(arglist):
             globals.ftp_connection = 'regular'
         elif opt == "--imap-mailbox":
             globals.imap_mailbox = arg.strip()
+        elif opt == "--gio":
+            try:
+                import duplicity.backends.giobackend
+                backend.force_backend(duplicity.backends.giobackend.GIOBackend)
+            except ImportError:
+                log.FatalError(_("Unable to load gio module"), log.ErrorCode.gio_not_available)
         elif opt == "--gpg-options":
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
@@ -263,6 +305,8 @@ def parse_cmdline_options(arglist):
                 log.add_file(arg)
             except:
                 command_line_error("Cannot write to log-file %s." % arg)
+        elif opt == "--name":
+            globals.backup_name = arg
         elif opt == "--no-encryption":
             globals.encryption = 0
         elif opt == "--no-print-statistics":
@@ -349,8 +393,28 @@ def parse_cmdline_options(arglist):
         if not '://' in args[loc]:
             args[loc] = expand_fn(args[loc])
 
+    # Note that ProcessCommandLine depends on us verifying the arg
+    # count here; do not remove without fixing it. We must make the
+    # checks here in order to make enough sense of args to identify
+    # the backend URL/lpath for args_to_path_backend().
+    if len(args) < 1:
+        command_line_error("Too few arguments")
+    elif len(args) == 1:
+        backend_url = args[0]
+    elif len(args) == 2:
+        lpath, backend_url = args_to_path_backend(args[0], args[1])
+    else:
+        command_line_error("Too many arguments")
+
+    if globals.backup_name is None:
+        globals.backup_name = generate_default_backup_name(backend_url)
+
     # set and expand archive dir
-    set_archive_dir(expand_fn(globals.archive_dir))
+    set_archive_dir(expand_archive_dir(globals.archive_dir,
+                                       globals.backup_name))
+
+    log.Info(_("Using archive dir: %s") % (globals.archive_dir,))
+    log.Info(_("Using backup name: %s") % (globals.backup_name,))
 
     return args
 
@@ -422,6 +486,7 @@ Options:
     --force
     --ftp-passive
     --ftp-regular
+    --gio
     --gpg-options
     --include <shell_pattern>
     --include-filelist <filename>
@@ -430,6 +495,7 @@ Options:
     --include-regexp <regexp>
     --log-fd <fd>
     --log-file <filename>
+    --name <backup name>
     --no-encryption
     --no-print-statistics
     --null-separator
@@ -497,6 +563,28 @@ def set_selection():
     sel.ParseArgs(select_opts, select_files)
     globals.select = sel.set_iter()
 
+def args_to_path_backend(arg1, arg2):
+    """
+    Given exactly two arguments, arg1 and arg2, figure out which one
+    is the backend URL and which one is a local path, and return
+    (local, backend).
+    """
+    arg1_is_backend, arg2_is_backend = backend.is_backend_url(arg1), backend.is_backend_url(arg2)
+
+    if not arg1_is_backend and not arg2_is_backend:
+        command_line_error(
+"""One of the arguments must be an URL.  Examples of URL strings are
+"scp://user@host.net:1234/path" and "file:///usr/local".  See the man
+page for more information.""")
+    if arg1_is_backend and arg2_is_backend:
+        command_line_error("Two URLs specified.  "
+                           "One argument should be a path.")
+    if arg1_is_backend:
+        return (arg2, arg1)
+    elif arg2_is_backend:
+        return (arg1, arg2)
+    else:
+        raise AssertionError('should not be reached')
 
 def set_backend(arg1, arg2):
     """Figure out which arg is url, set backend
@@ -505,21 +593,14 @@ def set_backend(arg1, arg2):
     path made from arg1.
 
     """
-    backend1, backend2 = backend.get_backend(arg1), backend.get_backend(arg2)
-    if not backend1 and not backend2:
-        command_line_error(
-"""One of the arguments must be an URL.  Examples of URL strings are
-"scp://user@host.net:1234/path" and "file:///usr/local".  See the man
-page for more information.""")
-    if backend1 and backend2:
-        command_line_error("Two URLs specified.  "
-                           "One argument should be a path.")
-    if backend1:
-        globals.backend = backend1
-        return (None, arg2)
-    elif backend2:
-        globals.backend = backend2
-        return (1, arg1)
+    path, bend = args_to_path_backend(arg1, arg2)
+
+    globals.backend = backend.get_backend(bend)
+
+    if path == arg2:
+        return (None, arg2) # False?
+    else:
+        return (1, arg1) # True?
 
 
 def process_local_dir(action, local_pathname):
@@ -590,9 +671,12 @@ def ProcessCommandLine(cmdline_list):
     globals.gpg_profile = gpg.GPGProfile()
 
     args = parse_cmdline_options(cmdline_list)
-    if len(args) < 1:
-        command_line_error("Too few arguments")
-    elif len(args) == 1:
+
+    # parse_cmdline_options already verified that we got exactly 1 or 2
+    # non-options arguments
+    assert len(args) >= 1 and len(args) <= 2, "arg count should have been checked already"
+
+    if len(args) == 1:
         if list_current:
             action = "list-current"
         elif collection_status:
@@ -629,7 +713,7 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
         if action in ['full', 'inc', 'verify']:
             set_selection()
     elif len(args) > 2:
-        command_line_error("Too many arguments")
+        raise AssertionError("this code should not be reachable")
 
     check_consistency(action)
     log.Info(_("Main action: ") + action)

@@ -21,10 +21,10 @@
 
 """Store global configuration information"""
 
-import socket, sys
+import socket, sys, os
 
 # The current version of duplicity
-version = "0.6.00"
+version = "0.6.01"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -33,11 +33,19 @@ hostname = socket.getfqdn()
 # up.  For restoring, this is the destination of the restored files.
 local_path = None
 
+# The symbolic name of the backup being operated upon.
+backup_name = None
+
 # Set to the Path of the archive directory (the directory which
 # contains the signatures and manifests of the relevent backup
 # collection), and for checkpoint state between volumes.
 # NOTE: this gets expanded in duplicity.commandline
-archive_dir = "~/.duplicity"
+os.environ["XDG_CACHE_HOME"] = os.getenv("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
+archive_dir = os.path.expandvars("$XDG_CACHE_HOME/duplicity")
+
+# config dir for future use
+os.environ["XDG_CONFIG_HOME"] = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+config_dir = os.path.expandvars("$XDG_CONFIG_HOME/duplicity")
 
 # Restores will try to bring back the state as of the following time.
 # If it is None, default to current time.
@@ -104,7 +112,7 @@ keep_chains = None
 dry_run = False
 
 # If set to false, then do not encrypt files on remote system
-encryption = 1
+encryption = True
 
 # volume size. default 25M
 volsize = 25*1024*1024

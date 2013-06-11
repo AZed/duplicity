@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "June 08, 2009" "Version 0.6.00" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "July 01, 2009" "Version 0.6.01" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -214,14 +214,42 @@ this switch.
 
 .TP
 .BI "--archive-dir " path
-When backing up or restoring, specify the local archive directory.
-This option is not necessary, but if hash data is found locally in
-.I path
-it will be used in preference to the remote hash data. Use of this
-option does not imply that the archive data is no longer stored
-in the backup destination, nor that the local archive directory
-need be kept safe. The local archive directory is a performance
-optimization only, and may safely be discarded at any time.
+The archive directory.
+.B NOTE:
+This option changed in 0.6.0.  The archive directory is now necessary
+in order to manage persistence for current and future enhancements.
+As such, this option is now used only to change the location of the
+archive directory.  The archive directory should
+.B not
+be deleted.
+
+When backing up or restoring, this option specifies that the local
+archive directory is to be created in
+.IR path .
+If the archive directory is not specified, the default will be to
+create the archive directory in
+.IR ~/.duplicity/%DUPLICITY_BACKUP_NAME% ,
+where
+.B %DUPLICITY_BACKUP_NAME%
+is the backup name (see
+.B --name ).
+
+If you manually specify the archive directory, and if you make backups
+to multiple target destinations, it is necessary to specify a
+different value to the
+.I --archive-dir
+option for each target in order to keep the data apart.
+
+For example if you backup to
+.I ftp://example.com/foo
+and
+.I ftp://example.com/bar
+then you could use
+.I --archive-dir=~/.duplicity/foo
+for the first target and
+.I --archive-dir=~/.duplicity/bar
+for the second target.  These are only suggested naming conventions.
+You may use whatever location makes sense in your environment.
 
 .TP
 .BI "--asynchronous-upload "
@@ -335,6 +363,10 @@ out.
 Use regular (PORT) data connections.
 
 .TP
+.B --gio
+Use the GIO backend and interpret any URLs as GIO would.
+
+.TP
 .BI "--imap-mailbox " option
 Allows you to specify a different mailbox.  The default is
 "INBOX".
@@ -402,6 +434,20 @@ programs.
 .BI "--log-file " filename
 Write specially-formatted versions of output messages to the specified file.
 The format used is designed to be easily consumable by other programs.
+
+.TP
+.BI "--name " symbolicname
+Set the symbolic name of the backup being operated on. The intent is
+to use a separate name for each logically distinct backup. For
+example, someone may use "home_daily_s3" for the daily backup of a
+home directory to Amazon S3. The structure of the name is up to the
+user, it is only important that the names be distinct. The symbolic
+name is currently only used to affect the expansion of
+.B --archive-dir
+, but may be used for additional features in the future. Users running
+more than one distinct backup are encouraged to use this option.
+
+If not specified, the default value is a hash of the backend URL.
 
 .TP
 .B --no-encryption
