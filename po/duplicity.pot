@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: Kenneth Loafman <kenneth@loafman.com>\n"
-"POT-Creation-Date: 2009-07-29 15:13-0500\n"
+"POT-Creation-Date: 2009-08-01 10:23-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,56 +158,56 @@ msgstr[1] ""
 msgid "Rerun command with --force option to actually delete."
 msgstr ""
 
-#: ../duplicity-bin:860
+#: ../duplicity-bin:863
 #, python-format
 msgid "Deleting local %s (not authoritative at backend)."
 msgstr ""
 
-#: ../duplicity-bin:885 ../duplicity/dup_temp.py:239
+#: ../duplicity-bin:888 ../duplicity/dup_temp.py:239
 #, python-format
 msgid "Failed to read %s: %s"
 msgstr ""
 
-#: ../duplicity-bin:896
+#: ../duplicity-bin:899
 #, python-format
 msgid "Copying %s to local cache."
 msgstr ""
 
-#: ../duplicity-bin:940
+#: ../duplicity-bin:943
 msgid "Local and Remote metadata are synchronized, no sync needed."
 msgstr ""
 
-#: ../duplicity-bin:945
+#: ../duplicity-bin:948
 msgid "Synchronizing remote metadata to local cache..."
 msgstr ""
 
-#: ../duplicity-bin:952
+#: ../duplicity-bin:955
 msgid "Sync would copy the following from remote to local:"
 msgstr ""
 
-#: ../duplicity-bin:955
+#: ../duplicity-bin:958
 msgid "Sync would remove the following spurious local files:"
 msgstr ""
 
-#: ../duplicity-bin:998
+#: ../duplicity-bin:1001
 msgid "Unable to get free space on temp."
-msgstr ""
-
-#: ../duplicity-bin:1006
-#, python-format
-msgid "Temp space has %d available, backup needs approx %d."
 msgstr ""
 
 #: ../duplicity-bin:1009
 #, python-format
+msgid "Temp space has %d available, backup needs approx %d."
+msgstr ""
+
+#: ../duplicity-bin:1012
+#, python-format
 msgid "Temp has %d available, backup will use approx %d."
 msgstr ""
 
-#: ../duplicity-bin:1017
+#: ../duplicity-bin:1020
 msgid "Unable to get max open files."
 msgstr ""
 
-#: ../duplicity-bin:1021
+#: ../duplicity-bin:1024
 #, python-format
 msgid ""
 "Max open files of %s is too low, should be >= 1024.\n"
@@ -215,14 +215,14 @@ msgid ""
 msgstr ""
 
 #. upload of 1st vol failed, clean and restart
-#: ../duplicity-bin:1067
+#: ../duplicity-bin:1070
 msgid ""
 "RESTART: The first volume failed to upload before termination.\n"
 "         Restart is impossible...starting backup from beginning."
 msgstr ""
 
 #. upload of N vols failed, fix manifest and restart
-#: ../duplicity-bin:1073
+#: ../duplicity-bin:1076
 #, python-format
 msgid ""
 "RESTART: Volumes %d to %d failed to upload before termination.\n"
@@ -230,7 +230,7 @@ msgid ""
 msgstr ""
 
 #. this is an 'impossible' state, remove last partial and restart
-#: ../duplicity-bin:1081
+#: ../duplicity-bin:1084
 #, python-format
 msgid ""
 "RESTART: Impossible backup state: manifest has %d vols, remote has %d vols.\n"
@@ -240,46 +240,46 @@ msgid ""
 msgstr ""
 
 #. log it -- main restart heavy lifting is done in write_multivol
-#: ../duplicity-bin:1159
+#: ../duplicity-bin:1162
 #, python-format
 msgid "Last %s backup left a partial set, restarting."
 msgstr ""
 
 #. remove last partial backup and get new collection status
-#: ../duplicity-bin:1163
+#: ../duplicity-bin:1166
 #, python-format
 msgid "Cleaning up previous partial %s backup set, restarting."
 msgstr ""
 
-#: ../duplicity-bin:1174
+#: ../duplicity-bin:1177
 msgid "Last full backup date:"
 msgstr ""
 
-#: ../duplicity-bin:1176
+#: ../duplicity-bin:1179
 msgid "Last full backup date: none"
 msgstr ""
 
-#: ../duplicity-bin:1178
+#: ../duplicity-bin:1181
 msgid "Last full backup is too old, forcing full backup"
 msgstr ""
 
 #. For gpg errors, don't show an ugly stack trace by
 #. default. But do with sufficient verbosity.
-#: ../duplicity-bin:1252
+#: ../duplicity-bin:1255
 #, python-format
 msgid "GPG error detail: %s"
 msgstr ""
 
 #. For user errors, don't show an ugly stack trace by
 #. default. But do with sufficient verbosity.
-#: ../duplicity-bin:1261
+#: ../duplicity-bin:1264
 #, python-format
 msgid "User error detail: %s"
 msgstr ""
 
 #. For backend errors, don't show an ugly stack trace by
 #. default. But do with sufficient verbosity.
-#: ../duplicity-bin:1270
+#: ../duplicity-bin:1273
 #, python-format
 msgid "Backend error detail: %s"
 msgstr ""
