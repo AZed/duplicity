@@ -594,8 +594,8 @@ class ftpBackend(Backend):
 	def delete(self, filename_list):
 		"""Delete files in filename_list"""
 		for filename in filename_list:
-			commandline = "ncftpls -x '' %s -X 'DELE %s' '%s%s'" % \
-						  (self.flags, filename, self.url_string, filename)
+			commandline = "ncftpls -x '' %s -X 'DELE %s' '%s'" % \
+						  (self.flags, filename, self.url_string)
 			self.popen_persist(commandline)
 
 
@@ -700,6 +700,15 @@ class BotoBackend(Backend):
 			from boto.s3.connection import S3Connection
 			from boto.s3.key import Key
 			assert hasattr(S3Connection, 'lookup')
+
+			# Newer versions of boto default to using virtual hosting for
+			# buckets. This is bad because it will break backups stored in
+			# buckets that contain upper-case characters in the name.
+			try:
+				from boto.s3.connection import OrdinaryCallingFormat
+				calling_format = OrdinaryCallingFormat()
+			except ImportError:
+				calling_format = None
 		except ImportError:
 			log.FatalError("This backend requires boto library, version 0.9d or later, "
 						   "(http://code.google.com/p/boto/).")
@@ -716,6 +725,9 @@ class BotoBackend(Backend):
  		else:
 			assert parsed_url.scheme == 's3'
 			self.conn = S3Connection(host=parsed_url.hostname)
+
+		if hasattr(self.conn, 'calling_format'):
+			self.conn.calling_format = calling_format
 
 		# This folds the null prefix and all null parts, which means that:
 		#  //MyBucket/ and //MyBucket are equivalent.
@@ -778,6 +790,15 @@ class BotoBackend(Backend):
 	def list(self):
 		filename_list = []
 		if self.bucket:
+			# We add a 'd' to the prefix to make sure it is not null (for boto) and
+			# to optimize the listing of our filenames, which always begin with 'd'.
+			# This will cause a failure in the regression tests as below:
+			#   FAIL: Test basic backend operations
+			#   <tracback snipped>
+			#   AssertionError: Got list: []
+			#   Wanted: ['testfile']
+			# Because of the need for this optimization, it should be left as is.
+			#for k in self.bucket.list(prefix = self.key_prefix + 'd', delimiter = '/'):
 			for k in self.bucket.list(prefix = self.key_prefix, delimiter = '/'):
 				try:
 					filename = k.key.replace(self.key_prefix, '', 1)
