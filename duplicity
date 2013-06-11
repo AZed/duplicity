@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.4.4.RC3 released September 29, 2002
+# Version 0.4.4.RC4 released September 29, 2002
 #
 # Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -349,6 +349,7 @@ def main():
 	"""Start/end here"""
 	dup_time.setcurtime()
 	action = commandline.ProcessCommandLine(sys.argv[1:])
+	dup_time.setcurtime()
 	col_stats = collections.CollectionsStatus(globals.backend,
 											  globals.archive_dir).set_values()
 	log.Log("Collection Status\n-----------------\n" + str(col_stats), 8)
