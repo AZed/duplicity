@@ -23,7 +23,7 @@
 import sys, os, getopt
 from distutils.core import setup, Extension
 
-version_string = "0.5.20"
+version_string = "0.6.00"
 
 if sys.version_info[:2] < (2,3):
     print "Sorry, duplicity requires version 2.3 or later of python"
@@ -47,7 +47,7 @@ data_files = [('share/man/man1',
                 'rdiffdir.1']),
               ('share/doc/duplicity-%s' % version_string,
                ['COPYING',
-                'REPO-README',
+                'CVS-README',
                 'LOG-README',
                 'README',
                 'tarfile-LICENSE',

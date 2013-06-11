@@ -24,7 +24,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.5.20"
+version = "0.6.00"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -35,8 +35,9 @@ local_path = None
 
 # Set to the Path of the archive directory (the directory which
 # contains the signatures and manifests of the relevent backup
-# collection.
-archive_dir = None
+# collection), and for checkpoint state between volumes.
+# NOTE: this gets expanded in duplicity.commandline
+archive_dir = "~/.duplicity"
 
 # Restores will try to bring back the state as of the following time.
 # If it is None, default to current time.
@@ -158,5 +159,11 @@ ssh_askpass = False
 # user added ssh options
 ssh_options = ""
 
-# if recovery in progress
-recovering = False
+# true if user wants no restart
+no_restart = False
+
+# will be a Restart object if restarting
+restart = None
+
+# used in testing only - raises exception after volume
+fail_on_volume = 0
