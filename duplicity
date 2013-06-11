@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.13 released April 02, 2011
+# Version 0.6.14 released June 18, 2011
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -58,7 +58,7 @@ from duplicity import util
 exit_val = None
 
 
-def get_passphrase(n, action):
+def get_passphrase(n, action, for_signing = False):
     """
     Check to make sure passphrase is indeed needed, then get
     the passphrase from environment, from gpg-agent, or user
@@ -68,12 +68,22 @@ def get_passphrase(n, action):
     verification for the time being.
 
     @type  n: int
-    @param n: action to perform
+    @param n: verification level for a passphrase being requested
+    @type  action: string
+    @param action: action to perform
+    @type  for_signing: boolean
+    @param for_signing: true if the passphrase is for a signing key, false if not
     @rtype: string
     @return: passphrase
     """
 
     # First try the environment
+    try:
+        if for_signing:
+            return os.environ['SIGN_PASSPHRASE']
+    except KeyError:
+        pass
+
     try:
         return os.environ['PASSPHRASE']
     except KeyError:
@@ -90,7 +100,7 @@ def get_passphrase(n, action):
     if not globals.encryption or globals.use_agent:
         return ""
 
-    # no passphrase if --list-current
+    # no passphrase needed if --list-current
     elif (action == "list-current"):
         return ""
 
@@ -119,28 +129,42 @@ def get_passphrase(n, action):
     # Finally, ask the user for the passphrase
     else:
         log.Info("PASSPHRASE variable not set, asking user.")
+        use_cache = True
         while 1:
-            if n == 2:
-                pass1 = globals.gpg_profile.passphrase
-            else:
-                if globals.gpg_profile.passphrase:
-                    pass1 = globals.gpg_profile.passphrase
+            # ask the user to enter a new passphrase to avoid an infinite loop
+            # if the user made a typo in the first passphrase
+            if use_cache and n == 2:
+                if for_signing:
+                    pass1 = globals.gpg_profile.signing_passphrase
                 else:
-                    pass1 = getpass.getpass("GnuPG passphrase: ")
+                    pass1 = globals.gpg_profile.passphrase
+            else:
+                if for_signing:
+                    if use_cache and globals.gpg_profile.signing_passphrase:
+                        pass1 = globals.gpg_profile.signing_passphrase
+                    else:
+                        pass1 = getpass.getpass("GnuPG passphrase for signing key: ")
+                else:
+                    if use_cache and globals.gpg_profile.passphrase:
+                        pass1 = globals.gpg_profile.passphrase
+                    else:
+                        pass1 = getpass.getpass("GnuPG passphrase: ")
 
             if n == 1:
                 pass2 = pass1
+            elif for_signing:
+                pass2 = getpass.getpass("Retype passphrase for signing key to confirm: ")
             else:
                 pass2 = getpass.getpass("Retype passphrase to confirm: ")
 
             if not pass1 == pass2:
                 print "First and second passphrases do not match!  Please try again."
-                n = 3
+                use_cache = False
                 continue
 
-            if not pass1 and not globals.gpg_profile.recipients:
+            if not pass1 and not globals.gpg_profile.recipients and not for_signing:
                 print "Cannot use empty passphrase with symmetric encryption!  Please try again."
-                n = 3
+                use_cache = False
                 continue
 
             return pass1
@@ -238,9 +262,15 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
         return start_index, start_block, end_index, end_block
 
     def put(tdp, dest_filename):
-        backend.put(tdp, dest_filename)
+        """
+        Retrieve file size *before* calling backend.put(), which may (at least
+        in case of the localbackend) rename the temporary file to the target
+        instead of copying.
+        """
         putsize = tdp.getsize()
-        tdp.delete()
+        backend.put(tdp, dest_filename)
+        if tdp.stat:
+            tdp.delete()
         return putsize
 
     if not globals.restart:
@@ -698,7 +728,10 @@ def cleanup(col_stats):
         if not globals.dry_run:
             col_stats.backend.delete(ext_remote)
             for fn in ext_local:
-                globals.archive_dir.append(fn).delete()
+                try:
+                    globals.archive_dir.append(fn).delete()
+                except Exception:
+                    pass
     else:
         log.Notice(gettext.ngettext("Found the following file to delete:",
                                      "Found the following files to delete:",
@@ -889,9 +922,13 @@ def sync_archive():
             def next(self, size):
                 try:
                     res = Block(self.fileobj.read(size))
-                except:
+                except Exception:
+                    if hasattr(self.fileobj, 'name'):
+                        name = self.fileobj.name
+                    else:
+                        name = None
                     log.FatalError(_("Failed to read %s: %s") %
-                                   (self.fileobj.name, sys.exc_info()),
+                                   (name, sys.exc_info()),
                                    log.ErrorCode.generic)
                 if not res.data:
                     self.fileobj.close()
@@ -949,6 +986,7 @@ def sync_archive():
         if not globals.dry_run:
             log.Notice(_("Synchronizing remote metadata to local cache..."))
             if local_missing and (rem_needpass or loc_needpass):
+                # password for the --encrypt-key
                 globals.gpg_profile.passphrase = get_passphrase(1, "sync")
             for fn in local_spurious:
                 remove_local(fn)
@@ -1001,7 +1039,7 @@ def check_resources(action):
         tempfs = os.path.sep.join(tempname.split(os.path.sep)[:-2])
         try:
             stats = os.statvfs(tempfs)
-        except:
+        except Exception:
             log.FatalError(_("Unable to get free space on temp."),
                            log.ErrorCode.get_freespace_failed)
         # Calculate space we need for at least 2 volumes of full or inc
@@ -1034,7 +1072,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.13 (April 02, 2011)", verbosity)
+    log.Log("duplicity 0.6.14 (June 18, 2011)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1064,7 +1102,10 @@ class Restart:
             self.type = "inc"
             self.end_time = last_backup.end_time
             self.start_time = last_backup.start_time
-        self.start_vol = len(last_backup)
+        # We start one volume back in case we weren't able to finish writing
+        # the most recent block.  Actually checking if we did (via hash) would
+        # involve downloading the block.  Easier to just redo one block.
+        self.start_vol = max(len(last_backup) - 1, 0)
 
     def checkManifest(self, mf):
         mf_len = len(mf.volume_info_dict)
@@ -1123,26 +1164,21 @@ def main():
     # The following is for starting remote debugging in Eclipse with Pydev.
     # Adjust the path to your location and version of Eclipse and Pydev.
     if globals.pydevd:
-        pysrc = "/opt/Aptana Studio 2.0/plugins/org.python.pydev.debug_1.6.5.2011020317/pysrc/"
-        if os.path.isdir(pysrc):
-            sys.path.append(pysrc)
-            import pydevd #@UnresolvedImport
-            pydevd.settrace()
-        else:
-            log.FatalError("Unable to locate pydevd.", log.ErrorCode.user_error)
-
-    # get the passphrase if we need to based on action/options
-    globals.gpg_profile.passphrase = get_passphrase(1, action)
+        pysrc = "/opt/Aptana Studio 2/plugins/org.python.pydev.debug_2.1.0.2011052613/pysrc/"
+        sys.path.append(pysrc)
+        import pydevd #@UnresolvedImport
+        pydevd.settrace()
 
     # log some debugging status info
     log_startup_parms(log.INFO)
 
     # check for disk space and available file handles
     check_resources(action)
-
+    
     # check archive synch with remote, fix if needed
-    sync_archive()
-
+ 	if action not in ["collection-status"]:
+ 		sync_archive()
+    
     # get current collection status
     col_stats = collections.CollectionsStatus(globals.backend,
                                               globals.archive_dir).set_values()
@@ -1193,6 +1229,11 @@ def main():
 
     os.umask(077)
 
+    # full/inc only needs a passphrase for symmetric keys
+    if not action in ["full", "inc"] or not globals.gpg_profile.recipients:
+        # get the passphrase if we need to based on action/options
+        globals.gpg_profile.passphrase = get_passphrase(1, action)
+
     if action == "restore":
         restore(col_stats)
     elif action == "verify":
@@ -1211,16 +1252,36 @@ def main():
         sync_archive(col_stats)
     else:
         assert action == "inc" or action == "full", action
-        if action == "full":
+        # the passphrase for full and inc is used by --sign-key
+        # the sign key can have a different passphrase than the encrypt
+        # key, therefore request a passphrase
+        if globals.gpg_profile.sign_key:
+            globals.gpg_profile.signing_passphrase = get_passphrase(3, action, True)
+
+        # if there are no recipients (no --encrypt-key), it must be a
+        # symmetric key. Therefore, confirm the passphrase
+        if not globals.gpg_profile.recipients:
             globals.gpg_profile.passphrase = get_passphrase(2, action)
+            # a limitation in the GPG implementation does not allow for
+            # inputting different passphrases, this affects symmetric+sign.
+            # Allow an empty passphrase for the key though to allow a non-empty
+            # symmetric key
+            if (globals.gpg_profile.signing_passphrase and
+                globals.gpg_profile.passphrase != globals.gpg_profile.signing_passphrase):
+                log.FatalError("When using symmetric encryption, the signing passphrase must equal the encryption passphrase.", log.ErrorCode.user_error)
+
+        if action == "full":
             full_backup(col_stats)
         else:  # attempt incremental
             sig_chain = check_sig_chain(col_stats)
+            # action == "inc" was requested, but no full backup is available
             if not sig_chain:
-                globals.gpg_profile.passphrase = get_passphrase(2, action)
                 full_backup(col_stats)
             else:
                 if not globals.restart:
+                    # only ask for a passphrase if there was a previous backup
+                    if col_stats.all_backup_chains:
+                        globals.gpg_profile.passphrase = get_passphrase(1, action)
                     check_last_manifest(col_stats) # not needed for full backup
                 incremental_backup(sig_chain)
     globals.backend.close()

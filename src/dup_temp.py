@@ -181,7 +181,10 @@ class FileobjHooked:
         else:
             os.system("cp -p \"%s\" \"%s\"" % (src.name, tgt.name))
         globals.backend.put(tgt) #@UndefinedVariable
-        os.unlink(tgt.name)
+        try:
+            os.unlink(tgt.name)
+        except Exception, e:
+            log.Warn(_("Unable to delete %s: %s" % (tgt.name, str(e))))
 
     def to_final(self):
         """
@@ -218,6 +221,15 @@ class FileobjHooked:
         self.hooklist.append(hook)
 
 
+    def get_name(self):
+        """
+        Return the name of the file
+        """
+        return self.fileobj.name
+
+    name = property(get_name)
+
+
 class Block:
     """
     Data block to return from SrcIter
@@ -235,7 +247,7 @@ class SrcIter:
     def next(self, size):
         try:
             res = Block(self.fp.read(size))
-        except:
+        except Exception:
             log.FatalError(_("Failed to read %s: %s") %
                            (self.src.name, sys.exc_info()),
                            log.ErrorCode.generic)

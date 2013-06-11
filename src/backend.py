@@ -40,6 +40,8 @@ from duplicity import globals
 from duplicity import log
 from duplicity import urlparse_2_5 as urlparser
 
+from duplicity.util import exception_traceback
+
 from duplicity.errors import BackendException
 from duplicity.errors import ConflictingScheme
 from duplicity.errors import InvalidBackendURL
@@ -74,7 +76,7 @@ def import_backends():
             try:
                 __import__(imp)
                 res = "Succeeded"
-            except:
+            except Exception:
                 res = "Failed: " + str(sys.exc_info()[1])
             log.Info("Import of %s %s" % (imp, res))
         else:
@@ -178,7 +180,8 @@ def _ensure_urlparser_initialized():
                                      'hsi',
                                      'rsync',
                                      's3',
-                                     'scp', 'ssh',
+                                     'u1',
+                                     'scp', 'ssh', 'sftp',
                                      'webdav', 'webdavs',
                                      'http', 'https',
                                      'imap', 'imaps']
@@ -213,27 +216,27 @@ class ParsedUrl:
 
         try:
             pu = urlparser.urlparse(url_string)
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error in: %s" % url_string)
 
         try:
             self.scheme = pu.scheme
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error (scheme) in: %s" % url_string)
 
         try:
             self.netloc = pu.netloc
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error (netloc) in: %s" % url_string)
 
         try:
             self.path = pu.path
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error (path) in: %s" % url_string)
 
         try:
             self.username = pu.username
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error (username) in: %s" % url_string)
         if self.username:
             self.username = urllib.unquote(pu.username)
@@ -242,7 +245,7 @@ class ParsedUrl:
 
         try:
             self.password = pu.password
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error (password) in: %s" % url_string)
         if self.password:
             self.password = urllib.unquote(self.password)
@@ -251,14 +254,14 @@ class ParsedUrl:
 
         try:
             self.hostname = pu.hostname
-        except:
+        except Exception:
             raise InvalidBackendURL("Syntax error (hostname) in: %s" % url_string)
 
         # init to None, overwrite with actual value on success
         self.port = None
         try:
             self.port = pu.port
-        except:
+        except Exception:
             # old style rsync://host::[/]dest, are still valid, though they contain no port
             if not ( self.scheme in ['rsync'] and re.search('::[^:]*$', self.url_string)):
                 raise InvalidBackendURL("Syntax error (port) in: %s A%s B%s C%s" % (url_string, (self.scheme in ['rsync']), re.search('::[^:]+$', self.netloc), self.netloc ) )
@@ -291,6 +294,26 @@ def strip_auth_from_url(parsed_url):
 
     # Replace the full network location with the stripped copy.
     return parsed_url.geturl().replace(parsed_url.netloc, straight_netloc, 1)
+
+
+# Decorator for backend operation functions to simplify writing one that
+# retries.  Make sure to add a keyword argument 'raise_errors' to your function
+# and if it is true, raise an exception on an error.  If false, fatal-log it.
+def retry(fn):
+    def iterate(*args):
+        for n in range(1, globals.num_retries):
+            try:
+                kwargs = {"raise_errors" : True}
+                return fn(*args, **kwargs)
+            except Exception, e:
+                log.Warn("Attempt %s failed: %s: %s"
+                         % (n, e.__class__.__name__, str(e)))
+                log.Debug("Backtrace of previous error: %s"
+                          % exception_traceback())
+        # Now try one last time, but fatal-log instead of raising errors
+        kwargs = {"raise_errors" : False}
+        return fn(*args, **kwargs)
+    return iterate
 
 
 class Backend:
@@ -401,14 +424,14 @@ class Backend:
         from subprocess import Popen, PIPE
         p = Popen(commandline, shell=True, stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
-        
+
         return p.returncode, stdout, stderr
 
     def subprocess_popen(self, commandline):
         """
         Execute the given command line with error check.
         Returns int Exitcode, string StdOut, string StdErr
-        
+
         Raise a BackendException on failure.
         """
         private = self.munge_password(commandline)
@@ -418,7 +441,7 @@ class Backend:
             raise BackendException("Error running '%s'" % private)
         return result, stdout, stderr
 
-    """ a dictionary for persist breaking exceptions, syntax is 
+    """ a dictionary for persist breaking exceptions, syntax is
         { 'command' : [ code1, code2 ], ... } see ftpbackend for an example """
     popen_persist_breaks = {}
 
@@ -427,7 +450,7 @@ class Backend:
         Execute the given command line with error check.
         Retries globals.num_retries times with 30s delay.
         Returns int Exitcode, string StdOut, string StdErr
-        
+
         Raise a BackendException on failure.
         """
         private = self.munge_password(commandline)
@@ -440,7 +463,7 @@ class Backend:
             result, stdout, stderr = self._subprocess_popen(commandline)
             if result == 0:
                 return result, stdout, stderr
-            
+
             try:
                 m = re.search("^\s*([\S]+)", commandline)
                 cmd = m.group(1)

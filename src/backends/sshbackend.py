@@ -27,6 +27,7 @@
 import re
 import string
 import time
+import os
 
 import duplicity.backend
 from duplicity import globals
@@ -151,6 +152,7 @@ class SSHBackend(duplicity.backend.Backend):
                      "(?i)permission denied",
                      "authenticity",
                      "(?i)no such file or directory",
+                     "Couldn't delete file: No such file or directory",
                      "Couldn't delete file",
                      "open(.*): Failure"]
         max_response_len = max([len(p) for p in responses[1:]])
@@ -189,12 +191,17 @@ class SSHBackend(duplicity.backend.Backend):
                     log.Warn("Host key authenticity could not be verified (missing known_hosts entry?)")
                     break
                 elif match == 6:
-                    log.Warn("Remote file or directory does not exist in command='%s'" % (commandline,))
-                    break
+                    if not child.before.strip().startswith("rm"):
+                        log.Warn("Remote file or directory does not exist in command='%s'" % (commandline,))
+                        break
                 elif match == 7:
+                    if not child.before.strip().startswith("Removing"):
+                        log.Warn("Could not delete file in command='%s'" % (commandline,))
+                        break;
+                elif match == 8:
                     log.Warn("Could not delete file in command='%s'" % (commandline,))
                     break
-                elif match == 8:
+                elif match == 9:
                     log.Warn("Could not open file in command='%s'" % (commandline,))
                     break
             child.close(force = True)
@@ -214,8 +221,10 @@ class SSHBackend(duplicity.backend.Backend):
         """Use sftp to copy source_dir/filename to remote computer"""
         if not remote_filename:
             remote_filename = source_path.get_filename()
-        commands = ["put \"%s\" \"%s%s\"" %
-                    (source_path.name, self.remote_prefix, remote_filename)]
+        commands = ["put \"%s\" \"%s.%s.part\"" %
+                    (source_path.name, self.remote_prefix, remote_filename),
+                    "rename \"%s.%s.part\" \"%s%s\"" %
+                    (self.remote_prefix, remote_filename,self.remote_prefix, remote_filename)]
         commandline = ("%s %s %s" % (globals.sftp_command,
                                      globals.ssh_options,
                                      self.host_string))
@@ -268,9 +277,12 @@ class SSHBackend(duplicity.backend.Backend):
         files with newlines in them, as the embedded newlines cannot
         be distinguished from the file boundaries.
         """
-        commands = ["mkdir \"%s\"" % (self.remote_dir,),
-                    "cd \"%s\"" % (self.remote_dir,),
-                    "ls -1"]
+        dirs = self.remote_dir.split(os.sep)
+        mkdir_commands = [];
+        for d in dirs:
+            mkdir_commands += ["mkdir \"%s\"" % (d)] + ["cd \"%s\"" % (d)]
+
+        commands = mkdir_commands + ["ls -1"]
         commandline = ("%s %s %s" % (globals.sftp_command,
                                      globals.ssh_options,
                                      self.host_string))
@@ -291,3 +303,4 @@ class SSHBackend(duplicity.backend.Backend):
 
 duplicity.backend.register_backend("ssh", SSHBackend)
 duplicity.backend.register_backend("scp", SSHBackend)
+duplicity.backend.register_backend("sftp", SSHBackend)

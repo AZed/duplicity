@@ -246,6 +246,9 @@ def parse_cmdline_options(arglist):
                       dest="", action="callback",
                       callback=lambda o, s, v, p: globals.gpg_profile.recipients.append(v)) #@UndefinedVariable
 
+    # secret keyring in which the private encrypt key can be found
+    parser.add_option("--encrypt-secret-keyring", type="string", metavar=_("path"))
+
     # TRANSL: Used in usage help to represent a "glob" style pattern for
     # matching one or more files, as described in the documentation.
     # Example:
@@ -334,6 +337,9 @@ def parse_cmdline_options(arglist):
                       dest="", type="string", callback=add_selection)
     parser.add_option("--include-filelist", type="file", metavar=_("filename"),
                       dest="", action="callback", callback=add_filelist)
+    parser.add_option("--include-filelist-stdin", action="callback", dest="",
+                      callback=lambda o, s, v, p: (select_opts.append(("--include-filelist", "standard input")),
+                                                   select_files.append(sys.stdin)))
     parser.add_option("--include-globbing-filelist", type="file", metavar=_("filename"),
                       dest="", action="callback", callback=add_filelist)
     parser.add_option("--include-regexp", metavar=_("regular_expression"), dest="",
@@ -515,7 +521,7 @@ def parse_cmdline_options(arglist):
     elif cmd == "remove-older-than":
         try:
             arg = args.pop(0)
-        except:
+        except Exception:
             command_line_error("Missing time string for remove-older-than")
         globals.remove_time = dup_time.genstrtotime(arg)
         num_expect = 1
@@ -526,7 +532,7 @@ def parse_cmdline_options(arglist):
             globals.remove_all_inc_of_but_n_full_mode = True
         try:
             arg = args.pop(0)
-        except:
+        except Exception:
             command_line_error("Missing count for " + cmd)
         globals.keep_chains = int(arg)
         if not globals.keep_chains > 0:
@@ -764,7 +770,7 @@ def set_archive_dir(dirstring):
     if not os.path.exists(dirstring):
         try:
             os.makedirs(dirstring)
-        except:
+        except Exception:
             pass
     archive_dir = path.Path(dirstring)
     if not archive_dir.isdir():
@@ -875,9 +881,9 @@ def check_consistency(action):
             command_line_error("--incremental option cannot be used when "
                                "restoring or verifying")
         if select_opts and action == "restore":
-            command_line_error("Selection options --exclude/--include\n"
-                               "currently work only when backing up, "
-                               "not restoring.")
+            log.Warn( _("Command line warning: %s") % _("Selection options --exclude/--include\n"
+                                                        "currently work only when backing up,"
+                                                        "not restoring.") )
     else:
         assert action == "inc" or action == "full"
         if verify:
