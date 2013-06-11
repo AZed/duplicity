@@ -22,8 +22,8 @@ import os, socket, types, tempfile, time, sys
 import log, path, dup_temp, file_naming, atexit
 import base64, getpass, xml.dom.minidom, httplib, urllib
 import socket, globals, re, string
+from duplicity import tempdir
 
-import duplicity.tempdir as tempdir
 import inspect
 import urlparse
 
@@ -50,10 +50,7 @@ def straight_url(parsed_url):
 	return parsed_url.geturl().replace(parsed_url.netloc, straight_netloc, 1)
 
 
-def get_backend(url_string):
-	"""Return Backend object from url string, or None if not a url string"""
-	"""If a protocol is unsupported a fatal error will be raised."""
-
+def ParsedUrl(url_string):
 	# These URL schemes have a backend with a notion of an RFC "network location".
 	# The 'file' and 's3+http' schemes should not be in this list.
 	urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs' ]
@@ -66,15 +63,28 @@ def get_backend(url_string):
 
 	# This happens for implicit local paths.
 	if not pu.scheme:
-		return None
+		return pu
 
 	# Our backends do not handle implicit hosts.
 	if pu.scheme in urlparser.uses_netloc and not pu.hostname:
-		raise ParsingException('Bad %s:// URL syntax: %s' % (pu.scheme, url_string))
+		log.FatalError('Bad %s:// URL syntax: %s' % (pu.scheme, url_string))
 
 	# Our backends do not handle implicit relative paths.
 	if not pu.scheme in urlparser.uses_netloc and not pu.path.startswith('//'):
-		raise ParsingException('Bad %s:// URL syntax: %s' % (pu.scheme, url_string))
+		log.FatalError('Bad %s:// URL syntax: %s' % (pu.scheme, url_string))
+
+	return pu
+
+
+def get_backend(url_string):
+	"""Return Backend object from url string, or None if not a url string"""
+	"""If a protocol is unsupported a fatal error will be raised."""
+
+	pu = ParsedUrl(url_string)
+
+	# This happens for implicit local paths.
+	if not pu.scheme:
+		return None
 
 	global protocol_class_dict
 	try:
@@ -459,7 +469,7 @@ class sshBackend(Backend):
 				elif match == 6:
 					log.Log("Remote file or directory '%s' does not exist" % self.remote_dir, 1)
 					break
-			child.close()
+			child.close(force = True)
 			if child.exitstatus == 0:
 				return res
 			log.Log("Running '%s' failed (attempt #%d)" % (commandline, n), 1)
@@ -603,14 +613,18 @@ class rsyncBackend(Backend):
 	def __init__(self, parsed_url):
 		"""rsyncBackend initializer"""
 		Backend.__init__(self, parsed_url)
-		self.url_string = "%s:%s" % (parsed_url.hostname, parsed_url.path)
+		user, host = parsed_url.netloc.split('@')
+		if parsed_url.password:
+			user = user.split(':')[0]
+		mynetloc = '%s@%s' % (user, host)
+		self.url_string = "%s%s" % (mynetloc, parsed_url.path.lstrip('/'))
 		if self.url_string[-1] != '/':
 			self.url_string += '/'
 
 	def put(self, source_path, remote_filename = None):
 		"""Use rsync to copy source_dir/filename to remote computer"""
 		if not remote_filename: remote_filename = source_path.get_filename()
-		remote_path = os.path.join (self.url_string, remote_filename)
+		remote_path = os.path.join(self.url_string, remote_filename)
 		commandline = "rsync %s %s" % (source_path.name, remote_path)
 		self.run_command(commandline)
 
@@ -679,9 +693,10 @@ class BotoBackend(Backend):
 		try:
 			from boto.s3.connection import S3Connection
 			from boto.s3.key import Key
+			assert hasattr(S3Connection, 'lookup')
 		except ImportError:
-			raise BackendException("This backend requires the boto library, "
-								   "(http://code.google.com/p/boto/).")
+			log.FatalError("This backend requires boto library, version 0.9d or later, "
+						   "(http://code.google.com/p/boto/).")
 
 		if not os.environ.has_key('AWS_ACCESS_KEY_ID'):
 			raise BackendException("The AWS_ACCESS_KEY_ID environment variable is not set.")
@@ -757,9 +772,12 @@ class BotoBackend(Backend):
 	def list(self):
 		filename_list = []
 		if self.bucket:
-			for k in self.bucket.list(prefix = self.key_prefix + 'duplicity-'):
-				filename = k.key.lstrip(self.key_prefix)
-				filename_list.append(filename)
+			for k in self.bucket.list(prefix = self.key_prefix + 'd', delimiter = '/'):
+				try:
+					filename = k.key.replace(self.key_prefix, '', 1)
+					filename_list.append(filename)
+				except AttributeError:
+					pass
 				log.Log("Listed %s/%s" % (self.straight_url, filename), 9)
 		return filename_list
 
