@@ -1,3 +1,190 @@
+2012-05-18  Kenneth Loafman  <kenneth@loafman.com>
+
+	Add note on GnuPGInterface and multiple GPG processes.
+
+2012-05-16  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~ed.so/duplicity/backend_fixes
+	
+	- fixed ssh/gio backend import warnings
+	+ ssh paramiko backend imports paramiko lazily now
+	+ gio backend is not imported automatically but on request when --gio option is used
+	- added a warning when --ssh-backend is used with an incorrect value
+
+2012-05-16  edso
+
+	- fixed ssh/gio backend import warnings 
+	+ ssh paramiko backend imports paramiko lazily now
+	+ gio backend is not imported automatically but on request when --gio option is used
+	- added a warning when --ssh-backend is used with an incorrect value
+
+2012-05-15  Kenneth Loafman  <kenneth@loafman.com>
+
+	Update changelogs, remove misleading date.
+
+2012-05-15  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged  in  lp:~ed.so/duplicity/ssh-fixes
+	
+	- ssh paramiko backend respects --num-retries now
+	- set retry delay for ssh backends to 10s
+	- ssh pexpect backend
+	+ sftp part does not claim 'Invalid SSH password' although it's only 'Permission denied' now
+	+ sftp errors are now more talkative
+	- gpg.py
+	+ commented assert which broke otherwise working verify run
+
+2012-05-15  edso
+
+	- ssh paramiko backend respects --num-retries now
+	- set retry delay for ssh backends to 10s
+	- ssh pexpect backend 
+	+ sftp part does not claim 'Invalid SSH password' although it's only 'Permission denied' now
+	+ sftp errors are now more talkative 
+	- gpg.py
+	+ commented assert which broke otherwise working verify run
+
+2012-05-15  edso
+
+	- ssh paramiko backend respects --num-retries now
+	- set retry delay for ssh backends to 10s
+	- ssh pexpect backend 
+	+ sftp part does not claim 'Invalid SSH password' although it's only 'Permission denied' now
+	+ sftp errors are now more talkative 
+	- gpg.py
+	+ commented assert which broke otherwise working verify run
+
+2012-03-24  Kenneth Loafman  <kenneth@loafman.com>
+
+	A couple more warning error codes that Deja Dup is interested in noticing.
+
+2012-03-21  Michael Terry  <michael.terry@canonical.com>
+
+	add a couple more warning codes for machine consumption of warnings
+
+2012-03-24  Kenneth Loafman  <kenneth@loafman.com>
+
+	If the gio backend wants to ask a question during its mount phase, it previously just aborted. This branch allows it to continue, though not to make an intelligent answer.
+	
+	Only two gvfs daemons ask questions: 'sftp' does for new hosts, and 'afc' does for locked device. In both cases, the 0 choice is the 'just keep going' choice.
+
+2012-03-19  Michael Terry  <michael.terry@canonical.com>
+
+	allow answering gio mount questions (albeit naively)
+
+2012-03-13  edso
+
+	Merged in lp:~ed.so/duplicity/0.6-readd_sshpexpect
+	- readd ssh pexpect backend as alternative
+	- added --ssh-backend parameter to switch between paramiko,pexpect
+	- manpage
+	-- update to reflect above changes
+	-- added more backend requirements
+	- Changelog.GNU removed double entries
+
+2012-03-13  edso
+
+	add missing files
+
+2012-03-13  edso
+
+	- readd ssh pexpect backend as alternative
+	- added --ssh-backend parameter to switch between paramiko,pexpect
+	- manpage 
+	-- update to reflect above changes
+	-- added more backend requirements
+	- Changelog.GNU removed double entries
+
+2012-03-13  Kenneth Loafman  <kenneth@loafman.com>
+
+	Update Changelog.GNU.
+
+2012-03-13  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~ed.so/duplicity/0.6-ssh_add_missinghostkey
+	
+	add missing_host_key prompt to new sshbackend similar to ssh procedure
+
+2012-03-12  edso
+
+	changelog entry
+
+2012-03-12  edso
+
+	add missing_host_key prompt similar to ssh procedure
+
+2012-03-13  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~carlos-abalde/duplicity/gdocs-backend-gdata-2.0.16.-upgrade.
+
+2012-03-12  Carlos Abalde  <carlos.abalde@gmail.com>
+
+	Fixing most basic stuff. Pending all testing
+
+2012-03-08  edso  <edgar.soldin@web.de>
+
+	Merged in lp:~ed.so/duplicity/0.6-ssh_config
+	
+	add ssh_config support (/etc/ssh/ssh_config + ~/.ssh/config) to paramiko sshbackend
+	@Ken: would you please announce that sshbackend is paramiko based native python now in the Changelog for the next release? 
+	this was missing in 0.6.18's Changelog
+
+2012-03-08  edso
+
+	changelog entry
+
+2012-03-08  edso
+
+	add ssh_config support (/etc/ssh/ssh_config + ~/.ssh/config) to paramiko sshbackend
+
+2012-03-08  edso  <edgar.soldin@web.de>
+
+	Merged in lp:~ed.so/duplicity/0.6-webdav_fixes.
+
+2012-03-08  edso
+
+	- empty listbody for enhanced webdav compatibility
+	- bugfix: initial folder creation on backend does not result in a ResponseNotReady anymore
+
+2012-03-08  Kenneth Loafman  <kenneth@loafman.com>
+
+	Merged in lp:~ed.so/duplicity/0.6-manpage
+	
+	- added REQUIREMENTS section
+
+2012-03-08  edso
+
+	- added REQUIREMENTS section
+	- restructure SYNOPSIS/ACTIONS to have commands sorted by backup lifecycle
+	- added restore and some more hints when --time or --file-to-restore are supported
+	- replaced scp:// with sftp:// in examples as this is the suggested protocol anyway
+	- added an intro text to ACTIONS section
+	- adapted --ssh-askpass description to latest functionality
+
+2012-02-29  kenneth@loafman.com
+
+	Changes for 0.6.18.
+
+2012-02-29  kenneth@loafman.com
+
+	Use correct dir name for cleanup.
+
+2012-02-29  kenneth@loafman.com
+
+	Adjust roottest.py to new test dir structure.
+
+2012-02-29  kenneth@loafman.com
+
+	Changes for 0.6.18.
+
+2012-02-29  kenneth@loafman.com
+
+	Some code/import changes to make the ssh and boto backends compatible with Python 2.4.
+
+2012-02-29  kenneth@loafman.com
+
+	Changes for 0.6.18.
+
 2012-02-29  kenneth@loafman.com
 
 	Changes for 0.6.18.
