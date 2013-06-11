@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.4.4.RC2 released September 29, 2002
+# Version 0.4.4.RC3 released September 29, 2002
 #
 # Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -352,6 +352,11 @@ def main():
 	col_stats = collections.CollectionsStatus(globals.backend,
 											  globals.archive_dir).set_values()
 	log.Log("Collection Status\n-----------------\n" + str(col_stats), 8)
+
+	log.Log("Last full backup date: " + dup_time.timetopretty(col_stats.get_last_full_backup()), 4)
+	if action == "inc" and col_stats.get_last_full_backup() < globals.full_force_time:
+		log.Log("Last full backup is too old, forcing full backup", 3)
+		action = "full"
 
 	os.umask(077)
 	
