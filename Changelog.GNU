@@ -1,3 +1,144 @@
+2013-01-18  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~duplicity-team/duplicity/po-updates
+      - Updated translations
+    * Prep for 0.6.21 release
+
+2013-01-18  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~ed.so/duplicity/webdav.fix-retry
+      - added ssl certificate verification (see man page)
+      - more robust retry routine to survive ssl errors, broken pipe errors
+      - added http redirect support
+    * Merged in lp:~ed.so/duplicity/webdav.manpage
+      - explanation of webdav changes above
+    * Merged in lp:~mterry/duplicity/pygi
+      - Python bindings for the gobject stack (used in the gio backend) have changed
+        from static to dynamically-generated bindings. The old static bindings are
+        deprecated. So here's a branch to change the gio backend from old to new ones.
+    * Merged in lp:~mterry/duplicity/py3rsync
+      - This branch lets one build the _librsync module with Python 3. You can't
+        really do anything useful with it, but it's a nicely-isolated piece to add
+        Python 3 support for.
+      - The changes are a mix of modernization and #ifdef logic.
+      - All tests still pass in Python 2.7 and 2.4. I tested manually that the module
+        worked as expected in Python 3.
+
+2013-01-07  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~mterry/duplicity/static-corruption
+      - This branch fixes three possible ways a backup could get data-corrupted.
+        Inspired by bug 1091269.
+          A) If resuming after a volume that ended in a one-block file, we would
+             skip the first block of the next file.
+          B) If resuming after a volume that ended in a multi-block file, we would
+             skip the first block of the next file.
+          C) If resuming after a volume that spanned a multi-block file, we would
+             skip some data inside the file.
+      - A and B are because when finding the right place in the source files to
+        restart the backup, the iteration loop didn't handle None block numbers
+        very well (which are used to indicate the end of a file).
+      - C is what bug 1091269 talks about. This was because data block sizes would
+        get smaller as the difftar file got closer and closer to the volsize.
+        Standard block sizes were 64 * 1024.  But say we were close to the end of
+        the difftar... When resuming, duplicity doesn't know the custom block sizes
+        used by the previous run, so it uses standard block sizes. And it doesn't
+        always match up, as you can imagine. So we would leave chunks of data out
+        of the backed up file.
+      - Tests added for these cases.
+      - This branch is called 'static-corruption' because all these issues occur
+        even when the source data doesn't change. I still think there are some
+        corruption issues when a file changes in between duplicity runs. I haven't
+        started looking into that yet, but that's next on my list.
+      - C only happened without encryption (because the gpg writer function already
+        happened to force a constant data block size). A and B happened with or
+        without encryption.
+
+2013-01-02  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Fixed 1091269 Data corruption when resuming with --no-encryption
+      - Patches from Pascual Abellan that make block size consistent and
+        that add no-encryption option to manual-ctrl-c-test.sh.
+      - Modified gpg.py patch to use 64k block size so unit test passes.
+
+2013-01-01  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~ed.so/duplicity/u1_and_manpage
+      - Manpage
+        - document Ubuntu One required python libs
+        - added continuous contributors and backend author notes
+      - U1backend
+        - lazily import non standard python libs, fixes
+        http://article.gmane.org/gmane.comp.sysutils.backup.duplicity.general/5753
+        - fix "not bytearray" prevents PUT with python 2.6
+        - don't hang after putting in credentials (cause it silently retries in background)
+          but go through with backup
+
+2012-12-22  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~ed.so/duplicity/webdav.fix-retry
+      - bugfix: webdav retrying broke on ERRORS like "error: [Errno 32] Broken pipe" in
+        socket.pyas reported here https://answers.launchpad.net/duplicity/+question/212966
+        added a more generalized 'retry_fatal' decorator which makes retrying backend
+        methods even easier
+    * Merged in lp:~ed.so/duplicity/manpage
+      - Clear up PASSPHRASE reusage as sign passphrase.  Minor fixes.
+
+2012-12-17  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~lenharo-h/duplicity/duplicity
+      - Generate encrypted backups without revealing the user's key id
+        via option --hidden-encrypt-key
+    * Merged in lp:~mterry/duplicity/u1-utf8
+      - Make sure u1backend returns filenames as utf8
+    * Merged in lp:~carlos-abalde/duplicity/gdocs-backend-gdata-2.0.16.-upgrade
+      - Upgrade of GoogleDocs backend to python gdata lib >= 2.0.15:
+        Stop using get_everything method.
+
+2012-11-19  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~ed.so/duplicity/lftp.netrc
+      - Allow .netrc auth for lftp backend
+    * Merged in lp:~mterry/duplicity/946988
+      - This fixes bug 946988 by not duplicating the checks for when we should ask
+        for the password (those same checks are done more correctly inside
+        get_passphrase). And add a test to reproduce the bug.
+
+2012-11-10  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~satwell/duplicity/caching
+      - Add a cache for password and group lookups. This significantly improves
+        runtime with very large password and group configurations.
+    * Merged in lp:~ed.so/duplicity/manpage
+      - more formatting fixes, clarifications in sections EXAMPLES, FILE SELECTION
+
+2012-11-03  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~mterry/duplicity/u1-oauthlib
+      - As the Ubuntu packager for duplicity, I would prefer u1backend.py
+        used oauthlib instead of oauth.  oauthlib is well maintained upstream
+        (unlike oauth), has a python3 port (for the future), and is in Ubuntu
+        main (so is oauth right now, but hopefully in the future we can drop
+        it to universe, in which case duplicity can't use it anymore).
+    * Merged in lp:~mterry/duplicity/delete-new-sig-in-cache
+      - In duplicity 0.6.20, we fixed bug 1031269. This means that we no longer
+        leave sig files on the remote location.  Leaving sig files on the remote
+        location also caused a bug with deleting cache files. Code used to leave
+        remote new-sig but delete the locale cache new-sig; this meant that we would
+        keep downloadoing the new-sig all the time from remote. We had worked around
+        that by just not deleting the new-sig in the cache, which was sort of the
+        wrong side of that problem to tackle.  Now that we handle the remote
+        new-sigs better (by deleting them), I don't think we need this code anymore.
+        Patch by az@debian.org.
+    * Merged in lp:~mterry/duplicity/u1-ascii-error
+      - Fix for u1backend unicode error.  Patch by Paul Barker.
+
+
+2012-10-29  Kenneth Loafman  <kenneth@loafman.com>
+
+    * Merged in lp:~ed.so/duplicity/24syntaxfix
+      - fix python 2.4 vs 2.5 syntax error
+
 2012-10-28  Kenneth Loafman  <kenneth@loafman.com>
 
     * Remove dist/mkGNUchangelog script.
