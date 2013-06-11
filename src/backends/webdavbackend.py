@@ -19,7 +19,6 @@
 # along with duplicity; if not, write to the Free Software Foundation,
 # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-import os
 import base64
 import httplib
 import re
@@ -30,7 +29,7 @@ import xml.dom.minidom
 import duplicity.backend
 from duplicity import globals
 from duplicity import log
-from duplicity.errors import *
+from duplicity.errors import * #@UnusedWildImport
 from duplicity import urlparse_2_5 as urlparser
 
 class CustomMethodRequest(urllib2.Request):
@@ -107,6 +106,7 @@ class WebDAVBackend(duplicity.backend.Backend):
         self.conn.request(method, quoted_path, data, self.headers)
         response = self.conn.getresponse()
         if response.status == 401:
+            response.close()
             self.headers['Authorization'] = self.get_authorization(response, quoted_path)
             self.conn.request(method, quoted_path, data, self.headers)
             response = self.conn.getresponse()

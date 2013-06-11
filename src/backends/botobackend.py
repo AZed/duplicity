@@ -19,13 +19,12 @@
 # along with duplicity; if not, write to the Free Software Foundation,
 # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-import os
 import time
 
 import duplicity.backend
 from duplicity import globals
 from duplicity import log
-from duplicity.errors import *
+from duplicity.errors import * #@UnusedWildImport
 from duplicity.util import exception_traceback
 
 class BotoBackend(duplicity.backend.Backend):
@@ -146,7 +145,7 @@ class BotoBackend(duplicity.backend.Backend):
                     log.FatalError("European bucket creation was requested, but not new-style "
                                    "bucket addressing (--s3-use-new-style)",
                                    log.ErrorCode.s3_bucket_not_style)
-                from boto.s3.connection import Location
+                from boto.s3.connection import Location #@UnresolvedImport
                 self.bucket = self.conn.create_bucket(self.bucket_name, location = Location.EU)
             else:
                 self.bucket = self.conn.create_bucket(self.bucket_name)
@@ -199,24 +198,45 @@ class BotoBackend(duplicity.backend.Backend):
         raise BackendException("Error downloading %s/%s" % (self.straight_url, remote_filename))
 
     def list(self):
+        if not self.bucket:
+            return []
+
+        for n in range(1, globals.num_retries+1):
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
+            log.Info("Listing %s" % self.straight_url)
+            try:
+                return self._list_filenames_in_bucket()
+            except Exception, e:
+                log.Warn("List %s failed (attempt #%d, reason: %s: %s)"
+                         "" % (self.straight_url,
+                               n,
+                               e.__class__.__name__,
+                               str(e)), 1)
+                log.Debug("Backtrace of previous error: %s" % (exception_traceback(),))
+        log.Warn("Giving up trying to list %s after %d attempts" %
+                (self.straight_url, globals.num_retries))
+        raise BackendException("Error listng %s" % self.straight_url)
+
+    def _list_filenames_in_bucket(self):
+        # We add a 'd' to the prefix to make sure it is not null (for boto) and
+        # to optimize the listing of our filenames, which always begin with 'd'.
+        # This will cause a failure in the regression tests as below:
+        #   FAIL: Test basic backend operations
+        #   <tracback snipped>
+        #   AssertionError: Got list: []
+        #   Wanted: ['testfile']
+        # Because of the need for this optimization, it should be left as is.
+        #for k in self.bucket.list(prefix = self.key_prefix + 'd', delimiter = '/'):
         filename_list = []
-        if self.bucket:
-            # We add a 'd' to the prefix to make sure it is not null (for boto) and
-            # to optimize the listing of our filenames, which always begin with 'd'.
-            # This will cause a failure in the regression tests as below:
-            #   FAIL: Test basic backend operations
-            #   <tracback snipped>
-            #   AssertionError: Got list: []
-            #   Wanted: ['testfile']
-            # Because of the need for this optimization, it should be left as is.
-            #for k in self.bucket.list(prefix = self.key_prefix + 'd', delimiter = '/'):
-            for k in self.bucket.list(prefix = self.key_prefix, delimiter = '/'):
-                try:
-                    filename = k.key.replace(self.key_prefix, '', 1)
-                    filename_list.append(filename)
-                    log.Debug("Listed %s/%s" % (self.straight_url, filename))
-                except AttributeError:
-                    pass
+        for k in self.bucket.list(prefix = self.key_prefix, delimiter = '/'):
+            try:
+                filename = k.key.replace(self.key_prefix, '', 1)
+                filename_list.append(filename)
+                log.Debug("Listed %s/%s" % (self.straight_url, filename))
+            except AttributeError:
+                pass
         return filename_list
 
     def delete(self, filename_list):

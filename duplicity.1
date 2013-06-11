@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "October 29, 2009" "Version 0.6.06" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "February 28, 2010" "Version 0.6.07" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -232,17 +232,17 @@ create the archive directory in
 .IR ~/.cache/duplicity/ .
 
 The archive directory can be shared between backups to multiple targets,
-because a subdirectory of the archive dir is used for individual backups (see 
+because a subdirectory of the archive dir is used for individual backups (see
 .B --name
 ).
 
-The combination of archive directory and backup name must be unique 
+The combination of archive directory and backup name must be unique
 in order to separate the data of different backups.
 
-The interaction between the 
-.B --archive-dir 
-and the 
-.B --name 
+The interaction between the
+.B --archive-dir
+and the
+.B --name
 options allows for four possible combinations for the location of the archive dir:
 
 .RS
@@ -517,6 +517,19 @@ Use the old filename format (incompatible with Windows/Samba) rather than
 the new filename format.
 
 .TP
+.BI "--rename " "orig new"
+Treats the path
+.I orig
+in the backup as if it were the path
+.I new.
+Can be passed multiple times.  An example:
+.PP
+.RS
+duplicity restore --rename Documents/metal Music/metal scp://uid@other.host/some_dir /home/me
+.PP
+.RE
+
+.TP
 .BI "--s3-european-buckets"
 When using the Amazon S3 backend, create buckets in Europe instead of
 the default (requires
@@ -536,7 +549,7 @@ characters or other characters that are not valid in a hostname.
 .BI "--scp-command " command
 This option only matters when using the ssh/scp backend.  The
 .I command
-will be used instead of scp to send or receive files.  The default
+will be used instead of scp to send or receive files.  The default command
 is "scp". To list and delete existing files, the sftp command is used.  See
 .BR --ssh-options
 and
@@ -547,8 +560,9 @@ and
 This option only matters when using the ssh/scp backend.  The
 .I command
 will be used instead of sftp for listing and deleting files.  The
-default is "sftp". File transfers are done using the scp command. See
-.BR --ssh-options
+default is "sftp". File transfers are done using the sftp command. See
+.BR --ssh-options ,
+.BR --use-scp ,
 and
 .BR --scp-command .
 
@@ -621,6 +635,13 @@ the user with respect to
 or
 .I --sign-key.
 
+.TP
+.BI --use-scp
+If this option is specified, then the ssh backend will use
+.I scp
+rather than
+.I sftp
+for the get and put backend operations.
 
 .TP
 .BI -v verb ", --verbosity " verb

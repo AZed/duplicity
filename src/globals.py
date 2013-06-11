@@ -21,10 +21,10 @@
 
 """Store global configuration information"""
 
-import socket, sys, os
+import socket, os
 
 # The current version of duplicity
-version = "0.6.06"
+version = "0.6.07"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -87,10 +87,10 @@ allow_source_mismatch = None
 incremental = None
 
 # If set, print the statistics after every backup session
-print_statistics = 1
+print_statistics = True
 
 # If set, use short (< 30 char) filenames for all the remote files.
-short_filenames = 0
+short_filenames = False
 
 # If set, forces a full backup if the last full backup is older than
 # the time specified
@@ -167,6 +167,9 @@ ssh_askpass = False
 # user added ssh options
 ssh_options = ""
 
+# whether to use scp for put/get, sftp is default
+use_scp = False
+
 # will be a Restart object if restarting
 restart = None
 
@@ -181,3 +184,6 @@ ignore_errors = False
 
 # If we should be particularly aggressive when cleaning up
 extra_clean = False
+
+# Renames (--rename)
+rename = {}

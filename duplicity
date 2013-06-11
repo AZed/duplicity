@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.06 released October 29, 2009
+# Version 0.6.07 released February 28, 2010
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -754,7 +754,7 @@ def remove_old(col_stats):
 
     setlist = col_stats.get_older_than(globals.remove_time)
     if not setlist:
-        log.Warn(_("No old backup sets found, nothing deleted."))
+        log.Notice(_("No old backup sets found, nothing deleted."))
         return
     if globals.force:
         log.Notice(gettext.ngettext("Deleting backup set at time:",
@@ -1025,7 +1025,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.06 (October 29, 2009)", verbosity)
+    log.Log("duplicity 0.6.07 (February 28, 2010)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1111,11 +1111,11 @@ def main():
         os.setuid(os.geteuid())
         os.setgid(os.getegid())
 
-    # set the current time strings
-    dup_time.setcurtime()
-
     # determine what action we're performing and process command line
     action = commandline.ProcessCommandLine(sys.argv[1:])
+
+    # set the current time strings
+    dup_time.setcurtime()
 
     # get the passphrase if we need to based on action/options
     globals.gpg_profile.passphrase = get_passphrase(1, action)
