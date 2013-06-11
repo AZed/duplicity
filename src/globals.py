@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.10"
+version = "0.6.11"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -150,6 +150,10 @@ s3_use_new_style = False
 # Whether to create European buckets (sorry, hard-coded to only
 # support european for now).
 s3_european_buckets = False
+
+# Whether to use plain HTTP (without SSL) to send data to S3
+# See <https://bugs.launchpad.net/duplicity/+bug/433970>.
+s3_unencrypted_connection = False
 
 # Whether to use S3 Reduced Redudancy Storage
 s3_use_rrs = False

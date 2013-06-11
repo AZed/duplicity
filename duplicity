@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.10 released September 19, 2010
+# Version 0.6.11 released November 20, 2010
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -1031,7 +1031,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.10 (September 19, 2010)", verbosity)
+    log.Log("duplicity 0.6.11 (November 20, 2010)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1071,7 +1071,7 @@ class Restart:
                 log.Notice(_("RESTART: The first volume failed to upload before termination.\n"
                              "         Restart is impossible...starting backup from beginning."))
                 self.last_backup.delete()
-                os.execve(sys.argv[0], sys.argv[1:], os.environ)
+                os.execve(sys.argv[0], sys.argv, os.environ)
             elif mf_len - self.start_vol > 0:
                 # upload of N vols failed, fix manifest and restart
                 log.Notice(_("RESTART: Volumes %d to %d failed to upload before termination.\n"
