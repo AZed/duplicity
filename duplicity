@@ -2,15 +2,16 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.5.06 released January 09, 2009
+# Version 0.5.07 released January 31, 2009
 #
-# Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -280,16 +281,14 @@ def list_current(col_stats):
         log.FatalError(_("No signature data found, unable to list files."),
                        log.ErrorCode.no_sigs)
     path_iter = diffdir.get_combined_path_iter(sig_chain.get_fileobjs())
-    userlist = []
-    loglist = []
     for path in path_iter:
         if path.difftype != "deleted":
-             userlist.append("%s %s" % (dup_time.timetopretty(path.getmtime()),
-                                        path.get_relative_path()))
-             loglist.append("%s %s" % (dup_time.timetostring(path.getmtime()),
-                                       util.escape(path.get_relative_path())))
-    log.Log('\n'.join(userlist), log.INFO, log.InfoCode.file_list,
-            '\n' + '\n'.join(loglist), True)
+            user_info = "%s %s" % (dup_time.timetopretty(path.getmtime()),
+                                   path.get_relative_path())
+            log_info = "%s %s" % (dup_time.timetostring(path.getmtime()),
+                                  util.escape(path.get_relative_path()))
+            log.Log(user_info, log.INFO, log.InfoCode.file_list,
+                    log_info, True)
 
 
 def restore(col_stats):
@@ -589,6 +588,8 @@ if __name__ == "__main__":
         log.FatalError("%s: %s" % (e.__class__.__name__, str(e)),
                        log.ErrorCode.user_error,
                        e.__class__.__name__)
+    except SystemExit, e:
+        pass
     except Exception, e:
         log.FatalError("%s" % (''.join(traceback.format_exception(*sys.exc_info()))),
                        log.ErrorCode.exception,

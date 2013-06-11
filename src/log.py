@@ -1,13 +1,14 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 # Copyright 2008 Michael Terry <mike@mterry.name>
 #
 # This file is part of duplicity.
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -83,7 +84,8 @@ class InfoCode:
     diff_file_deleted = 6
     patch_file_writing = 7
     patch_file_patching = 8
-    file_list = 9
+    #file_list = 9 # 9 isn't used anymore.  It corresponds to an older syntax for listing files
+    file_list = 10
 
 def Info(s, code=InfoCode.generic, extra=None):
     """Shortcut used for info messages (verbosity 5)."""
@@ -154,7 +156,7 @@ class ErrorCode:
     boto_calling_format = 26
     ftp_ncftp_missing = 27
     ftp_ncftp_too_old = 28
-    ftp_ncftp_ = 29
+    ftp_ncftp_v320 = 29
     exception = 30
 
 def FatalError(s, code, extra=None):

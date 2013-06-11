@@ -1,12 +1,13 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -112,11 +113,11 @@ def _ensure_urlparser_initialized():
             # is a hack. we should instead not stomp on the url parsing module to begin with.
             #
             # todo: eliminate the need for backend specific hacking here completely.
-            urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs', 'http', 'https', 'gmail' ]
+            urlparser.uses_netloc = [ 'ftp', 'hsi', 'rsync', 's3', 'scp', 'ssh', 'webdav', 'webdavs', 'http', 'https', 'imap', 'imaps' ]
 
             # Do not transform or otherwise parse the URL path component.
             urlparser.uses_query = []
-            urlparser.uses_fragment = []
+            urlparser.uses_fragm = []
         
             _urlparser_initialized = True
     

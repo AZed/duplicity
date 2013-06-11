@@ -1,12 +1,13 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
-# Copyright 2002 Ben Escoto
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
 #
 # This file is part of duplicity.
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 3 of the License, or (at your
+# Free Software Foundation; either version 2 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -36,7 +37,8 @@ from duplicity import selection
 # Also import the sshbackend module specifically because we stomp on
 # its options.
 import duplicity.backends.sshbackend as sshbackend
-import duplicity.backends.gmailimapbackend as gmailimapbackend
+import duplicity.backends.imapbackend as imapbackend
+
 
 select_opts = [] # Will hold all the selection options
 select_files = [] # Will hold file objects when filelist given
@@ -75,9 +77,10 @@ options = ["allow-source-mismatch",
            "ftp-passive",
            "ftp-regular",
            "full-if-older-than=",
-           "gmail-mailbox=",
            "gpg-options=",
            "help",
+           "imap-full-address",
+           "imap-mailbox=",           
            "include=",
            "include-filelist=",
            "include-filelist-stdin",
@@ -219,8 +222,8 @@ def parse_cmdline_options(arglist):
             globals.ftp_connection = 'passive'
         elif opt == "--ftp-regular":
             globals.ftp_connection = 'regular'
-        elif opt == "--gmail-mailbox":
-            gmailimapbackend.gmail_mailbox = arg.strip()
+        elif opt == "--imap-mailbox":
+            imapbackend.imap_mailbox = arg.strip()            
         elif opt == "--gpg-options":
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
@@ -289,6 +292,8 @@ def parse_cmdline_options(arglist):
             log.setverbosity(verb)
         elif opt == "--volsize":
             globals.volsize = int(arg)*1024*1024
+        elif opt == "--imap-full-address":
+            globals.imap_full_address = True
         else:
             command_line_error("Unknown option %s" % opt)
 
@@ -323,7 +328,7 @@ Backends and their URL formats:
     ftp://user[:password]@other.host[:port]/some_dir
     hsi://user[:password]@other.host[:port]/some_dir
     file:///some_dir
-    gmail://user[:password]@other.host[:port]/some_dir
+    imap://user[:password]@other.host[:port]/some_dir 
     rsync://user[:password]@other.host[:port]::/module/some_dir
     rsync://user[:password]@other.host[:port]/relative_path
     rsync://user[:password]@other.host[:port]//absolute_path
