@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.5.16 released April 21, 2009
+# Version 0.5.17 released May 04, 2009
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -29,7 +29,7 @@
 
 from __future__ import generators
 import getpass, gzip, os, sys, time, types
-import traceback, platform
+import traceback, platform, statvfs
 
 import gettext
 gettext.install('duplicity')
@@ -705,18 +705,17 @@ def check_resources(action):
         # First check disk space in temp area.
         tempfile, tempname = tempdir.default().mkstemp()
         os.close(tempfile)
-        p = os.popen("df -P %s" % tempname)
-        fout = p.read()
-        res = p.close()
-        if not res:
-            fout = fout.split('\n')
-            freespace = int(fout[1].split()[3]) * 1024
-        else:
-            log.FatalError(_("Unable to get free space on temp (df returned 0x%04X.") % (res,),
+        # strip off the temp dir and file
+        tempfs = os.path.sep.join(tempname.split(os.path.sep)[:-2])
+        try:
+            stats = os.statvfs(tempfs)
+        except:
+            log.FatalError(_("Unable to get free space on temp."),
                            log.ErrorCode.get_freespace_failed)
         # Calculate space we need for at least 2 volumes of full or inc
         # plus about 30% of one volume for the signature files.
-        needspace = (((globals.async_concurrency + 2) * globals.volsize)
+        freespace = stats[statvfs.F_FRSIZE] * stats[statvfs.F_BAVAIL]
+        needspace = (((globals.async_concurrency + 1) * globals.volsize)
                      + int(0.30 * globals.volsize))
         if freespace < needspace:
             log.FatalError(_("Temp space has %d available, backup needs approx %d.") %
@@ -751,7 +750,7 @@ def main():
 
     # log Python, duplicity, and system versions
     log.Info("%s %s" % (sys.executable or sys.platform, sys.version))
-    log.Info("duplicity 0.5.16 (April 21, 2009)")
+    log.Info("duplicity 0.5.17 (May 04, 2009)")
     log.Info(' '.join(platform.uname()))
 
     check_resources(action)
@@ -765,7 +764,6 @@ def main():
         log.Notice(_("Last full backup date:") + " " + dup_time.timetopretty(last_full_time))
     else:
         log.Notice(_("Last full backup date: none"))
-        action = "full"
     if action == "inc" and last_full_time < globals.full_force_time:
         log.Notice(_("Last full backup is too old, forcing full backup"))
         action = "full"
