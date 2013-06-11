@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.3.RC6"
+version = "0.4.3.RC7"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -87,3 +87,6 @@ remove_time = None
 
 # If set to false, then do not encrypt files on remote system
 encryption = 1
+
+# volume size. default 5M
+volsize = 5*1024*1024
