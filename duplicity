@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.5.18 released May 20, 2009
+# Version 0.5.19 released August 06, 2009
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -731,7 +731,7 @@ def check_resources(action):
         except resource.error:
             log.FatalError(_("Unable to get max open files."),
                            log.ErrorCode.get_ulimit_failed)
-        maxopen = min(soft, hard)
+        maxopen = min([l for l in (soft, hard) if l > -1])
         if maxopen < 1024:
             log.FatalError(_("Max open files of %s is too low, should be >= 1024.\n"
                              "Use 'ulimit -n 1024' or higher to correct.\n") % (maxopen,),
@@ -749,7 +749,7 @@ def main():
     # log Python, duplicity, and system versions
     log.Info("Args: %s" % (' '.join(sys.argv),))
     log.Info("%s %s" % (sys.executable or sys.platform, sys.version))
-    log.Info("duplicity 0.5.18 (May 20, 2009)")
+    log.Info("duplicity 0.5.19 (August 06, 2009)")
     log.Info(' '.join(platform.uname()))
 
     check_resources(action)
