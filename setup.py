@@ -8,7 +8,7 @@
 #
 # Duplicity is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
+# Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 #
 # Duplicity is distributed in the hope that it will be useful, but
@@ -23,7 +23,7 @@
 import sys, os, getopt
 from distutils.core import setup, Extension
 
-version_string = "0.5.07"
+version_string = "0.5.08"
 
 if sys.version_info[:2] < (2,3):
     print "Sorry, duplicity requires version 2.3 or later of python"
