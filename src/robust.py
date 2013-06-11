@@ -1,5 +1,7 @@
 import librsync, errno, log, path
 
+tmp_file_index = 1
+
 def check_common_error(error_handler, function, args = ()):
 	"""Apply function to args, if error, run error_handler on exception
 
@@ -34,3 +36,11 @@ def listpath(path):
 	return dir_listing
 
 
+def get_tmpfile(dir_path):
+	"""Get a temp file in the given directory"""
+	global tmp_file_index
+	while 1:
+		new_path = dir_path.append("tmpfile.duplicity.%d" % tmp_file_index)
+		if not new_path.exists(): break
+		tmp_file_index += 1
+	return new_path

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # rdiffdir -- Extend rdiff functionality to directories
-# Version 0.0.1 released June 30, 2002
+# Version 0.0.2 released June 30, 2002
 #
 # Copyright (C) 2001, 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -13,12 +13,12 @@
 # COPYING.  The GPL is also available online at
 # http://www.gnu.org/copyleft/gpl.html.
 #
-# See http://rdiff-backup.stanford.edu/ for more information.  Please
-# send mail to me or the mailing list if you find bugs or have any
-# suggestions.
+# See http://rdiff-backup.stanford.edu/duplicity for more information.
+# Please send mail to me or the mailing list if you find bugs or have
+# any suggestions.
 
 import sys, getopt, gzip, os
-import duplicity.diffdir, duplicity.log
+import duplicity.diffdir, duplicity.log, duplicity.tarfile
 import duplicity.globals, duplicity.selection, duplicity.path
 
 # If set, compress diff and delta files using gzip
@@ -96,8 +96,8 @@ def get_action(args):
 	if command == "sig" or command == "signature":
 		require_args(2)
 		command = "sig"
-
-	if command == "delta": require_args(3)
+	elif command == "tar": require_args(2)
+	elif command == "delta": require_args(3)
 	elif command == "patch": require_args(2)
 	return command, args[1:]
 
@@ -149,8 +149,17 @@ def write_delta_and_sig(filename, sig_infp, delta_outfp, sig_outfp):
 
 def patch(dirname, deltafp):
 	"""Patch dirname, reading delta tar from deltafp"""
-	comp_infp = optional_compress(deltafp)
 	duplicity.diffdir.DirPatch(duplicity.path.Path(dirname), deltafp)
+
+def write_tar(dirname, outfp):
+	"""Store dirname into a tarfile, write to outfp"""
+	copyfileobj(duplicity.diffdir.Tar(get_selection(dirname)), outfp)
+
+def write_tar_and_sig(dirname, outfp, sig_outfp):
+	"""Write tar of dirname to outfp, signature of same to sig_outfp"""
+	copyfileobj(duplicity.diffdir.Tar_WriteSig(get_selection(dirname),
+											   sig_outfp),
+				outfp)
 
 def main():
 	"""Start here"""
@@ -164,9 +173,14 @@ def main():
 		if sig_fileobj: write_delta_and_sig(file_args[1], sig_infp,
 											delta_outfp, sig_fileobj)
 		else: write_delta(file_args[1], sig_infp, delta_outfp)
-	else:
-		assert action == "patch"
+	elif action == "patch":
 		patch(file_args[0], get_fileobj(file_args[1], "wb"))
+	elif action == "tar":
+		if sig_fileobj: write_tar_and_sig(file_args[0],
+										  get_fileobj(file_args[1], "wb"),
+										  sig_fileobj)
+		else: write_tar(file_args[0], get_fileobj(file_args[1], "wb"))
+	else: command_line_error("Bad command " + action)
 
 
 if __name__ == "__main__": main()

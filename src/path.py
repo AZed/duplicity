@@ -5,7 +5,7 @@ associates stat information with filenames
 
 """
 
-import stat, os, errno, pwd, grp, socket, time
+import stat, os, errno, pwd, grp, socket, time, re
 import librsync
 from lazy import *
 
@@ -57,6 +57,10 @@ class ROPath:
 		# in later versions of python (>= 2.3 I think)
 		self.devnums = (self.stat.st_rdev >> 8, self.stat.st_rdev & 0xff)
 		
+	def exists(self):
+		"""True if corresponding file exists"""
+		return self.type
+
 	def isreg(self):
 		"""True if self corresponds to regular file"""
 		return self.type == "reg"
@@ -159,10 +163,13 @@ class ROPath:
 		else: ti.name = "."
 		if self.isdir(): ti.name += "/" # tar dir naming convention
 
+		ti.size = 0
 		if self.type:
 			# Lots of this is specific to tarfile.py, hope it doesn't
 			# change much...
-			if self.isreg(): ti.type = tarfile.REGTYPE
+			if self.isreg():
+				ti.type = tarfile.REGTYPE
+				ti.size = self.stat.st_size
 			elif self.isdir(): ti.type = tarfile.DIRTYPE
 			elif self.isfifo(): ti.type = tarfile.FIFOTYPE
 			elif self.issym():
@@ -251,6 +258,8 @@ class ROPath:
 
 
 class Path(ROPath):
+	regex_chars_to_quote = re.compile("[\\\\\\\"\\$`]")
+
 	def __init__(self, base, index = ()):
 		"""Path initializer"""
 		# self.opened should be true if the file has been opened, and
@@ -379,9 +388,21 @@ class Path(ROPath):
 		othersel = selection.Select(other).set_iter()
 		return Iter.equal(selfsel, othersel, verbose)
 
-	def __str__(self):
+	def __repr__(self):
 		"""Return string representation"""
 		return "(%s %s %s)" % (self.index, self.name, self.type)
+
+	def quote(self, s = None):
+		"""Return quoted version of s (defaults to self.name)
+
+		The output is meant to be interpreted with shells, so can be
+		used with os.system.
+
+		"""
+		if not s: s = self.name
+		return '"%s"' % self.regex_chars_to_quote.sub(
+			lambda m: "\\"+m.group(0), s)
+
 
 class PathDeleter(ITRBranch):
 	"""Delete a directory.  Called by Path.deltree"""

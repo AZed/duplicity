@@ -1,0 +1,191 @@
+#!/usr/bin/env python
+# duplicity -- Extend rdiff functionality to directories
+# Version 0.0.2 released August 6, 2002
+#
+# Copyright (C) 2001, 2002 Ben Escoto <bescoto@stanford.edu>
+#
+# This program is licensed under the GNU General Public License (GPL).
+# you can redistribute it and/or modify it under the terms of the GNU
+# General Public License as published by the Free Software Foundation,
+# Inc., 675 Mass Ave, Cambridge MA 02139, USA; either version 2 of the
+# License, or (at your option) any later version.  Distributions of
+# rdiff-backup should include a copy of the GPL in a file called
+# COPYING.  The GPL is also available online at
+# http://www.gnu.org/copyleft/gpl.html.
+#
+# See http://rdiff-backup.stanford.edu/duplicity for more information.
+# Please send mail to me or the mailing list if you find bugs or have
+# any suggestions.
+
+import sys, getopt, re, gzip, os
+from duplicity import diffdir, log, globals, selection, path, \
+	 dup_time, backends, gpg, misc, robust
+
+# Will hold all the selection options
+select_opts = []
+
+
+def parse_cmdline_options(arglist):
+	"""Parse argument list"""
+	global select_opts
+	try: optlist, args = getopt.getopt(arglist, "v:V",
+		 ["exclude=", "exclude-device-files",
+		  "exclude-filelist=", "exclude-filelist-stdin",
+		  "exclude-other-filesystems", "exclude-regexp=", "include=",
+		  "include-filelist=", "include-filelist-stdin",
+		  "include-regexp=", "null-separator", "verbosity="])
+	except getopt.error, e:
+		command_line_error("Bad command line option: %s" % (str(e),))
+
+	for opt, arg in optlist:
+		if (opt == "--exclude" or opt == "--exclude-regexp" or
+			opt == "--include" or opt == "--include-regexp"):
+			select_opts.append((opt, arg))
+		elif (opt == "--exclude-device-files" or
+			  opt == "--exclude-other-filesystems"):
+			select_opts.append((opt, None))
+		elif opt == "--exclude-filelist" or opt == "--include-filelist":
+			select_opts.append((opt, (arg, open(arg, "rb"))))
+		elif (opt == "--exclude-filelist-stdin" or
+			  opt == "--include-filelist-stdin"):
+			select_opts.append((opt, ("stdin", sys.stdin)))
+		elif opt == "-V":
+			print "duplicity version", str(globals.version)
+			sys.exit(0)
+		elif opt == "-v" or opt == "--verbosity": log.setverbosity(int(arg))
+		else: command_line_error("Unknown option %s" % opt)
+
+	return args
+
+def command_line_error(message):
+	"""Indicate a command line error and exit"""
+	sys.stderr.write("Error: %s\n" % (message,))
+	sys.stderr.write("See the duplicity manual page for instructions\n")
+	sys.exit(1)
+
+def get_action(args):
+	"""Figure out the main action from the arguments"""
+
+	if len(args) < 4: command_line_error("Too few arguments")
+	elif len(args) > 4: command_line_error("Too many arguments")
+
+	command = args[0]
+	if command == "inc" or command == "increment": command = "inc"
+	return command, args[1:]
+
+def get_selection(filename):
+	"""Return selection iter starting at filename with arguments applied"""
+	sel = selection.Select(path.Path(filename))
+	sel.ParseArgs(select_opts)
+	return sel.set_iter()
+
+
+def verify_duplicity_dir():
+	"""Create .duplicity if not already there"""
+	os.umask(077)
+	try: homedir = os.environ['HOME']
+	except KeyError:
+		log.FatalError("HOME environment variable not set, "
+					   "cannot find home directory.")
+	dupdir = path.Path(homedir + "/.duplicity")
+	if not dupdir.exists():
+		log.Log("Creating duplicity directory %s" % dupdir.name, 3)
+		dupdir.mkdir()
+	elif not dupdir.isdir():
+		log.FatalError("%s exists but isn't a directory" % dupdir.name)
+	globals.dupdir = dupdir
+
+def check_archive_name(archive_name):
+	"""Make sure archive name isn't too strange"""
+	if not re.search("^[0-9a-zA-Z_-]*$", archive_name):
+		log.FatalError("Archive name %s contains bad characters"
+					   % archive_name)
+	archive_dir = globals.dupdir.append(archive_name)
+	if not archive_dir.exists():
+		log.Log("Creating archive directory %s" % archive_dir.name, 3)
+		archive_dir.mkdir()
+	elif not archive_dir.isdir():
+		log.FatalError("%s exists but isn't a directory" % archive_dir.name)
+	return archive_dir
+
+def get_passphrase():
+	"""Get passphrase from environment"""
+	try: return os.environ['PASSPHRASE']
+	except KeyError:
+		log.FatalError("Cannot read passphrase from environment "
+					   "variable PASSPHRASE.")
+
+def full_backup(directory, archive_path, backend):
+	"""Do full backup of directory to backend, using archive_dir"""
+	sel = get_selection(directory)
+	tmp_sig_path = robust.get_tmpfile(archive_path)
+	sig_outfp = gzip.GzipFile(tmp_sig_path.name, "wb")
+	tar_outfp = diffdir.Tar_WriteSig(sel, sig_outfp)
+
+	tar_out_prefix = archive_path.append("duplicity-full.%s.tar.gpg"
+										 % dup_time.curtimestr).name
+	encrypted_tar_outfp = gpg.GPGFile(1, tar_outfp, get_passphrase())
+	for volume_name in misc.FileVolumeWriter(encrypted_tar_outfp,
+											 tar_out_prefix):
+		backend.put(volume_name)
+		os.unlink(volume_name)
+	tmp_sig_path.rename(
+		archive_path.append("duplicity-signatures.%s.sigtar.gz" %
+							(dup_time.curtimestr,)))
+
+def incremental_backup(directory, archive_path, backend):
+	"""Do incremental backup of directory to backend, using archive_dir"""
+	sel = get_selection(directory)
+	old_sig_path = inc_backup_get_latest_sigs(archive_path)
+	old_sig_infp = misc.BufferedFile(gzip.GzipFile(old_sig_path.name, "rb"))
+	tmp_sig_path = robust.get_tmpfile(archive_path)
+	new_sig_outfp = gzip.GzipFile(tmp_sig_path.name, "wb")
+
+	delta_outfp = diffdir.DirDelta_WriteSig(sel, old_sig_infp, new_sig_outfp)
+	delta_out_prefix = archive_path.append("duplicity-inc.%s.difftar.gpg"
+										   % dup_time.curtimestr).name
+	encrypted_deltatar_outfp = gpg.GPGFile(1, delta_outfp, get_passphrase())
+	for volume_name in misc.FileVolumeWriter(encrypted_deltatar_outfp,
+											 delta_out_prefix):
+		backend.put(volume_name)
+		os.unlink(volume_name)
+	tmp_sig_path.rename(
+		archive_path.append("duplicity-signatures.%s.sigtar.gz" %
+									   (dup_time.curtimestr,)))
+	old_sig_path.delete()
+
+def inc_backup_get_latest_sigs(archive_path):
+	"""Return path of latest signature in archive dir"""
+	name_time_pairs = []
+	for filename in archive_path.listdir():
+		# First weed out the non-signature files
+		comps = filename.split(".")
+		if (not len(comps) == 4 or not comps[0] == "duplicity-signatures" or
+			not comps[2] == "sigtar"): continue
+		timeinseconds = dup_time.stringtotime(comps[1])
+		if not timeinseconds: continue
+		name_time_pairs.append((timeinseconds, filename))
+	if not name_time_pairs:
+		log.FatalError("No signatures found, cannot perform "
+					   "incremental backup")
+	else:
+		name_time_pairs.sort()
+		sig_path = archive_path.append(name_time_pairs[-1][1])
+		log.Log("Using signatures at %s" % (sig_path.name,), 5)
+		return sig_path
+
+def main():
+	"""Start/end here"""
+	args = parse_cmdline_options(sys.argv[1:])
+	action, (archive_name, directory, dest_url) = get_action(args)
+	verify_duplicity_dir()
+	archive_path = check_archive_name(archive_name)
+	backend = backends.get_backend(dest_url)
+	dup_time.setcurtime()
+
+	if action == "inc": incremental_backup(directory, archive_path, backend)
+	elif action == "full": full_backup(directory, archive_path, backend)
+	else: command_line_error("Bad action " + action)
+
+		
+if __name__ == "__main__": main()

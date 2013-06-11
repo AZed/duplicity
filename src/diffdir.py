@@ -34,6 +34,53 @@ def DirSig(path_iter):
 			else: yield (ti, None)
 	return tarfile.TarFromIterator(make_pair_iter(path_iter))
 
+def Tar_WriteSig(path_iter, sig_outfp):
+	"""Return normal tar file object, write signatures too
+
+	Like in DirDelta_WriteSig below, the signature tarfile written to
+	sig_outfp will be over the same data contained in the tarfile.
+
+	"""
+	sigTarFile = tarfile.TarFile("none", "w", sig_outfp)
+	def callback(sig_string, path):
+		"""This is run when FileWithSignature is read to end"""
+		ti = path.get_tarinfo()
+		ti.size = len(sig_string)
+		sigTarFile.addfile(ti, cStringIO.StringIO(sig_string))
+
+	def get_pair(path):
+		"""Return ti, fileobj pair from path"""
+		ti = path.get_tarinfo()
+		if path.isreg():
+			fws = FileWithSignature(path.open("rb"), callback, path)
+			return (ti, fws)
+		else:
+			sigTarFile.addfile(ti)
+			return (ti, None)
+
+	def error_handler(exc, path):
+		"""This is called when there is a problem in get_pair()"""
+		log.Log("Skipping %s because of error: %s" % (path.name, str(exc)), 2)
+		return None
+
+	def make_pair_iter(path_iter):
+		"""Produce (tarinfo, fileobj) iterator from path_iter"""
+		for path in path_iter:
+			result = robust.check_common_error(error_handler, get_pair,
+											   (path,))
+			if result is not None: yield result
+		sigTarFile.close()
+	return tarfile.TarFromIterator(make_pair_iter(path_iter))
+
+def Tar(path_iter):
+	"""Return normal tarfile.  Just provided for completeness (no diffing)"""
+	def make_pair_iter():
+		for path in path_iter:
+			ti = path.get_tarinfo()
+			if path.isreg(): yield (ti, path.open("rb"))
+			else: yield (ti, None)
+	return tarfile.TarFromIterator(make_pair_iter())
+
 
 ####################################################################
 #
@@ -103,11 +150,13 @@ def get_multivol_diff(delta_ropath, fileobj, buf, vol_num):
 	ti.size = len(buf)
 	return (ti, cStringIO.StringIO(buf))
 
-def delta_iter_error_handler(exc, new_path, sig_path):
+def delta_iter_error_handler(exc, new_path, sig_path, sig_tar = None):
 	"""Called by get_delta_iter, report error in getting delta"""
 	if new_path: index_string = new_path.get_relative_path()
-	else: index_string = sig_path.get_relative_path()
+	elif sig_path: index_string = sig_path.get_relative_path()
+	else: assert 0, "Both new and sig are None for some reason"
 	log.Log("Error %s getting delta for %s" % (str(exc), index_string), 2)
+	return None
 
 def get_delta_path(new_path, sig_path):
 	"""Get one delta_path, or None if error"""
@@ -149,6 +198,7 @@ def get_delta_iter(new_iter, sig_iter):
 def tar2path_iter(tarobj):
 	"""Given tar file object open for reading, yield contained paths"""
 	tf = tarfile.TarFile("Arbitrary Name", "r", tarobj)
+	tf.debug = 2
 	for tarinfo in tf:
 		if tarinfo.name == "./" or tarinfo.name == ".": index = ()
 		else:
@@ -222,24 +272,16 @@ def get_delta_iter_w_sig(path_iter, sig_path_iter, sig_fileobj):
 				ti.size = len(sigbuf)
 				sigTarFile.addfile(ti, cStringIO.StringIO(sigbuf))
 			else: sigTarFile.addfile(ti)
-		else:
-			# Must calculate new signature and create delta
-			ti = new_path.get_tarinfo()
-			if not new_path.isreg():
-				sigTarFile.addfile(ti)
-				delta_path = robust.check_common_error(
-					delta_iter_error_handler, get_delta_path,
-					(new_path, sig_path))
-			else: # must calculate sig as we read delta
-				delta_path = robust.check_common_error(
-					delta_iter_error_handler, get_delta_path_w_sig,
-					(new_path, sig_path, sigTarFile))
+		else: # Must calculate new signature and create delta
+			delta_path = robust.check_common_error(
+				delta_iter_error_handler, get_delta_path_w_sig,
+				(new_path, sig_path, sigTarFile))
 			if delta_path: yield delta_path
 	sigTarFile.close()
 
 def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
 	"""Return new delta_path which, when read, writes sig to sig_fileobj"""
-	assert new_path and new_path.isreg()
+	assert new_path
 	ti = new_path.get_tarinfo()
 	delta_path = new_path.get_rorpath()
 
@@ -248,7 +290,10 @@ def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
 		ti.size = len(sig_string)
 		sigTarFile.addfile(ti, cStringIO.StringIO(sig_string))
 
-	if not sig_path or not sig_path.isreg():
+	if not new_path.isreg():
+		delta_path.difftype = "snapshot"
+		sigTarFile.addfile(ti)
+	elif not sig_path or not sig_path.isreg():
 		delta_path.difftype = "snapshot"
 		delta_path.setfileobj(FileWithSignature(new_path.open("rb"),
 												callback))
@@ -265,18 +310,19 @@ def get_delta_path_w_sig(new_path, sig_path, sigTarFile):
 class FileWithSignature:
 	"""File-like object which also computes signature as it is read"""
 	blocksize = 32 * 1024
-	def __init__(self, infile, callback):
+	def __init__(self, infile, callback, *extra_args):
 		"""FileTee initializer
 
 		The object will act like infile, but whenever it is read it
 		add infile's data to a SigGenerator object.  When the file has
 		been read to the end the callback will be called with the
-		calculated signature.
+		calculated signature, and any extra_args if given.
 
 		"""
 		self.infile, self.callback = infile, callback
 		self.sig_gen = librsync.SigGenerator()
 		self.activated_callback = None
+		self.extra_args = extra_args
 
 	def read(self, length = -1):
 		buf = self.infile.read(length)
@@ -288,7 +334,7 @@ class FileWithSignature:
 		if not self.activated_callback:
 			while self.read(self.blocksize): pass
 			self.activated_callback = 1
-			self.callback(self.sig_gen.getsig())
+			self.callback(self.sig_gen.getsig(), *self.extra_args)
 		return self.infile.close()
 	
 
