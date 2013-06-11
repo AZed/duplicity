@@ -117,7 +117,8 @@ def parse_cmdline_options(arglist):
         try:
             return open(filename, "r")
         except IOError:
-            log.FatalError("Error opening file %s" % filename)
+            log.FatalError(_("Error opening file %s") % filename,
+                           log.ErrorCode.cant_open_filelist)
 
     # expect no cmd and two positional args
     cmd = ""
@@ -129,7 +130,7 @@ def parse_cmdline_options(arglist):
         possible = [c for c in commands if c.startswith(cmd)]
         # no unique match, that's an error
         if len(possible) > 1:
-            log.FatalError("command '%s' not unique, could be %s" % (cmd, possible))
+            command_line_error("command '%s' not unique, could be %s" % (cmd, possible))
         # only one match, that's a keeper
         elif len(possible) == 1:
             cmd = possible[0]
@@ -298,13 +299,13 @@ def parse_cmdline_options(arglist):
 
 def command_line_error(message):
     """Indicate a command line error and exit"""
-    log.FatalError("Command line error: %s\n"
-                   "Enter 'duplicity --help' for help screen.""" % (message,),
+    log.FatalError(_("Command line error: %s") % (message,) + "\n" +
+                   _("Enter 'duplicity --help' for help screen."),
                    log.ErrorCode.command_line)
 
 def usage():
     """Print terse usage info"""
-    sys.stdout.write("""
+    sys.stdout.write(_("""
 duplicity version %s running on %s.
 Usage:
     duplicity [full|incremental] [options] source_dir target_url
@@ -376,7 +377,7 @@ Options:
     --s3-use-new-style
     --scp-command <command>
     --sftp-command <command>
-    --sign-key <gpg-key-id>>
+    --sign-key <gpg-key-id>
     --ssh-askpass
     --ssh-options
     --short-filenames
@@ -387,28 +388,30 @@ Options:
     --version
     --volsize <number>
     -v[0-9], --verbosity [0-9]
-""" % (globals.version, sys.platform))
+""") % (globals.version, sys.platform))
 
 
 def get_int(int_string, description):
     """Require that int_string be an integer, return int value"""
     try: return int(int_string)
-    except ValueError: log.FatalError("Received '%s' for %s, need integer" %
-                                      (int_string, description))
+    except ValueError: command_line_error("Received '%s' for %s, need integer" %
+                                          (int_string, description))
 
 def set_archive_dir(dirstring):
     """Check archive dir and set global"""
     archive_dir = path.Path(os.path.expanduser(dirstring))
     if not archive_dir.isdir():
-        log.FatalError("Specified archive directory '%s' does not exist, "
-                       "or is not a directory" % (archive_dir.name,))
+        log.FatalError(_("Specified archive directory '%s' does not exist, "
+                         "or is not a directory") % (archive_dir.name,),
+                       log.ErrorCode.bad_archive_dir)
     globals.archive_dir = archive_dir
 
 def set_sign_key(sign_key):
     """Set globals.sign_key assuming proper key given"""
     if not len(sign_key) == 8 or not re.search("^[0-9A-F]*$", sign_key):
-        log.FatalError("Sign key should be an 8 character hex string, like "
-                       "'AA0E73D2'.\nReceived '%s' instead." % (sign_key,))
+        log.FatalError(_("Sign key should be an 8 character hex string, like "
+                         "'AA0E73D2'.\nReceived '%s' instead.") % (sign_key,),
+                       log.ErrorCode.bad_sign_key)
     globals.gpg_profile.sign_key = sign_key
 
 def set_selection():
@@ -427,7 +430,7 @@ def set_backend(arg1, arg2):
     """
     backend1, backend2 = backend.get_backend(arg1), backend.get_backend(arg2)
     if not backend1 and not backend2:
-        log.FatalError(
+        command_line_error(
 """One of the arguments must be an URL.  Examples of URL strings are
 "scp://user@host.net:1234/path" and "file:///usr/local".  See the man
 page for more information.""")
@@ -446,17 +449,20 @@ def process_local_dir(action, local_pathname):
     local_path = path.Path(path.Path(local_pathname).get_canonical())
     if action == "restore":
         if (local_path.exists() and not local_path.isemptydir()) and not globals.force:
-            log.FatalError("Restore destination directory %s already "
-                           "exists.\nWill not overwrite." % (local_pathname,))
+            log.FatalError(_("Restore destination directory %s already "
+                             "exists.\nWill not overwrite.") % (local_pathname,),
+                           log.ErrorCode.restore_dir_exists)
     elif action == "verify":
         if not local_path.exists():
-            log.FatalError("Verify directory %s does not exist" %
-                           (local_path.name,))
+            log.FatalError(_("Verify directory %s does not exist") %
+                           (local_path.name,),
+                           log.ErrorCode.verify_dir_doesnt_exist)
     else:
         assert action == "full" or action == "inc"
         if not local_path.exists():
-            log.FatalError("Backup source directory %s does not exist."
-                           % (local_path.name,))
+            log.FatalError(_("Backup source directory %s does not exist.")
+                           % (local_path.name,),
+                           log.ErrorCode.backup_dir_doesnt_exist)
     
     globals.local_path = local_path
 
@@ -489,8 +495,8 @@ def check_consistency(action):
         if verify: command_line_error("--verify option cannot be used "
                                       "when backing up")
         if globals.restore_dir:
-            log.FatalError("--restore-dir option incompatible with %s backup"
-                           % (action,))
+            command_line_error("--restore-dir option incompatible with %s backup"
+                               % (action,))
 
 def ProcessCommandLine(cmdline_list):
     """Process command line, set globals, return action
@@ -511,9 +517,10 @@ def ProcessCommandLine(cmdline_list):
         elif globals.keep_chains is not None: action = "remove-all-but-n-full"
         else: command_line_error("Too few arguments")
         globals.backend = backend.get_backend(args[0])
-        if not globals.backend: log.FatalError("""Bad URL '%s'.
+        if not globals.backend: log.FatalError(_("""Bad URL '%s'.
 Examples of URL strings are "scp://user@host.net:1234/path" and
-"file:///usr/local".  See the man page for more information.""" % (args[0],))
+"file:///usr/local".  See the man page for more information.""") % (args[0],),
+                                               log.ErrorCode.bad_url)
     elif len(args) == 2: # Figure out whether backup or restore
         backup, local_pathname = set_backend(args[0], args[1])
         if backup:
@@ -528,5 +535,5 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
     elif len(args) > 2: command_line_error("Too many arguments")
 
     check_consistency(action)
-    log.Log("Main action: " + action, 7)
+    log.Log(_("Main action: ") + action, 7)
     return action

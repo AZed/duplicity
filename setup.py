@@ -3,8 +3,9 @@
 
 import sys, os, getopt
 from distutils.core import setup, Extension
+from DistUtilsExtra.command import *
 
-version_string = "0.5.03"
+version_string = "0.5.04"
 
 if sys.version_info[:2] < (2,3):
     print "Sorry, duplicity requires version 2.3 or later of python"
@@ -41,6 +42,8 @@ setup(name="duplicity",
       maintainer="Kenneth Loafman",
       maintainer_email="kenneth@loafman.com",
       url="http://duplicity.nongnu.org/index.html",
+      cmdclass = { "build" : build_extra.build_extra,
+                   "build_i18n" :  build_i18n.build_i18n },
       packages = ['duplicity', 'duplicity.backends'],
       package_dir = {"duplicity" : "src",
                      "duplicity.backends" : "src/backends"},

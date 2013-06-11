@@ -1,3 +1,50 @@
+New in v0.5.04 (2008/12/27)
+---------------------------
+patch #6678: Add progress metering
+https://savannah.nongnu.org/patch/?6678
+
+patch #6686: Add error codes for all fatal errors
+https://savannah.nongnu.org/patch/?6686
+
+bug #25090: Typos and trailing whitespace in duplicity manpage
+https://savannah.nongnu.org/bugs/?25090
+
+bug #24889: NCFTP cannot deal with some FTP servers
+https://savannah.nongnu.org/bugs/?24889
+
+patch #6692: Print collection status in a machine-readable way
+https://savannah.nongnu.org/patch/?6692
+
+patch #6693: Some FatalError's don't have codes still
+https://savannah.nongnu.org/patch/?6693
+
+patch #6694: Log exceptions
+https://savannah.nongnu.org/patch/?6694
+
+patch #6695: Log filenames
+https://savannah.nongnu.org/patch/?6695
+
+patch #6696: Consolidate get_delta_iter and get_delta_iter_w_sig
+https://savannah.nongnu.org/patch/?6696
+
+patch #6697: Always log at least one progress during dry run
+https://savannah.nongnu.org/patch/?6697
+
+patch #6700: Make duplicity translatable
+https://savannah.nongnu.org/patch/?6700
+
+patch #6701: Make current-list command machine-readable
+https://savannah.nongnu.org/patch/?6701
+
+patch #6702: handle unknown errnos in robust.py
+https://savannah.nongnu.org/patch/?6702
+
+GPG was throwing "gpg: [don't know]: invalid packet (ctb=14)" and apparently
+this is non-fatal.  There is a fix for this being rolled into GPG 2.x.
+http://lists.gnupg.org/pipermail/gnupg-devel/2006-September/023180.html
+Copied from collections.py.  Fix supplied by Simon Blandford <simon@onepointltd.com>
+
+
 New in v0.5.03 (2008/11/17)
 ---------------------------
 bug #24731: Documentation error: "if... if" in remove-older-than paragraph
@@ -166,7 +213,7 @@ a failure in the regression tests.
 New in v0.4.9 (2008/01/04)
 --------------------------
 NOTE: URL format correction in rsync://.  The rsync backend
-now properly supports absolute and relative pathnames and 
+now properly supports absolute and relative pathnames and
 module access.  The formats are:
     rsync://user@host::/module/some_dir
     rsync://user@host/relative_path
@@ -266,7 +313,7 @@ https://savannah.nongnu.org/patch/?6301
 New in v0.4.6 (2007/11/28)
 --------------------------
 https://savannah.nongnu.org/bugs/?21508
-bug #21508: Change delete implementation of ftpBackend to 
+bug #21508: Change delete implementation of ftpBackend to
 only send one "DELE" instead of multiple per delete.
 
 https://savannah.nongnu.org/bugs/?21646
@@ -375,7 +422,7 @@ New in v0.4.4.RC2 (2007/09/26)
 Added --timeout <seconds> (default 30) to allow users to change
 duplicity's network timeout settings.
 
-Added --time-separator <char> to allow users to change the time 
+Added --time-separator <char> to allow users to change the time
 separator from ':' to another character that will work on their
 system.  HINT: For Windows SMB shares, use --time-separator='_'.
 NOTE: '-' is not valid as it conflicts with date separator.
@@ -406,7 +453,7 @@ DP: make tempfiles with useful names
 DP: do not ask for a passphrase if none is required!
 
 https://savannah.nongnu.org/bugs/?21123
-duplicity 0.4.3 ftpBackend did not find backup sets when there was 
+duplicity 0.4.3 ftpBackend did not find backup sets when there was
 more than 20 files in directory.
 
 https://savannah.nongnu.org/patch/?6212
@@ -425,7 +472,7 @@ All the changes in RC1 through RC12 plus:
 
 Move get_password() to Backend class to standardize.
 
-Fix problem with ftpBackend to create target directory 
+Fix problem with ftpBackend to create target directory
 if needed.  Note: this creates only one level.
 
 Dropped ssh-command and added ssh-options to allow users
@@ -450,7 +497,7 @@ the ssh backend.
 
 Change ssh backend to send 'quit' instead of EOF when
 using sftp.  This allows it to run under cron as long
-as the password is supplied non-interactively. 
+as the password is supplied non-interactively.
 
 Change ssh backend to not pass :port part of URL to
 scp or sftp.  We already supply -oPort=xx for port.
@@ -487,7 +534,7 @@ The SSH/SCP backend work was done to allow the user to use password
 authentication rather than public-key.  You may now enter a password,
 either through the FTP_PASSWORD environment variable, or at the
 console.  To activate this feature you will need to use the option
---ssh-askpass on the command line.  The default is public-key, which 
+--ssh-askpass on the command line.  The default is public-key, which
 does *not* look for a password from either source.
 
 Various fixes to the man page for --ssh-askpass, --remove-older-than,
@@ -557,7 +604,7 @@ option to override later, if its needed.
 
 New in v0.4.3.RC7 (2007/06/19)
 ------------------------------
-Bug 20179 - dAniel hAhler: 
+Bug 20179 - dAniel hAhler:
 When errors cause login to fail in FTP, reset and try again.
 
 Patch 6015 -dAniel hAhler:
@@ -598,7 +645,7 @@ then knows to run --cleanup.
 Patch 5998 - Kuang-che Wu: Cache uid and gid lookup to speed
 operations.
 
-Patch 5993 - daacyy302@sneakemail.com: Make Amazon S3 backend 
+Patch 5993 - daacyy302@sneakemail.com: Make Amazon S3 backend
 incrementally more robust for recovery.
 
 
@@ -658,7 +705,7 @@ Fixed bugs:
   https://savannah.nongnu.org/bugs/?2441
   https://savannah.nongnu.org/bugs/?16711
 
-ProFTPD resets the connection after returning 226 when NLSTing an 
+ProFTPD resets the connection after returning 226 when NLSTing an
 empty directory, so changed code to allow that exception.
 
 ftpBackend now asks for a password if FTP_PASSWORD does not exist.

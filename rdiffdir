@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # rdiffdir -- Extend rdiff functionality to directories
-# Version 0.5.03 released June 30, 2002
+# Version 0.5.04 released June 30, 2002
 #
 # Copyright (C) 2002 Ben Escoto <bescoto@stanford.edu>
 #
@@ -26,6 +26,9 @@
 
 import sys, getopt, gzip, os
 from duplicity import diffdir, patchdir, log, tarfile, globals, selection, path
+
+import gettext
+gettext.install('duplicity')
 
 # If set, compress diff and delta files using gzip
 gzip_compress = None

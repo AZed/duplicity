@@ -39,7 +39,8 @@ class StatResult:
     st_mode = 0
 
 
-class PathException(Exception): pass
+class PathException(Exception):
+    pass
 
 class ROPath:
     """Read only Path
@@ -57,20 +58,28 @@ class ROPath:
 
     def set_from_stat(self):
         """Set the value of self.type, self.mode from self.stat"""
-        if not self.stat: self.type = None
+        if not self.stat:
+            self.type = None
 
         st_mode = self.stat.st_mode
-        if stat.S_ISREG(st_mode): self.type = "reg"
-        elif stat.S_ISDIR(st_mode): self.type = "dir"
-        elif stat.S_ISLNK(st_mode): self.type = "sym"
-        elif stat.S_ISFIFO(st_mode): self.type = "fifo"
+        if stat.S_ISREG(st_mode):
+            self.type = "reg"
+        elif stat.S_ISDIR(st_mode):
+            self.type = "dir"
+        elif stat.S_ISLNK(st_mode):
+            self.type = "sym"
+        elif stat.S_ISFIFO(st_mode):
+            self.type = "fifo"
         elif stat.S_ISSOCK(st_mode):
             raise PathException(self.get_relative_path() +
                                 "is a socket, unsupported by tar")
             self.type = "sock"
-        elif stat.S_ISCHR(st_mode): self.type = "chr"
-        elif stat.S_ISBLK(st_mode): self.type = "blk"
-        else: raise PathException("Unknown type")
+        elif stat.S_ISCHR(st_mode):
+            self.type = "chr"
+        elif stat.S_ISBLK(st_mode):
+            self.type = "blk"
+        else:
+            raise PathException("Unknown type")
 
         self.mode = stat.S_IMODE(st_mode)
         # The following can be replaced with major(), minor() macros
@@ -124,8 +133,10 @@ class ROPath:
 
     def get_relative_path(self):
         """Return relative path, created from index"""
-        if self.index: return "/".join(self.index)
-        else: return "."
+        if self.index:
+            return "/".join(self.index)
+        else:
+            return "."
 
     def getperms(self):
         """Return permissions mode"""
@@ -168,18 +179,25 @@ class ROPath:
         elif type == tarfile.BLKTYPE:
             self.type = "blk"
             self.devnums = (tarinfo.devmajor, tarinfo.devminor)
-        elif type == tarfile.DIRTYPE: self.type = "dir"
-        elif type == tarfile.FIFOTYPE: self.type = "fifo"
-        else: raise PathException("Unknown tarinfo type %s" % (type,))
+        elif type == tarfile.DIRTYPE:
+            self.type = "dir"
+        elif type == tarfile.FIFOTYPE:
+            self.type = "fifo"
+        else:
+            raise PathException("Unknown tarinfo type %s" % (type,))
 
         self.mode = tarinfo.mode
         self.stat = StatResult()
 
         # Set user and group id
-        try: self.stat.st_uid = tarfile.uname2uid(tarinfo.uname)
-        except KeyError: self.stat.st_uid = tarinfo.uid
-        try: self.stat.st_gid = tarfile.gname2gid(tarinfo.gname)
-        except KeyError: self.stat.st_gid = tarinfo.gid
+        try:
+            self.stat.st_uid = tarfile.uname2uid(tarinfo.uname)
+        except KeyError:
+            self.stat.st_uid = tarinfo.uid
+        try:
+            self.stat.st_gid = tarfile.gname2gid(tarinfo.gname)
+        except KeyError:
+            self.stat.st_gid = tarinfo.gid
 
         self.stat.st_mtime = int(tarinfo.mtime)
         self.stat.st_size = tarinfo.size
@@ -188,9 +206,12 @@ class ROPath:
         """Return ropath copy of self"""
         new_ropath = ROPath(self.index, self.stat)
         new_ropath.type, new_ropath.mode = self.type, self.mode
-        if self.issym(): new_ropath.symtext = self.symtext
-        elif self.isdev(): new_ropath.devnums = self.devnums
-        if self.exists(): new_ropath.stat = self.stat
+        if self.issym():
+            new_ropath.symtext = self.symtext
+        elif self.isdev():
+            new_ropath.devnums = self.devnums
+        if self.exists():
+            new_ropath.stat = self.stat
         return new_ropath
 
     def get_tarinfo(self):
@@ -202,9 +223,12 @@ class ROPath:
 
         """
         ti = tarfile.TarInfo()
-        if self.index: ti.name = "/".join(self.index)
-        else: ti.name = "."
-        if self.isdir(): ti.name += "/" # tar dir naming convention
+        if self.index:
+            ti.name = "/".join(self.index)
+        else:
+            ti.name = "."
+        if self.isdir():
+            ti.name += "/" # tar dir naming convention
 
         ti.size = 0
         if self.type:
@@ -213,29 +237,39 @@ class ROPath:
             if self.isreg():
                 ti.type = tarfile.REGTYPE
                 ti.size = self.stat.st_size
-            elif self.isdir(): ti.type = tarfile.DIRTYPE
-            elif self.isfifo(): ti.type = tarfile.FIFOTYPE
+            elif self.isdir():
+                ti.type = tarfile.DIRTYPE
+            elif self.isfifo():
+                ti.type = tarfile.FIFOTYPE
             elif self.issym():
                 ti.type = tarfile.SYMTYPE
                 ti.linkname = self.symtext
             elif self.isdev():
-                if self.type == "chr": ti.type = tarfile.CHRTYPE
-                else: ti.type = tarfile.BLKTYPE
+                if self.type == "chr":
+                    ti.type = tarfile.CHRTYPE
+                else:
+                    ti.type = tarfile.BLKTYPE
                 ti.devmajor, ti.devminor = self.devnums
-            else: raise PathError("Unrecognized type " + str(self.type))
+            else:
+                raise PathError("Unrecognized type " + str(self.type))
 
             ti.mode = self.mode
             ti.uid, ti.gid = self.stat.st_uid, self.stat.st_gid
             if self.stat.st_mtime < 0:
-                log.Warn("Warning: %s has negative mtime, treating as 0."
+                log.Warn(_("Warning: %s has negative mtime, treating as 0.")
                          % (self.get_relative_path(),))
                 ti.mtime = 0
-            else: ti.mtime = int(self.stat.st_mtime)
+            else:
+                ti.mtime = int(self.stat.st_mtime)
 
-            try: ti.uname = tarfile.uid2uname(ti.uid)
-            except KeyError: pass
-            try: ti.gname = tarfile.gid2gname(ti.gid)
-            except KeyError: pass
+            try:
+                ti.uname = tarfile.uid2uname(ti.uid)
+            except KeyError:
+                pass
+            try:
+                ti.gname = tarfile.gid2gname(ti.gid)
+            except KeyError:
+                pass
 
             if ti.type in (tarfile.CHRTYPE, tarfile.BLKTYPE):
                 if hasattr(os, "major") and hasattr(os, "minor"):
@@ -249,25 +283,31 @@ class ROPath:
 
     def __eq__(self, other):
         """Used to compare two ROPaths.  Doesn't look at fileobjs"""
-        if not self.type and not other.type: return 1 # neither exists
+        if not self.type and not other.type:
+            return 1 # neither exists
         if not self.stat and other.stat or not other.stat and self.stat:
             return 0
-        if self.type != other.type: return 0
+        if self.type != other.type:
+            return 0
 
         if self.isreg() or self.isdir() or self.isfifo():
             # Don't compare sizes, because we might be comparing
             # signature size to size of file.
-            if not self.perms_equal(other): return 0
-            if int(self.stat.st_mtime) == int(other.stat.st_mtime): return 1
+            if not self.perms_equal(other):
+                return 0
+            if int(self.stat.st_mtime) == int(other.stat.st_mtime):
+                return 1
             # Below, treat negative mtimes as equal to 0
             return self.stat.st_mtime <= 0 and other.stat.st_mtime <= 0
-        elif self.issym(): # here only symtext matters
+        elif self.issym():
+            # here only symtext matters
             return self.symtext == other.symtext
         elif self.isdev():
             return self.perms_equal(other) and self.devnums == other.devnums
         assert 0
 
-    def __ne__(self, other): return not self.__eq__(other)
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def compare_verbose(self, other, include_data = 0):
         """Compare ROPaths like __eq__, but log reason if different
@@ -281,51 +321,55 @@ class ROPath:
 
         """
         def log_diff(log_string):
-            log_str = "Difference found: " + log_string
+            log_str = _("Difference found:") + " " + log_string
             log.Log(log_str % (self.get_relative_path(),), 4)
 
-        if not self.type and not other.type: return 1
+        if not self.type and not other.type:
+            return 1
         if not self.stat and other.stat:
-            log_diff("New file %s")
+            log_diff(_("New file %s"))
             return 0
         if not other.stat and self.stat:
-            log_diff("File %s is missing")
+            log_diff(_("File %s is missing"))
             return 0
         if self.type != other.type:
-            log_diff("File %%s has type %s, expected %s" %
+            log_diff(_("File %%s has type %s, expected %s") %
                      (other.type, self.type))
             return 0
 
         if self.isreg() or self.isdir() or self.isfifo():
             if not self.perms_equal(other):
-                log_diff("File %%s has permissions %o, expected %o" %
+                log_diff(_("File %%s has permissions %o, expected %o") %
                          (other.getperms(), self.getperms()))
                 return 0
             if ((int(self.stat.st_mtime) != int(other.stat.st_mtime)) and
                 (self.stat.st_mtime > 0 or other.stat.st_mtime > 0)):
-                log_diff("File %%s has mtime %s, expected %s" %
+                log_diff(_("File %%s has mtime %s, expected %s") %
                          (dup_time.timetopretty(int(other.stat.st_mtime)),
                           dup_time.timetopretty(int(self.stat.st_mtime))))
                 return 0
             if self.isreg() and include_data:
-                if self.compare_data(other): return 1
+                if self.compare_data(other):
+                    return 1
                 else:
-                    log_diff("Data for file %s is different")
+                    log_diff(_("Data for file %s is different"))
                     return 0
-            else: return 1
-        elif self.issym():
-            if self.symtext == other.symtext: return 1
             else:
-                log_diff("Symlink %%s points to %s, expected %s" %
+                return 1
+        elif self.issym():
+            if self.symtext == other.symtext:
+                return 1
+            else:
+                log_diff(_("Symlink %%s points to %s, expected %s") %
                          (other.symtext, self.symtext))
                 return 0
         elif self.isdev():
             if not self.perms_equal(other):
-                log_diff("File %%s has permissions %o, expected %o" %
+                log_diff(_("File %%s has permissions %o, expected %o") %
                          (other.getperms(), self.getperms()))
                 return 0
             if self.devnums != other.devnums:
-                log_diff("Device file %%s has numbers %s, expected %s"
+                log_diff(_("Device file %%s has numbers %s, expected %s")
                          % (other.devnums, self.devnums))
                 return 0
             return 1
@@ -356,17 +400,23 @@ class ROPath:
 
     def copy(self, other):
         """Copy self to other.  Also copies data.  Other must be Path"""
-        if self.isreg(): other.writefileobj(self.open("rb"))
-        elif self.isdir(): os.mkdir(other.name)
+        if self.isreg():
+            other.writefileobj(self.open("rb"))
+        elif self.isdir():
+            os.mkdir(other.name)
         elif self.issym():
             os.symlink(self.symtext, other.name)
             other.setdata()
             return # no need to copy symlink attributes
-        elif self.isfifo(): os.mkfifo(other.name)
-        elif self.issock(): socket.socket(socket.AF_UNIX).bind(other.name)
+        elif self.isfifo():
+            os.mkfifo(other.name)
+        elif self.issock():
+            socket.socket(socket.AF_UNIX).bind(other.name)
         elif self.isdev():
-            if self.type == "chr": devtype = "c"
-            else: devtype = "b"
+            if self.type == "chr":
+                devtype = "c"
+            else:
+                devtype = "b"
             other.makedev(devtype, *self.devnums)
         self.copy_attribs(other)
 
@@ -377,7 +427,8 @@ class ROPath:
             os.chmod(other.name, self.mode)
             os.utime(other.name, (time.time(), self.stat.st_mtime))
             other.setdata()
-        else: # write results to fake stat object
+        else:
+            # write results to fake stat object
             assert isinstance(other, ROPath)
             stat = StatResult()
             stat.st_uid, stat.st_gid = self.stat.st_uid, self.stat.st_gid
@@ -411,16 +462,19 @@ class Path(ROPath):
 
     def setdata(self):
         """Refresh stat cache"""
-        try: self.stat = os.lstat(self.name)
+        try:
+            self.stat = os.lstat(self.name)
         except OSError, e:
             err_string = errno.errorcode[e[0]]
             if err_string == "ENOENT" or err_string == "ENOTDIR":
                 self.stat, self.type = None, None # file doesn't exist
                 self.mode = None
-            else: raise
+            else:
+                raise
         else:
             self.set_from_stat()
-            if self.issym(): self.symtext = os.readlink(self.name)
+            if self.issym():
+                self.symtext = os.readlink(self.name)
 
     def append(self, ext):
         """Return new Path with ext added to index"""
@@ -446,8 +500,10 @@ class Path(ROPath):
 
         """
         assert not self.opened
-        if self.fileobj: result = self.fileobj
-        else: result = open(self.name, mode)
+        if self.fileobj:
+            result = self.fileobj
+        else:
+            result = open(self.name, mode)
         return result
 
     def makedev(self, type, major, minor):
@@ -459,7 +515,7 @@ class Path(ROPath):
 
     def mkdir(self):
         """Make a directory at specified path"""
-        log.Log("Making directory %s" % (self.name,), 7)
+        log.Log(_("Making directory %s") % (self.name,), 7)
         try:
             os.mkdir(self.name)
         except OSError:
@@ -469,41 +525,47 @@ class Path(ROPath):
 
     def delete(self):
         """Remove this file"""
-        log.Log("Deleting %s" % (self.name,), 7)
-        if self.isdir(): os.rmdir(self.name)
-        else: os.unlink(self.name)
+        log.Log(_("Deleting %s") % (self.name,), 7)
+        if self.isdir():
+            os.rmdir(self.name)
+        else:
+            os.unlink(self.name)
         self.setdata()
 
     def touch(self):
         """Open the file, write 0 bytes, close"""
-        log.Log("Touching %s" % (self.name,), 7)
+        log.Log(_("Touching %s") % (self.name,), 7)
         fp = self.open("wb")
         fp.close()
 
     def deltree(self):
         """Remove self by recursively deleting files under it"""
         import duplicity.selection as selection # todo: avoid circ. dep. issue
-        log.Log("Deleting tree %s" % (self.name,), 7)
+        log.Log(_("Deleting tree %s") % (self.name,), 7)
         itr = IterTreeReducer(PathDeleter, [])
-        for path in selection.Select(self).set_iter(): itr(path.index, path)
+        for path in selection.Select(self).set_iter():
+            itr(path.index, path)
         itr.Finish()
         self.setdata()
 
     def get_parent_dir(self):
         """Return directory that self is in"""
-        if self.index: return Path(self.base, self.index[:-1])
+        if self.index:
+            return Path(self.base, self.index[:-1])
         else:
             components = self.base.split("/")
             if len(components) == 2 and not components[0]:
                 return Path("/") # already in root directory
-            else: return Path("/".join(components[:-1]))
+            else:
+                return Path("/".join(components[:-1]))
 
     def writefileobj(self, fin):
         """Copy file object fin to self.  Close both when done."""
         fout = self.open("wb")
         while 1:
             buf = fin.read(_copy_blocksize)
-            if not buf: break
+            if not buf:
+                break
             fout.write(buf)
         if fin.close() or fout.close():
             raise PathException("Error closing file object")
@@ -542,7 +604,8 @@ class Path(ROPath):
         while 1:
             temp_path = parent_dir.append("duplicity_temp." +
                                           str(_tmp_path_counter))
-            if not temp_path.type: return temp_path
+            if not temp_path.type:
+                return temp_path
             _tmp_path_counter += 1
             assert _tmp_path_counter < 10000, \
                    "Warning too many temp files created for " + self.name
@@ -565,9 +628,9 @@ class Path(ROPath):
         used with os.system.
 
         """
-        if not s: s = self.name
-        return '"%s"' % self.regex_chars_to_quote.sub(
-            lambda m: "\\"+m.group(0), s)
+        if not s:
+            s = self.name
+        return '"%s"' % self.regex_chars_to_quote.sub(lambda m: "\\"+m.group(0), s)
 
     def unquote(self, s):
         """Return unquoted version of string s, as quoted by above quote()"""
@@ -598,9 +661,12 @@ class Path(ROPath):
         """
         newpath = "/".join(filter(lambda x: x and x != ".",
                                   self.name.split("/")))
-        if self.name[0] == "/": return "/" + newpath
-        elif newpath: return newpath
-        else: return "."
+        if self.name[0] == "/":
+            return "/" + newpath
+        elif newpath:
+            return newpath
+        else:
+            return "."
 
 
 class DupPath(Path):
@@ -617,7 +683,8 @@ class DupPath(Path):
         of the index, unless parseresults is given.
 
         """
-        if parseresults: self.pr = parseresults
+        if parseresults:
+            self.pr = parseresults
         else:
             assert len(index) == 1
             self.pr = file_naming.parse(index[0])
@@ -635,22 +702,32 @@ class DupPath(Path):
         assert not self.opened and not self.fileobj
         assert mode == "rb" or mode == "wb" # demand binary mode, no appends
         assert not (self.pr.encrypted and self.pr.compressed)
-        if gpg_profile: assert self.pr.encrypted
+        if gpg_profile:
+            assert self.pr.encrypted
 
-        if self.pr.compressed: return gzip.GzipFile(self.name, mode)
-        elif self.pr.encrypted: 
-            if not gpg_profile: gpg_profile = globals.gpg_profile
-            if mode == "rb": return gpg.GPGFile(None, self, gpg_profile)
-            elif mode == "wb": return gpg.GPGFile(1, self, gpg_profile)
-        else: return self.open(mode)
+        if self.pr.compressed:
+            return gzip.GzipFile(self.name, mode)
+        elif self.pr.encrypted:
+            if not gpg_profile:
+                gpg_profile = globals.gpg_profile
+            if mode == "rb":
+                return gpg.GPGFile(None, self, gpg_profile)
+            elif mode == "wb":
+                return gpg.GPGFile(1, self, gpg_profile)
+        else:
+            return self.open(mode)
 
 
 class PathDeleter(ITRBranch):
     """Delete a directory.  Called by Path.deltree"""
-    def start_process(self, index, path): self.path = path
-    def end_process(self): self.path.delete()
-    def can_fast_process(self, index, path): return not path.isdir()
-    def fast_process(self, index, path): path.delete()
+    def start_process(self, index, path):
+        self.path = path
+    def end_process(self):
+        self.path.delete()
+    def can_fast_process(self, index, path):
+        return not path.isdir()
+    def fast_process(self, index, path):
+        path.delete()
 
     
 # Wait until end to avoid circular module trouble
