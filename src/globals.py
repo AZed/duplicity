@@ -21,7 +21,7 @@
 import socket
 
 # The current version of duplicity
-version = "0.2.1"
+version = "0.3.0"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -75,3 +75,8 @@ allow_source_mismatch = None
 # signatures not found, default to full.
 incremental = None
 
+# If set, print the statistics after every backup session
+print_statistics = 1
+
+# If set, use short (< 30 char) filenames for all the remote files.
+short_filenames = 0

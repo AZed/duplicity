@@ -1,3 +1,33 @@
+New in v0.3.0 (2002/11/10)
+--------------------------
+
+Added ftp backend.  Now the remote repository can accessed by ftp and
+can be specified like "ftp://user@foo.bar/".
+
+Added --ssh-command and --scp-command options, which can be used to
+replace ssh and scp, or pass different arguments to them.  Requested
+by Will Dyson.
+
+Added --short-filenames option, for use when uploading to a file
+system that can't have filenames longer than 30 characters (e.g. Mac
+OS 8).
+
+Added --list-current-files mode, which lists the files currently at
+the given destination url.
+
+Ported some statistics code from rdiff-backup.  Now by default
+statistics are printed after a backup session.  This can be disabled
+with the --no-print-statistics option.  Thanks to Mathieu Doidy for
+requesting the above two features.
+
+Added rdiff-backup-style --include/exclude-filelist-globbing options.
+Now filelists with "+ /- " can be treated exactly like repeated
+--include or --exclude options.
+
+Fixed bug backing up normal files instead of directories.  Thanks to
+Mathieu Doidy for bug report.
+
+
 New in v0.2.1 (2002/10/31)
 --------------------------
 

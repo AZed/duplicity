@@ -18,10 +18,11 @@
 
 """Provides functions and classes for getting/sending files to destination"""
 
-import os
+import os, types, ftplib
 import log, path, dup_temp, file_naming
 
 class BackendException(Exception): pass
+class ParsingException(Exception): pass
 
 def get_backend(url_string):
 	"""Return Backend object from url string, or None if not a url string
@@ -32,23 +33,74 @@ def get_backend(url_string):
 
 	"""
 	global protocol_class_dict
-	def bad_url(message = None):
+	try: pu = ParsedUrl(url_string)
+	except ParsingException: return None
+
+	try: backend_class = protocol_class_dict[pu.protocol]
+	except KeyError: log.FatalError("Unknown protocol '%s'" % (pu.protocol,))
+	return backend_class(pu)
+
+class ParsedUrl:
+	"""Contains information gleaned from a generic url"""
+	protocol = None # set to string like "ftp" indicating protocol
+	suffix = None # Set to everything after protocol://
+
+	server = None # First part of suffix (part before '/')
+	path = None # Second part of suffix (part after '/')
+
+	host = None # Set to host, if can be extracted
+	user = None # Set to user, as in ftp://user@host/whatever
+	port = None # Set to port, like scp://host:port/foo
+
+	def __init__(self, url_string):
+		"""Create ParsedUrl object, process url_string"""
+		self.url_string = url_string
+		self.set_protocol_suffix()
+		self.set_server_path()
+		self.set_host_user_port()
+
+	def bad_url(self, message = None):
+		"""Report a bad url, using message if given"""
 		if message:
-			err_string = "Bad URL string '%s': %s" % (url_string, message)
-		else: err_string = "Bad URL string '%s'" % url_string
-		log.FatalError(err_string)
+			err_string = "Bad URL string '%s': %s" % (self.url_string, message)
+		else: err_string = "Bad URL string '%s'" % (self.url_string,)
+		raise ParsingException(err_string)
 
-	colon_position = url_string.find(":")
-	if colon_position < 1: return None
-	protocol = url_string[:colon_position]
-	if url_string[colon_position+1:colon_position+3] != '//': return None
-	remaining_string = url_string[colon_position+3:]
-	
-	try: backend, separate_host = protocol_class_dict[protocol]
-	except KeyError: bad_url("Unknown protocol '%s'" % protocol)
-	assert not separate_host, "This part isn't done yet"
+	def set_protocol_suffix(self):
+		"""Parse self.url_string, setting self.protocol and self.suffix"""
+		colon_position = self.url_string.find(":")
+		if colon_position < 1: self.bad_url("No colon (:) found")
+		self.protocol = self.url_string[:colon_position]
+		if self.url_string[colon_position+1:colon_position+3] != '//':
+			self.bad_url("first colon not followed by '//'")
+		self.suffix = self.url_string[colon_position+3:]
 
-	return backend(remaining_string)
+	def set_server_path(self):
+		"""Set self.server and self.path from self.suffix"""
+		comps = self.suffix.split('/')
+		assert len(comps) > 0
+		self.server = comps[0]
+		if len(comps) > 1:
+			self.path = '/'.join(comps[1:])
+
+	def set_host_user_port(self):
+		"""Set self.host, self.user, and self.port from self.server"""
+		if not self.server: return
+
+		# Extract port
+		port_comps = self.server.split(":")
+		if len(port_comps) >= 2:
+			try: self.port = int(port_comps[-1])
+			except ValueError: user_host = self.server
+			else: user_host = ":".join(port_comps[:-1])
+		else: user_host = self.server
+
+		# Set user and host
+		user_comps = user_host.split("@")
+		if len(user_comps) >= 2:
+			self.user = user_comps[0]
+			self.host = "@".join(user_comps[1:])
+		else: self.host = user_host
 
 
 class Backend:
@@ -58,7 +110,7 @@ class Backend:
 	and delete methods.
 
 	"""
-	def init(self, some_arguments): pass
+	def init(self, parsed_url): pass
 
 	def put(self, source_path, remote_filename = None):
 		"""Transfer source_path (Path object) to remote_filename (string)
@@ -72,6 +124,7 @@ class Backend:
 
 	def get(self, remote_filename, local_path):
 		"""Retrieve remote_filename and place in local_path"""
+		local_path.setdata()
 		pass
 	
 	def list(self):
@@ -112,22 +165,29 @@ class Backend:
 		tdp.setdata()
 		return tdp.filtered_open_with_delete("rb")
 
-	def get_fileobj_write(self, filename, parseresults = None):
+	def get_fileobj_write(self, filename, parseresults = None,
+						  sizelist = None):
 		"""Return fileobj opened for writing, write to backend on close
 
 		The file will be encoded as specified in parseresults (or as
 		read from the filename), and stored in a temp file until it
 		can be copied over and deleted.
 
+		If sizelist is not None, it should be set to an empty list.
+		The number of bytes will be inserted into the list.
+
 		"""
 		if not parseresults:
 			parseresults = file_naming.parse(filename)
-			assert parseresults, "Filename not correctly parsed"
+			assert parseresults, "Filename %s not correctly parsed" % filename
 		tdp = dup_temp.new_tempduppath(parseresults)
 
 		def close_file_hook():
 			"""This is called when returned fileobj is closed"""
 			self.put(tdp, filename)
+			if sizelist is not None:
+				tdp.setdata()
+				sizelist.append(tdp.getsize())
 			tdp.delete()
 
 		fh = dup_temp.FileobjHooked(tdp.filtered_open("wb"))
@@ -147,6 +207,10 @@ class Backend:
 		fout.write(buffer)
 		assert not fout.close()
 
+	def close(self):
+		"""This is called when a connection is no longer needed"""
+		pass
+
 
 class LocalBackend(Backend):
 	"""Use this backend when saving to local disk
@@ -155,8 +219,8 @@ class LocalBackend(Backend):
 	gotten with extra slash (file:///usr/local).
 
 	"""
-	def __init__(self, directory_name):
-		self.remote_pathdir = path.Path(directory_name)
+	def __init__(self, parsed_url):
+		self.remote_pathdir = path.Path(parsed_url.suffix)
 
 	def put(self, source_path, remote_filename = None, rename = None):
 		"""If rename is set, try that first, copying if doesn't work"""
@@ -180,40 +244,41 @@ class LocalBackend(Backend):
 
 	def delete(self, filename_list):
 		"""Delete all files in filename list"""
+		assert type(filename_list) is not types.StringType
 		try:
 			for filename in filename_list:
 				self.remote_pathdir.append(filename).delete()
 		except OSError, e: raise BackendException(str(e))
 
 
+# The following can be redefined to use different shell commands from
+# ssh or scp or to add more arguments.  However, the replacements must
+# have the same syntax.  Also these strings will be executed by the
+# shell, so shouldn't have strange characters in them.
+ssh_command = "ssh"
+scp_command = "scp"
+
 class scpBackend(Backend):
 	"""This backend copies files using scp.  List not supported"""
-	def __init__(self, url_string):
-		"""scpBackend initializer
-
-		Here url_string is something like
-		username@host.net/file/whatever, which is produced after the 
-		'scp://' of a url is stripped.
-
-		"""
-		comps = url_string.split("/")
-		self.host_string = comps[0] # of form user@hostname
-		self.remote_dir = "/".join(comps[1:]) # can be empty string
+	def __init__(self, parsed_url):
+		"""scpBackend initializer"""
+		self.host_string = parsed_url.server # of form user@hostname:port
+		self.remote_dir = parsed_url.path # can be empty string
 		if self.remote_dir: self.remote_prefix = self.remote_dir + "/"
 		else: self.remote_prefix = ""
 
 	def put(self, source_path, remote_filename = None):
 		"""Use scp to copy source_dir/filename to remote computer"""
 		if not remote_filename: remote_filename = source_path.get_filename()
-		commandline = "scp %s %s:%s%s" % \
-					  (source_path.name, self.host_string,
+		commandline = "%s %s %s:%s%s" % \
+					  (scp_command, source_path.name, self.host_string,
 					   self.remote_prefix, remote_filename)
 		self.run_command(commandline)
 
 	def get(self, remote_filename, local_path):
 		"""Use scp to get a remote file"""
-		commandline = "scp %s:%s%s %s" % \
-					  (self.host_string, self.remote_prefix,
+		commandline = "%s %s:%s%s %s" % \
+					  (scp_command, self.host_string, self.remote_prefix,
 					   remote_filename, local_path.name)
 		self.run_command(commandline)
 		local_path.setdata()
@@ -228,14 +293,16 @@ class scpBackend(Backend):
 		be distinguished from the file boundaries.
 
 		"""
-		commandline = "ssh %s ls %s" % (self.host_string, self.remote_dir)
+		commandline = ("%s %s ls %s" %
+					   (ssh_command, self.host_string, self.remote_dir))
 		return filter(lambda x: x, self.popen(commandline).split("\n"))
 
 	def delete(self, filename_list):
 		"""Runs ssh rm to delete files.  Files must not require quoting"""
+		assert len(filename_list) > 0
 		pathlist = map(lambda fn: self.remote_prefix + fn, filename_list)
-		commandline = "ssh %s rm %s" % \
-					  (self.host_string, " ".join(pathlist))
+		commandline = ("%s %s rm %s" %
+					   (ssh_command, self.host_string, " ".join(pathlist)))
 		self.run_command(commandline)
 
 
@@ -244,9 +311,69 @@ class sftpBackend(Backend):
 	pass # Do this later
 
 
+class ftpBackend(Backend):
+	"""Connect to remote store using File Transfer Protocol"""
+	def __init__(self, parsed_url):
+		"""Create a new ftp backend object, log in to host"""
+		self.ftp = ftplib.FTP()
+		if parsed_url.port is None: self.error_wrap('connect', parsed_url.host)
+		else: self.error_wrap('connect', parsed_url.host, parsed_url.port)
+
+		if parsed_url.user is not None:
+			self.error_wrap('login', parsed_url.user, self.get_password())
+		else: self.error_wrap('login')
+		self.ftp.cwd(parsed_url.path)
+
+	def error_wrap(self, command, *args):
+		"""Run self.ftp.command(*args), but raise BackendException on error"""
+		try: return ftplib.FTP.__dict__[command](self.ftp, *args)
+		except ftplib.all_errors, e: raise BackendException(e)
+
+	def get_password(self):
+		"""Get ftp password using environment if possible"""
+		try: return os.environ['FTP_PASSWORD']
+		except KeyError:
+			log.Log("FTP_PASSWORD not set, using empty ftp password", 3)
+			return ''
+
+	def put(self, source_path, remote_filename = None):
+		"""Transfer source_path to remote_filename"""
+		if not remote_filename: remote_filename = source_path.get_filename()
+		source_file = source_path.open("rb")
+		log.Log("Saving %s on FTP server" % (remote_filename,), 4)
+		self.error_wrap('storbinary', "STOR "+remote_filename, source_file)
+		assert not source_file.close()
+
+	def get(self, remote_filename, local_path):
+		"""Get remote filename, saving it to local_path"""
+		target_file = local_path.open("wb")
+		log.Log("Retrieving %s from FTP server" % (remote_filename,), 4)
+		self.error_wrap('retrbinary', "RETR "+remote_filename,
+						target_file.write)
+		assert not target_file.close()
+		local_path.setdata()
+
+	def list(self):
+		"""List files in directory"""
+		log.Log("Listing files on FTP server", 4)
+		return self.error_wrap('nlst')
+
+	def delete(self, filename_list):
+		"""Delete files in filename_list"""
+		for filename in filename_list:
+			log.Log("Deleting %s from FTP server" % (filename,), 4)
+			self.error_wrap('delete', filename)
+
+	def close(self):
+		"""Shut down connection"""
+		self.error_wrap('quit')
+
+
 # Dictionary relating protocol strings to tuples (backend_object,
 # separate_host).  If separate_host is true, get_backend() above will
 # parse the url further to try to extract a hostname, protocol, etc.
-protocol_class_dict = {"scp": (scpBackend, 0),
-					   "ssh": (scpBackend, 0),
-					   "file": (LocalBackend, 0)}
+protocol_class_dict = {"scp": scpBackend,
+					   "ssh": scpBackend,
+					   "file": LocalBackend,
+					   "ftp": ftpBackend}
+

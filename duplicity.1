@@ -1,4 +1,4 @@
-.TH RDIFFDIR 1 "October 2002" "Version 0.2.1" "User Manuals"
+.TH RDIFFDIR 1 "November 2002" "Version 0.3.0" "User Manuals"
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
 .SH SYNOPSIS
@@ -10,11 +10,16 @@ duplicity \- Encrypted backup using rsync algorithm
 .BI [ options ]
 .I source_url target_filename
 
+.B duplicity
+.BI [ options ]
+.B --list-current-files
+.I source_url
+
 .SH DESCRIPTION
 Duplicity incrementally backs up files and directory by encrypting
 tar-format volumes with GnuPG and uploading them to a remote (or
 local) file server.  In theory many remote backends are possible;
-right now only the local or ssh/scp backend is written.  Because
+right now local, ftp, and ssh/scp backends are written.  Because
 duplicity uses librsync, the incremental archives are space efficient
 and only record the parts of files that have changed since the last
 backup.  Currently duplicity supports deleted files, full unix
@@ -73,6 +78,14 @@ directories under root:
 .RS
 duplicity --include /home --include /etc --exclude '**' /
 file:///usr/local/backup
+.PP
+.RE
+Duplicity can also access a repository via ftp.  If a user name is
+given, the environment variable FTP_PASSWORD is read to determine the
+password:
+.PP
+.RS
+FTP_PASSWORD=mypassword duplicity /local/dir ftp://user@other.host/some_dir
 
 .SH OPTIONS
 .TP
@@ -117,6 +130,15 @@ but the list of files will be read from standard input.  See the
 .B FILE SELECTION
 section for more information.
 .TP
+.BR "--exclude-globbing-filelist " filename
+Like
+.B --exclude-filelist
+but each line of the filelist will be interpreted according to the
+same rules as
+.B --include
+and
+.B --exclude.
+.TP
 .B --exclude-other-filesystems
 Exclude files on file systems (identified by device number) other than
 the file system the root of the source directory is on.
@@ -128,6 +150,13 @@ option, this option does not match files in a directory it matches.
 See the
 .B FILE SELECTION
 section for more information.
+.TP
+.BI "--file-to-restore " path
+This option may be given in restore mode, causing only
+.I path
+to be restored instead of the entire contents of the backup archive.
+.I path
+should be given relative to the root of the directory backed up.
 .TP
 .BR -f ", " --full
 Indicate full backup.  If this is set, perform full backup even if
@@ -160,6 +189,15 @@ Like
 .BR --include-filelist ,
 but read the list of included files from standard input.
 .TP
+.BI "--include-globbing-filelist " filename
+Like
+.B --include-filelist
+but each line of the filelist will be interpreted according to the
+same rules as
+.B --include
+and
+.B --exclude.
+.TP
 .BI "--include-regexp " regexp
 Include files matching the regular expression
 .IR regexp .
@@ -169,6 +207,33 @@ will be included by this option.  See the
 .B FILE SELECTION
 section for more information.
 .TP
+.B --list-current-files
+Lists the files currently backed up in the archive.  The information
+will be extracted from the signature files, not the archive data
+itself.  Thus the whole archive does not have to be downloaded, but on
+the other hand if the archive has been deleted or corrupted, this
+command may not detect it.
+.TP
+.B --no-print-statistics
+By default duplicity will print statistics about the current session
+after a successful backup.  This switch disables that behavior.
+.TP
+.B --null-separator
+Use nulls (\\0) instead of newlines (\\n) as line separators, which
+may help when dealing with filenames containing newlines.  This
+affects the expected format of the files specified by the
+--{include|exclude}-filelist[-stdin] switches as well as the format of
+the directory statistics file.
+.TP
+.BI "--scp-command " command
+This option only matters when using the ssh/scp backend.  There
+.I command
+will be used instead of scp to send or receive files.
+.I command
+must have the same syntax as scp.  This option can also be used to
+give extra arguments to scp, for instance "--scp-command \'scp -i
+foo\'".  The default is "scp".
+.TP
 .BI "--sign-key " key
 This option can be used when backing up or restoring.  When backing
 up, all backup files will be signed with keyid
@@ -177,6 +242,14 @@ When restoring, duplicity will signal an error if any remote file is
 not signed with the given keyid.
 .I key
 should be an 8 character hex string, like AA0E73D2.
+.TP
+.BI "--ssh-command " command
+Use
+.I command
+instead of "ssh" to execute commands on the remote side.  This only
+matters when using the ssh/scp backend.  See
+.B --scp-command
+for more information.
 .TP
 .BI -t time ", --restore-time " time
 When restoring, specify the time to restore to.
@@ -234,10 +307,12 @@ line options:
 .BR --exclude-device-files ,
 .BR --exclude-filelist ,
 .BR --exclude-filelist-stdin ,
+.BR --exclude-globbing-filelist ,
 .BR --exclude-regexp ,
 .BR --include ,
 .BR --include-filelist ,
 .BR --include-filelist-stdin ,
+.BR --include-globbing-filelist ,
 and
 .BR --include-regexp .
 Each file selection condition either matches or doesn't match a given
@@ -271,9 +346,11 @@ would backup the /usr/local/bin directory (and its contents), but not
 /usr/local/doc.
 
 The
-.B include
+.BR include ,
+.BR exclude ,
+.BR include-globbing-filelist ,
 and
-.B exclude
+.B exclude-globbing-filelist
 options accept
 .IR "extended shell globbing patterns" .
 These patterns can contain the special patterns
@@ -419,6 +496,34 @@ then "--include-filelist list.txt" would include /usr, /usr/local, and
 specification condition.  Finally, it is undefined what happens with
 /var.  A single file list should not contain conflicting file
 specifications.
+
+The
+.B --include-globbing-filelist
+and
+.B --exclude-globbing-filelist
+options also specify filelists, but each line in the filelist will be
+interpreted as a globbing pattern the way
+.B --include
+and
+.B --exclude
+options are interpreted (although "+ " and "- " prefixing is still
+allowed).  For instance, if the file "globbing-list.txt" contains the
+lines:
+
+.RE
+.RS
+dir/foo
+.RE
+.RS
++ dir/bar
+.RE
+.RS
+- **
+
+.RE
+Then "--include-globbing-filelist globbing-list.txt" would be exactly
+the same as specifying "--include dir/foo --include dir/bar --exclude **"
+on the command line.
 
 Finally, the
 .B --include-regexp

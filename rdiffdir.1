@@ -1,4 +1,4 @@
-.TH RDIFFDIR 1 "October 2002" "Version 0.2.1" "User Manuals"
+.TH RDIFFDIR 1 "November 2002" "Version 0.3.0" "User Manuals"
 .SH NAME
 rdiffdir \- compute and apply signatures and diffs to directories
 .SH SYNOPSIS
@@ -59,15 +59,15 @@ In
 and
 .B delta
 modes, rdiffdir accepts
-.BR rdiff-backup -like
+.BR duplicity -like
 selection options including --exclude, --exclude-filelist-stdin, etc.
 See the
-.BR rdiff-backup (1)
+.BR duplicity (1)
 manual page for more information.
 
 .SH BUGS
-Hard links currently unsupported (they will be treated as non-linked
-regular files).
+Hard links are currently unsupported (they will be treated as
+non-linked regular files).
 
 Bad signatures will be treated as empty instead of logging appropriate
 error message.
@@ -80,5 +80,3 @@ Ben Escoto <bescoto@stanford.edu>
 .BR python (1),
 .BR rdiff (1),
 .BR rdiff-backup (1).
-
-
