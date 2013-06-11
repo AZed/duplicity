@@ -80,7 +80,7 @@ options = ["allow-source-mismatch",
            "gpg-options=",
            "help",
            "imap-full-address",
-           "imap-mailbox=",           
+           "imap-mailbox=",
            "include=",
            "include-filelist=",
            "include-filelist-stdin",
@@ -92,6 +92,7 @@ options = ["allow-source-mismatch",
            "no-print-statistics",
            "null-separator",
            "num-retries=",
+           "old-filenames",
            "restore-dir=",
            "restore-time=",
            "s3-european-buckets",
@@ -103,12 +104,18 @@ options = ["allow-source-mismatch",
            "ssh-askpass",
            "ssh-options=",
            "tempdir=",
+           "time=",
            "timeout=",
            "time-separator=",
            "verbosity=",
            "version",
            "volsize=",
            ]
+
+def old_fn_deprecation(opt):
+    print >>sys.stderr, _("Warning: Option %s is pending deprecation "
+                          "and will be removed in a future release.\n"
+                          "Use of default filenames is strongly suggested.") % opt
 
 def parse_cmdline_options(arglist):
     """Parse argument list"""
@@ -126,7 +133,7 @@ def parse_cmdline_options(arglist):
     # expect no cmd and two positional args
     cmd = ""
     num_expect = 2
-    
+
     # process first arg as command
     if arglist and arglist[0][0] != '-':
         cmd = arglist.pop(0)
@@ -140,7 +147,7 @@ def parse_cmdline_options(arglist):
         # no matches, assume no cmd
         elif not possible:
             arglist.insert(0, cmd)
-        
+
     if cmd == "cleanup":
         cleanup = True
         num_expect = 1
@@ -169,10 +176,10 @@ def parse_cmdline_options(arglist):
         except:
             command_line_error("Missing count for remove-all-but-n-full")
         globals.keep_chains = int(arg)
-        
+
         if not globals.keep_chains > 0:
             command_line_error("remove-all-but-n-full count must be > 0")
-        
+
         num_expect = 1
     elif cmd == "verify":
         verify = True
@@ -205,7 +212,7 @@ def parse_cmdline_options(arglist):
         elif opt in ["--exclude-device-files",
                      "--exclude-other-filesystems"]:
             select_opts.append((opt, None))
-        elif opt in ["--exclude-filelist", 
+        elif opt in ["--exclude-filelist",
                      "--include-filelist",
                      "--exclude-globbing-filelist",
                      "--include-globbing-filelist"]:
@@ -223,7 +230,7 @@ def parse_cmdline_options(arglist):
         elif opt == "--ftp-regular":
             globals.ftp_connection = 'regular'
         elif opt == "--imap-mailbox":
-            imapbackend.imap_mailbox = arg.strip()            
+            imapbackend.imap_mailbox = arg.strip()
         elif opt == "--gpg-options":
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
@@ -232,14 +239,6 @@ def parse_cmdline_options(arglist):
         elif opt == "--include-filelist-stdin":
             select_opts.append(("--include-filelist", "standard input"))
             select_files.append(sys.stdin)
-        elif opt == "--no-encryption":
-            globals.encryption = 0
-        elif opt == "--no-print-statistics":
-            globals.print_statistics = 0
-        elif opt == "--null-separator":
-            globals.null_separator = 1
-        elif opt == "--num-retries":
-            globals.num_retries = int(arg)
         elif opt == "--log-fd":
             log_fd = int(arg)
             if log_fd < 1:
@@ -253,9 +252,20 @@ def parse_cmdline_options(arglist):
                 log.add_file(arg)
             except:
                 command_line_error("Cannot write to log-file %s." % arg)
+        elif opt == "--no-encryption":
+            globals.encryption = 0
+        elif opt == "--no-print-statistics":
+            globals.print_statistics = 0
+        elif opt == "--null-separator":
+            globals.null_separator = 1
+        elif opt == "--num-retries":
+            globals.num_retries = int(arg)
+        elif opt == "--old-filenames":
+            globals.old_filenames = True
+            old_fn_deprecation(opt)
         elif opt in ["-r", "--file-to-restore"]:
             globals.restore_dir = arg
-        elif opt in ["-t", "--restore-time"]:
+        elif opt in ["-t", "--time", "--restore-time"]:
             globals.restore_time = dup_time.genstrtotime(arg)
         elif opt == "--s3-european-buckets":
             globals.s3_european_buckets = True
@@ -267,6 +277,7 @@ def parse_cmdline_options(arglist):
             sshbackend.sftp_command = arg
         elif opt == "--short-filenames":
             globals.short_filenames = 1
+            old_fn_deprecation(opt)
         elif opt == "--sign-key":
             set_sign_key(arg)
         elif opt == "--ssh-askpass":
@@ -282,6 +293,7 @@ def parse_cmdline_options(arglist):
                 command_line_error("Dash ('-') not valid for time-separator.")
             globals.time_separator = arg
             dup_time.curtimestr = dup_time.timetostring(dup_time.curtime)
+            old_fn_deprecation(opt)
         elif opt in ["-V", "--version"]:
             print "duplicity", str(globals.version)
             sys.exit(0)
@@ -296,6 +308,10 @@ def parse_cmdline_options(arglist):
             globals.imap_full_address = True
         else:
             command_line_error("Unknown option %s" % opt)
+
+    # if we change the time format then we need a new curtime
+    if globals.old_filenames:
+        dup_time.curtimestr = dup_time.timetostring(dup_time.curtime)
 
     if len(args) != num_expect:
         command_line_error("Expected %d args, got %d" % (num_expect, len(args)))
@@ -328,7 +344,7 @@ Backends and their URL formats:
     ftp://user[:password]@other.host[:port]/some_dir
     hsi://user[:password]@other.host[:port]/some_dir
     file:///some_dir
-    imap://user[:password]@other.host[:port]/some_dir 
+    imap://user[:password]@other.host[:port]/some_dir
     rsync://user[:password]@other.host[:port]::/module/some_dir
     rsync://user[:password]@other.host[:port]/relative_path
     rsync://user[:password]@other.host[:port]//absolute_path
@@ -378,6 +394,7 @@ Options:
     --no-print-statistics
     --null-separator
     --num-retries <number>
+    --old-filenames
     --s3-european-buckets
     --s3-use-new-style
     --scp-command <command>
@@ -388,7 +405,7 @@ Options:
     --short-filenames
     --tempdir <directory>
     --timeout <seconds>
-    -t<time>, --restore-time <time>
+    -t<time>, --time <time>, --restore-time <time>
     --time-separator <char>
     --version
     --volsize <number>
@@ -468,7 +485,7 @@ def process_local_dir(action, local_pathname):
             log.FatalError(_("Backup source directory %s does not exist.")
                            % (local_path.name,),
                            log.ErrorCode.backup_dir_doesnt_exist)
-    
+
     globals.local_path = local_path
 
 def check_consistency(action):

@@ -1,4 +1,4 @@
-.TH DUPLICITY 1 "February 17, 2009" "Version 0.5.09" "User Manuals" \"  -*- nroff -*-
+.TH DUPLICITY 1 "March 01, 2009" "Version 0.5.10" "User Manuals" \"  -*- nroff -*-
 
 .SH NAME
 duplicity \- Encrypted backup using rsync algorithm
@@ -382,6 +382,10 @@ the directory statistics file.
 .BI "--num-retries " number
 Number of retries to make on errors before giving up.
 .TP
+.B --old-filenames
+Use the old filename format (incompatible with Windows/Samba) rather than
+the new filename format.
+.TP
 .BI "--s3-european-buckets"
 When using the Amazon S3 backend, create buckets in Europe instead of
 the default (requires
@@ -457,8 +461,8 @@ Use this existing directory for duplicity temporary files instead of
 the system default, which is usually the /tmp directory. This option
 supersedes any environment variable.
 .TP
-.BI -t time ", --restore-time " time
-When restoring, specify the time to restore to.
+.BI -t time ", --time " time ", --restore-time " time
+Specify the time from which to restore or list files.
 .TP
 .BI "--time-separator " char
 Use
@@ -536,7 +540,7 @@ http://www.w3.org/TR/NOTE-datetime.  Basically they look like
 "-07:00" section means the time zone is 7 hours behind UTC.
 .PP
 Secondly, the
-.BR -t ", and " --restore-time
+.BR -t ", " --time ", and " --restore-time
 options take a time string, which can be given in any of several
 formats:
 .IP 1.
