@@ -3,7 +3,7 @@
 import sys, os, getopt
 from distutils.core import setup, Extension
 
-version_string = "0.4.4.RC1"
+version_string = "0.4.4.RC2"
 
 if sys.version_info[:2] < (2,2):
 	print "Sorry, duplicity requires version 2.2 or later of python"
