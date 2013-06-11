@@ -179,6 +179,9 @@ def parse_cmdline_options(arglist):
 			globals.ftp_connection = 'regular'
 		elif opt == "--gpg-options":
 			gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
+		elif opt == "--help":
+			usage();
+			sys.exit(1);
 		elif opt == "--include-filelist-stdin":
 			select_opts.append(("--include-filelist", "standard input"))
 			select_files.append(sys.stdin)
@@ -222,8 +225,6 @@ def parse_cmdline_options(arglist):
 			log.setverbosity(int(arg))
 		elif opt == "--volsize":
 			globals.volsize = int(arg)*1024*1024
-		elif opt == "--help":
-			usage(); sys.exit(1);
 		else:
 			command_line_error("Unknown option %s" % opt)
 
@@ -262,6 +263,7 @@ Backends and their URL formats:
 	rsync://user@host/some_non_module_path
 	s3+http://bucket_name
 	webdav://user@other.host/some_dir
+	webdavs://user@other.host/some_dir
 
 Commands:
 	cleanup <target_url>

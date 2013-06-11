@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.5"
+version = "0.4.6"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -107,3 +107,7 @@ timeout = 30
 
 # FTP data connection type
 ftp_connection = 'passive'
+
+# Protocol for webdav
+webdav_proto = 'http'
+
