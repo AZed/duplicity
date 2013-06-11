@@ -26,6 +26,7 @@ from duplicity import globals
 from duplicity import log
 from duplicity.errors import * #@UnusedWildImport
 from duplicity.util import exception_traceback
+from duplicity.backend import retry
 
 class CloudFilesBackend(duplicity.backend.Backend):
     """
@@ -119,7 +120,13 @@ class CloudFilesBackend(duplicity.backend.Backend):
         for n in range(1, globals.num_retries+1):
             log.Info("Listing '%s'" % (self.container))
             try:
-                keys = self.container.list_objects()
+                # Cloud Files will return a max of 10,000 objects.  We have
+                # to make multiple requests to get them all.
+                objs = self.container.list_objects()
+                keys = objs
+                while len(objs) == 10000:
+                    objs = self.container.list_objects(marker=keys[-1])
+                    keys += objs
                 return keys
             except self.resp_exc, resperr:
                 log.Warn("Listing of '%s' failed (attempt %s): CloudFiles returned: %s %s"
@@ -139,5 +146,23 @@ class CloudFilesBackend(duplicity.backend.Backend):
         for file in filename_list:
             self.container.delete_object(file)
             log.Debug("Deleted '%s/%s'" % (self.container, file))
+
+    @retry
+    def _query_file_info(self, filename, raise_errors=False):
+        from cloudfiles.errors import NoSuchObject
+        try:
+            sobject = self.container.get_object(filename)
+            return {'size': sobject.size}
+        except NoSuchObject:
+            return {'size': -1}
+        except Exception, e:
+            log.Warn("Error querying '%s/%s': %s"
+                     "" % (self.container,
+                           filename,
+                           str(e)))
+            if raise_errors:
+                raise e
+            else:
+                return {'size': None}
 
 duplicity.backend.register_backend("cf+http", CloudFilesBackend)

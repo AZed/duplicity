@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.15 released August 19, 2011
+# Version 0.6.16 released October 16, 2011
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -90,15 +90,15 @@ def get_passphrase(n, action, for_signing = False):
     ## if signing key is also an encryption key assume that the passphrase is identical
     if ( for_signing
          and globals.gpg_profile.sign_key in globals.gpg_profile.recipients
-         and globals.gpg_profile.passphrase is not None ):
-        log.Notice(_("Reuse already set PASSPHRASE as SIGNING_PASSPHRASE"))
-        return globals.gpg_profile.passphrase
+         and 'PASSPHRASE' in os.environ ):
+        log.Notice(_("Reuse configured PASSPHRASE as SIGN_PASSPHRASE"))
+        return os.environ['PASSPHRASE']
     ## if one encryption key is also the signing key assume that the passphrase is identical
     if ( not for_signing
          and globals.gpg_profile.sign_key in globals.gpg_profile.recipients
-         and globals.gpg_profile.signing_passphrase is not None ):
-        log.Notice(_("Reuse already set SIGNING_PASSPHRASE as PASSPHRASE"))
-        return globals.gpg_profile.signing_passphrase
+         and 'SIGN_PASSPHRASE' in os.environ ):
+        log.Notice(_("Reuse configured SIGN_PASSPHRASE as PASSPHRASE"))
+        return os.environ['SIGN_PASSPHRASE']
 
     # Next, verify we need to ask the user
 
@@ -269,14 +269,28 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
             end_block -= 1
         return start_index, start_block, end_index, end_block
 
-    def put(tdp, dest_filename):
+    def validate_block(orig_size, dest_filename):
+        info = backend.query_info([dest_filename])[dest_filename]
+        if 'size' not in info:
+            return # backend didn't know how to query size
+        size = info['size']
+        if size is None:
+            return # error querying file
+        if size != orig_size:
+            code_extra = "%s %d %d" % (util.escape(dest_filename), orig_size, size)
+            log.FatalError(_("File %s was corrupted during upload.") % dest_filename,
+                           log.ErrorCode.volume_wrong_size, code_extra)
+
+    def put(tdp, dest_filename, vol_num):
         """
         Retrieve file size *before* calling backend.put(), which may (at least
         in case of the localbackend) rename the temporary file to the target
         instead of copying.
         """
         putsize = tdp.getsize()
-        backend.put(tdp, dest_filename)
+        if globals.skip_volume != vol_num: # for testing purposes only
+            backend.put(tdp, dest_filename)
+        validate_block(putsize, dest_filename)
         if tdp.stat:
             tdp.delete()
         return putsize
@@ -350,8 +364,8 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
             sig_outfp.flush()
             man_outfp.flush()
 
-        async_waiters.append(io_scheduler.schedule_task(lambda tdp, dest_filename: put(tdp, dest_filename),
-                                                        (tdp, dest_filename)))
+        async_waiters.append(io_scheduler.schedule_task(lambda tdp, dest_filename, vol_num: put(tdp, dest_filename, vol_num),
+                                                        (tdp, dest_filename, vol_num)))
 
         # Log human-readable version as well as raw numbers for machine consumers
         log.Progress('Processed volume %d' % vol_num, diffdir.stats.SourceFileSize)
@@ -1092,7 +1106,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.15 (August 19, 2011)", verbosity)
+    log.Log("duplicity 0.6.16 (October 16, 2011)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1268,7 +1282,7 @@ def main():
         # the sign key can have a different passphrase than the encrypt
         # key, therefore request a passphrase
         if globals.gpg_profile.sign_key:
-            globals.gpg_profile.signing_passphrase = get_passphrase(3, action, True)
+            globals.gpg_profile.signing_passphrase = get_passphrase(1, action, True)
 
         # if there are no recipients (no --encrypt-key), it must be a
         # symmetric key. Therefore, confirm the passphrase
@@ -1323,7 +1337,7 @@ if __name__ == "__main__":
     # Adjust the path to your location and version of Eclipse and Pydev.  Comment out
     # to run normally, or this process will hang at pydevd.settrace() waiting for the
     # remote debugger to start.
-#    pysrc = "/opt/Aptana Studio 2/plugins/org.python.pydev.debug_2.1.0.2011052613/pysrc/"
+#    pysrc = "/opt/Aptana Studio 3/plugins/org.python.pydev.debug_2.2.2.2011100512/pysrc/"
 #    sys.path.append(pysrc)
 #    import pydevd #@UnresolvedImport
 #    pydevd.settrace()

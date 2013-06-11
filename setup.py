@@ -23,7 +23,7 @@
 import sys, os
 from distutils.core import setup, Extension
 
-version_string = "0.6.15"
+version_string = "0.6.16"
 
 if sys.version_info[:2] < (2,3):
     print "Sorry, duplicity requires version 2.4 or later of python"
@@ -72,6 +72,7 @@ setup(name="duplicity",
       maintainer="Kenneth Loafman <kenneth@loafman.com>",
       maintainer_email="kenneth@loafman.com",
       url="http://duplicity.nongnu.org/index.html",
+      install_requires = ['filechunkio'],
       packages = ['duplicity',
                   'duplicity.backends',],
       package_dir = {"duplicity" : "src",

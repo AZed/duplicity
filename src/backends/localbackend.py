@@ -57,30 +57,39 @@ class LocalBackend(duplicity.backend.Backend):
                 code = log.ErrorCode.backend_no_space
         extra = ' '.join([util.escape(x) for x in [file1, file2] if x])
         extra = ' '.join([op, extra])
-        if op != 'delete':
+        if op != 'delete' and op != 'query':
             log.FatalError(str(e), code, extra)
         else:
             log.Warn(str(e), code, extra)
 
-    def put(self, source_path, remote_filename = None):
+    def move(self, source_path, remote_filename = None):
+        self.put(source_path, remote_filename, rename_instead = True)
+
+    def put(self, source_path, remote_filename = None, rename_instead = False):
         if not remote_filename:
             remote_filename = source_path.get_filename()
         target_path = self.remote_pathdir.append(remote_filename)
         log.Info("Writing %s" % target_path.name)
-        """Try renaming first, copying if doesn't work"""
+        """Try renaming first (if allowed to), copying if doesn't work"""
         if not testing_in_progress:
+            if rename_instead:
+                try:
+                    source_path.rename(target_path)
+                except OSError:
+                    pass
+                except Exception, e:
+                    self.handle_error(e, 'put', source_path.name, target_path.name)
+                else:
+                    return
             try:
-                source_path.rename(target_path)
-            except OSError:
-                pass
+                target_path.writefileobj(source_path.open("rb"))
             except Exception, e:
                 self.handle_error(e, 'put', source_path.name, target_path.name)
-            else:
-                return
-        try:
-            target_path.writefileobj(source_path.open("rb"))
-        except Exception, e:
-            self.handle_error(e, 'put', source_path.name, target_path.name)
+
+            """If we get here, renaming failed previously"""
+            if rename_instead:
+                """We need to simulate its behaviour"""
+                source_path.delete()
 
     def get(self, filename, local_path):
         """Get file and put in local_path (Path object)"""
@@ -110,5 +119,17 @@ class LocalBackend(duplicity.backend.Backend):
             except Exception, e:
                 self.handle_error(e, 'delete', self.remote_pathdir.append(filename).name)
 
+    def _query_file_info(self, filename):
+        """Query attributes on filename"""
+        try:
+            target_file = self.remote_pathdir.append(filename)
+            if not os.path.exists(target_file.name):
+                return {'size': -1}
+            target_file.setdata()
+            size = target_file.getsize()
+            return {'size': size}
+        except Exception, e:
+            self.handle_error(e, 'query', target_file.name)
+            return {'size': None}
 
 duplicity.backend.register_backend("file", LocalBackend)
