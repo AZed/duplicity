@@ -29,6 +29,7 @@ socket.setdefaulttimeout(10)
 class BackendException(Exception): pass
 class ParsingException(Exception): pass
 
+
 def get_backend(url_string):
 	"""Return Backend object from url string, or None if not a url string
 
@@ -44,6 +45,7 @@ def get_backend(url_string):
 	try: backend_class = protocol_class_dict[pu.protocol]
 	except KeyError: log.FatalError("Unknown protocol '%s'" % (pu.protocol,))
 	return backend_class(pu)
+
 
 class ParsedUrl:
 	"""Contains information gleaned from a generic url"""
@@ -143,7 +145,6 @@ class Backend:
 		log.Log("Running '%s'" % commandline, 5)
 		if os.system(commandline):
 			raise BackendException("Error running '%s'" % commandline)
-
 
 	def run_command_persist(self, commandline):
 		"""Run given commandline with logging and error detection
@@ -630,13 +631,12 @@ class BitBucketBackend(Backend):
 		try:
 			bits = self.bucket[remote_filename]
 			bits.to_file(local_path.name)
-		except:
-			self._logException("Error getting file %s, attempting to "
-							   "re-connect.\n Got this Traceback:\n"
-							   % remote_filename)
+		except (socket.error, self.module.BitBucketResponseError), error:
+			sys.stderr.write("Network error '%s'. Trying to reconnect in %d seconds.\n"
+				% (str(error), self.SLEEP))
+			time.sleep(self.SLEEP)
 			self._connect()
-			bits = self.bucket[remote_filename]
-			bits.to_file(local_path.name)
+			return self.get(remote_filename, local_path)
 		local_path.setdata()
 
 	def list(self):
