@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -21,7 +23,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.5.02"
+version = "0.5.03"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -95,6 +97,9 @@ remove_time = None
 # If set, signifies the number of backups chains to keep when perfroming
 # a --remove-all-but-n-full.
 keep_chains = None
+
+# Don't actually do anything, but still report what would be done
+dry_run = False
 
 # If set to false, then do not encrypt files on remote system
 encryption = 1

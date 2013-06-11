@@ -18,28 +18,27 @@
 # along with duplicity; if not, write to the Free Software Foundation,
 # Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-"""MakeStatic and MakeClass
-
-These functions are used to make all the instance methods in a class
-into static or class methods.
-
+"""
+Miscellaneous utilities. 
 """
 
-class StaticMethodsError(Exception): pass
+import string
+import sys
+import traceback
 
-def MakeStatic(cls):
-    """turn instance methods into static ones
-
-    The methods (that don't begin with _) of any class that
-    subclasses this will be turned into static methods.
-
+def exception_traceback(limit = 50):
     """
-    for name in dir(cls):
-        if name[0] != "_":
-            cls.__dict__[name] = staticmethod(cls.__dict__[name])
+    @return A string representation in typical Python format of the
+            currently active/raised exception.
+    """
+    type, value, tb = sys.exc_info()
 
-def MakeClass(cls):
-    """Turn instance methods into classmethods.  Ignore _ like above"""
-    for name in dir(cls):
-        if name[0] != "_":
-            cls.__dict__[name] = classmethod(cls.__dict__[name])
+    lines = traceback.format_tb(tb, limit)
+    lines.extend(traceback.format_exception_only(type, value))
+    
+    str = "Traceback (innermost last):\n"
+    str = str + "%-20s %s" % (string.join(lines[:-1], ""),
+                                lines[-1])
+
+    return str
+        

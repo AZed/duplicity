@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -23,6 +25,7 @@ import duplicity.backend
 import duplicity.globals as globals
 import duplicity.log as log
 from duplicity.errors import *
+from duplicity.util import exception_traceback
 
 class BotoBackend(duplicity.backend.Backend):
     """
@@ -78,11 +81,11 @@ class BotoBackend(duplicity.backend.Backend):
                 if cfs_supported:
                     calling_format = SubdomainCallingFormat()
                 else:
-                    log.FataError("Use of new-style (subdomain) S3 bucket addressing was"
-                                  "requested, but does not seem to be supported by the "
-                                  "boto library. Either you need to upgrade your boto "
-                                  "library or duplicity has failed to correctly detect "
-                                  "the appropriate support.")
+                    log.FatalError("Use of new-style (subdomain) S3 bucket addressing was"
+                                   "requested, but does not seem to be supported by the "
+                                   "boto library. Either you need to upgrade your boto "
+                                   "library or duplicity has failed to correctly detect "
+                                   "the appropriate support.")
             else:
                 if cfs_supported:
                     calling_format = OrdinaryCallingFormat()
@@ -155,9 +158,14 @@ class BotoBackend(duplicity.backend.Backend):
             try:
                 key.set_contents_from_filename(source_path.name, {'Content-Type': 'application/octet-stream'})
                 return
-            except:
-                pass
-            log.Log("Upload '%s/%s' failed (attempt #%d)" % (self.straight_url, remote_filename, n), 1)
+            except Exception, e:
+                log.Log("Upload '%s/%s' failed (attempt #%d, reason: %s: %s)"
+                        "" % (self.straight_url,
+                              remote_filename,
+                              n,
+                              e.__class__.__name__,
+                              str(e)), 1)
+                log.Log("Backtrace of previous error: %s" % (exception_traceback(),), 6)
             time.sleep(30)
         log.Log("Giving up trying to upload %s/%s after %d attempts" % (self.straight_url, remote_filename, globals.num_retries), 1)
         raise BackendException("Error uploading %s/%s" % (self.straight_url, remote_filename))
@@ -171,9 +179,15 @@ class BotoBackend(duplicity.backend.Backend):
                 key.get_contents_to_filename(local_path.name)
                 local_path.setdata()
                 return
-            except:
-                pass
-            log.Log("Download %s/%s failed (attempt #%d)" % (self.straight_url, remote_filename, n), 1)
+            except Exception, e:
+                log.Log("Download %s/%s failed (attempt #%d, reason: %s: %s)"
+                        "" % (self.straight_url,
+                              remote_filename,
+                              n,
+                              e.__class__.__name__,
+                              str(e)), 1)
+                log.Log("Backtrace of previous error: %s" % (exception_traceback(),), 6)
+                
             time.sleep(30)
         log.Log("Giving up trying to download %s/%s after %d attempts" % (self.straight_url, remote_filename, globals.num_retries), 1)
         raise BackendException("Error downloading %s/%s" % (self.straight_url, remote_filename))

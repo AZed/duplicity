@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 
 import sys, os, getopt
 from distutils.core import setup, Extension
 
-version_string = "0.5.02"
+version_string = "0.5.03"
 
 if sys.version_info[:2] < (2,3):
     print "Sorry, duplicity requires version 2.3 or later of python"

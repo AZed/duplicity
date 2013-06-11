@@ -1,3 +1,5 @@
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
 # Copyright 2002 Ben Escoto
 #
 # This file is part of duplicity.
@@ -59,6 +61,7 @@ options = ["allow-source-mismatch",
            "archive-dir=",
            "asynchronous-upload",
            "current-time=",
+           "dry-run",
            "encrypt-key=",
            "exclude=",
            "exclude-device-files",
@@ -80,6 +83,8 @@ options = ["allow-source-mismatch",
            "include-filelist-stdin",
            "include-globbing-filelist=",
            "include-regexp=",
+           "log-fd=",
+           "log-file=",
            "no-encryption",
            "no-print-statistics",
            "null-separator",
@@ -184,6 +189,8 @@ def parse_cmdline_options(arglist):
             globals.async_concurrency = 1 # (yes 1, this is not a boolean)
         elif opt == "--current-time":
             dup_time.setcurtime(get_int(arg, "current-time"))
+        elif opt == "--dry-run":
+            globals.dry_run = True
         elif opt == "--encrypt-key":
             globals.gpg_profile.recipients.append(arg)
         elif opt in ["--exclude",
@@ -217,7 +224,7 @@ def parse_cmdline_options(arglist):
             gpg.gpg_options = (gpg.gpg_options + ' ' + arg).strip()
         elif opt in ["-h", "--help"]:
             usage();
-            sys.exit(1);
+            sys.exit(0);
         elif opt == "--include-filelist-stdin":
             select_opts.append(("--include-filelist", "standard input"))
             select_files.append(sys.stdin)
@@ -229,6 +236,19 @@ def parse_cmdline_options(arglist):
             globals.null_separator = 1
         elif opt == "--num-retries":
             globals.num_retries = int(arg)
+        elif opt == "--log-fd":
+            log_fd = int(arg)
+            if log_fd < 1:
+                command_line_error("log-fd must be greater than zero.")
+            try:
+                log.add_fd(log_fd)
+            except:
+                command_line_error("Cannot write to log-fd %s." % arg)
+        elif opt == "--log-file":
+            try:
+                log.add_file(arg)
+            except:
+                command_line_error("Cannot write to log-file %s." % arg)
         elif opt in ["-r", "--file-to-restore"]:
             globals.restore_dir = arg
         elif opt in ["-t", "--restore-time"]:
@@ -262,7 +282,10 @@ def parse_cmdline_options(arglist):
             print "duplicity", str(globals.version)
             sys.exit(0)
         elif opt in ["-v", "--verbosity"]:
-            log.setverbosity(int(arg))
+            verb = int(arg)
+            if verb < 0 or verb > 9:
+                command_line_error("verbosity must be between 0 and 9.")
+            log.setverbosity(verb)
         elif opt == "--volsize":
             globals.volsize = int(arg)*1024*1024
         else:
@@ -275,9 +298,9 @@ def parse_cmdline_options(arglist):
 
 def command_line_error(message):
     """Indicate a command line error and exit"""
-    sys.stderr.write("Command line error: %s\n" % (message,))
-    sys.stderr.write("Enter 'duplicity --help' for help screen.\n")
-    sys.exit(1)
+    log.FatalError("Command line error: %s\n"
+                   "Enter 'duplicity --help' for help screen.""" % (message,),
+                   log.ErrorCode.command_line)
 
 def usage():
     """Print terse usage info"""
@@ -323,6 +346,7 @@ Options:
     --allow-source-mismatch
     --archive-dir <path>
     --asynchronous-upload
+    --dry-run
     --encrypt-key <gpg-key-id>
     --exclude <shell_pattern>
     --exclude-device-files
@@ -342,6 +366,8 @@ Options:
     --include-filelist-stdin
     --include-globbing-filelist <filename>
     --include-regexp <regexp>
+    --log-fd <fd>
+    --log-file <filename>
     --no-encryption
     --no-print-statistics
     --null-separator
