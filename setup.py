@@ -3,7 +3,7 @@
 import sys, os, getopt
 from distutils.core import setup, Extension
 
-version_string = "0.4.12"
+version_string = "0.5.00"
 
 if sys.version_info[:2] < (2,3):
 	print "Sorry, duplicity requires version 2.3 or later of python"
@@ -40,8 +40,9 @@ setup(name="duplicity",
 	  maintainer="Kenneth Loafman",
 	  maintainer_email="kenneth@loafman.com",
 	  url="http://duplicity.nongnu.org/index.html",
-	  packages = ['duplicity'],
-	  package_dir = {"duplicity": "src"},
+	  packages = ['duplicity', 'duplicity.backends'],
+	  package_dir = {"duplicity" : "src",
+					 "duplicity.backends" : "src/backends"},
 	  ext_modules = [Extension("duplicity._librsync",
 							   ["_librsyncmodule.c"],
 							   include_dirs=incdir_list,
