@@ -1,3 +1,25 @@
+New in v0.5.11 (2009/03/08)
+---------------------------
+bug #25787: Usernames with @-sign are not handled properly
+https://savannah.nongnu.org/bugs/?25787
+
+Bug #333057: GnuPGInterface prints exit statuses incorrectly
+https://bugs.launchpad.net/bugs/333057
+
+bug #25696: ncftp error w/0.5.09 -- nested target directories
+https://savannah.nongnu.org/bugs/?25696
+
+bug #15664: When restoring backup: "OverflowError:
+            long int too large to convert to int"
+https://savannah.nongnu.org/bugs/?15664
+
+patch #6761: More robust pexpect handling of SSH authentication
+https://savannah.nongnu.org/patch/?6761
+
+patch #6762: Wrong exit() used for 2.3/2.4 Python
+https://savannah.nongnu.org/patch/?6762
+
+
 New in v0.5.10 (2009/03/01)
 ---------------------------
 The default filename format has changed from W3 style to a long
@@ -9,8 +31,9 @@ Duplicity still recognizes the old long filename format, and will
 continue incremental backup chains if found.  The old format is
 still available via the --old-filenames option (pending deprecation).
 
-Users of --short-filenames should stop using this option on their next
-full backup.  The new filenames will be compatible with your system.
+Users of --short-filenames or --time-separator should stop using these
+options on their next full backup.  The new filenames are compatible
+with your system.
 
 The following options are pending deprecation and will be removed in a
 future release:

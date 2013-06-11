@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.5.10 released March 01, 2009
+# Version 0.5.11 released March 08, 2009
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -596,7 +596,7 @@ if __name__ == "__main__":
                        log.ErrorCode.user_error,
                        e.__class__.__name__)
     except SystemExit, e:
-        exit(e)
+        sys.exit(e)
     except Exception, e:
         log.FatalError("%s" % (''.join(traceback.format_exception(*sys.exc_info()))),
                        log.ErrorCode.exception,
