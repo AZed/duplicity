@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.3.RC9"
+version = "0.4.3.RC10"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -93,3 +93,9 @@ encryption = 1
 
 # volume size. default 5M
 volsize = 5*1024*1024
+
+# network timeout value
+timeout = 30
+
+# FTP data connection type
+ftp_connection = 'passive'
