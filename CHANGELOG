@@ -1,3 +1,39 @@
+New in v0.5.13 (2009/03/26)
+---------------------------
+Add more error detection to FTP backend.
+
+Fix backends so sleep does not occur after last retry.
+
+Fix so BackendException does not cause traceback except when
+verbosity is at level 5 or higher (Info level).
+
+Adjust log levels so some errors show up with default verbosity.
+
+Fixed bug where an extra comma caused a traceback during a warning
+about unnecessary sig files.  Plus fixed print so the real filename
+would show up and not a Python object representation.
+
+Add Changelog.GNU to website and distribution to add a bit of detail
+showing the CVS changes via rcs2log.  Added dist/mkGNUChangelog.sh.
+
+bug #22908: Don't block gpg-agent
+https://savannah.nongnu.org/bugs/?22908
+
+To fix the above, --use-agent was added as a command line option.
+When this is specified and asymetric encryption is enabled, then all
+GnuPG passphrases will come from the gpg-agent or equivalent program
+and no passphrase prompt will be issued.
+
+bug #25787: Usernames with escaped @-sign are not handled properly
+https://savannah.nongnu.org/bugs/?25787
+
+bug #25976: Password requested when not needed.
+https://savannah.nongnu.org/bugs/?25976
+
+patch #6787: import duplicity.GnuPGInterface explicitly
+https://savannah.nongnu.org/patch/?6787
+
+
 New in v0.5.12 (2009/03/15)
 ---------------------------
 bug #25838: Backup fails / ncftp - remote file already exists

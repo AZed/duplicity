@@ -30,6 +30,7 @@ import time
 import re
 import getpass
 import gettext
+import urllib
 
 import duplicity.dup_temp as dup_temp
 import duplicity.dup_threading as dup_threading
@@ -168,6 +169,10 @@ class ParsedUrl:
             self.username = pu.username
         except:
             raise InvalidBackendURL("Syntax error (username) in: %s" % url_string)
+        if self.username:
+            self.username = urllib.unquote(pu.username)
+        else:
+            self.username = None
 
         try:
             self.password = pu.password
@@ -306,6 +311,9 @@ class Backend:
         """
         private = self.munge_password(commandline)
         for n in range(1, globals.num_retries+1):
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
             log.Log(gettext.ngettext("Running '%s' (attempt #%d)",
                                      "Running '%s' (attempt #%d)", n) %
                                      (private, n), 5)
@@ -314,7 +322,6 @@ class Backend:
             log.Log(gettext.ngettext("Running '%s' failed (attempt #%d)",
                                      "Running '%s' failed (attempt #%d)", n) %
                                      (private, n), 1)
-            time.sleep(30)
         log.Log(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
                                  "Giving up trying to execute '%s' after %d attempts",
                                  globals.num_retries) % (private, globals.num_retries),
@@ -341,6 +348,9 @@ class Backend:
         """
         private = self.munge_password(commandline)
         for n in range(1, globals.num_retries+1):
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
             log.Log(_("Reading results of '%s'") % private, 5)
             fout = os.popen(commandline)
             results = fout.read()
@@ -354,7 +364,6 @@ class Backend:
             log.Log(gettext.ngettext("Running '%s' failed (attempt #%d)",
                                      "Running '%s' failed (attempt #%d)", n) %
                                      (private, n), 1)
-            time.sleep(30)
         log.Log(gettext.ngettext("Giving up trying to execute '%s' after %d attempt",
                                  "Giving up trying to execute '%s' after %d attempts",
                                  globals.num_retries) % (private, globals.num_retries),

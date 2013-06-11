@@ -83,6 +83,9 @@ class SSHBackend(duplicity.backend.Backend):
     def run_scp_command(self, commandline):
         """ Run an scp command, responding to password prompts """
         for n in range(1, globals.num_retries+1):
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
             log.Log("Running '%s' (attempt #%d)" % (commandline, n), 5)
             child = pexpect.spawn(commandline, timeout = None)
             cmdloc = 0
@@ -99,10 +102,10 @@ class SSHBackend(duplicity.backend.Backend):
                                           "authenticity"])
                     log.Log("State = %s, Before = '%s'" % (state, child.before.strip()), 9)
                     if match == 0:
-                        log.Log("Failed to authenticate", 5)
+                        log.Log("Failed to authenticate", 1)
                         break
                     elif match == 1:
-                        log.Log("Timeout waiting to authenticate", 5)
+                        log.Log("Timeout waiting to authenticate", 1)
                         break
                     elif match == 2:
                         child.sendline(self.password)
@@ -123,7 +126,7 @@ class SSHBackend(duplicity.backend.Backend):
                     if match == 0:
                         break
                     elif match == 1:
-                        log.Log("Timeout waiting for response", 5)
+                        log.Log("Timeout waiting for response", 1)
                         break
                     elif match == 2:
                         state = "stalled"
@@ -138,7 +141,7 @@ class SSHBackend(duplicity.backend.Backend):
                     if match == 0:
                         break
                     elif match == 1:
-                        log.Log("Stalled for too long, aborted copy", 5)
+                        log.Log("Stalled for too long, aborted copy", 1)
                         break
                     elif match == 2:
                         state = "copying"
@@ -146,7 +149,6 @@ class SSHBackend(duplicity.backend.Backend):
             if child.exitstatus == 0:
                 return
             log.Log("Running '%s' failed (attempt #%d)" % (commandline, n), 1)
-            time.sleep(30)
         log.Log("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries), 1)
         raise BackendException("Error running '%s'" % commandline)
 
@@ -162,6 +164,9 @@ class SSHBackend(duplicity.backend.Backend):
         max_response_len = max([len(p) for p in responses])
         responses = [pexpect.EOF] + responses
         for n in range(1, globals.num_retries+1):
+            if n > 1:
+                # sleep before retry
+                time.sleep(30)
             log.Log("Running '%s' (attempt #%d)" % (commandline, n), 5)
             child = pexpect.spawn(commandline, timeout = None, maxread=maxread)
             cmdloc = 0
@@ -199,7 +204,6 @@ class SSHBackend(duplicity.backend.Backend):
             if child.exitstatus == 0:
                 return res
             log.Log("Running '%s' failed (attempt #%d)" % (commandline, n), 1)
-            time.sleep(30)
         log.Log("Giving up trying to execute '%s' after %d attempts" % (commandline, globals.num_retries), 1)
         raise BackendException("Error running '%s'" % commandline)
 

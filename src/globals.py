@@ -24,7 +24,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.5.12"
+version = "0.5.13"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -140,3 +140,7 @@ imap_full_address = False
 
 # Whether the old filename format is in effect.
 old_filenames = False
+
+# Wheter to specify --use-agent in GnuPG options
+use_agent = False
+
