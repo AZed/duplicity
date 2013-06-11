@@ -22,6 +22,7 @@
 import os
 import os.path
 import urllib
+import re
 
 import duplicity.backend
 from duplicity import globals
@@ -101,19 +102,12 @@ class FTPBackend(duplicity.backend.Backend):
 
     def list(self):
         """List files in directory"""
-        # try for a long listing to avoid connection reset
-        commandline = "ncftpls %s -l '%s'" % \
-            (self.flags, self.url_string)
+        # Do a long listing to avoid connection reset
+        commandline = "ncftpls %s -l '%s'" % (self.flags, self.url_string)
         l = self.popen_persist(commandline).split('\n')
         l = filter(lambda x: x, l)
-        if not l:
-            return l
-        # if long list is not empty, get short list of names only
-        commandline = "ncftpls %s '%s'" % \
-            (self.flags, self.url_string)
-        l = self.popen_persist(commandline).split('\n')
-        l = [x.split()[-1] for x in l if x]
-        return l
+        # Look for our files as the last element of a long list line
+        return [x.split()[-1] for x in l]
 
     def delete(self, filename_list):
         """Delete files in filename_list"""
