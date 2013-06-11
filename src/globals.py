@@ -21,7 +21,7 @@
 import socket, sys
 
 # The current version of duplicity
-version = "0.4.3.RC4"
+version = "0.4.3.RC5"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
