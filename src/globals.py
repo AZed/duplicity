@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.08a"
+version = "0.6.08b"
 
 # The name of the current host, or None if it cannot be set
 hostname = socket.getfqdn()
@@ -65,6 +65,9 @@ select = None
 # Set to GPGProfile that will be used to compress/uncompress encrypted
 # files.  Replaces encryption_keys, sign_key, and passphrase settings.
 gpg_profile = None
+
+# Options to pass to gpg
+gpg_options = ''
 
 # If true, filelists and directory statistics will be split on
 # nulls instead of newlines.
